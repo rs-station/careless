@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+
+from os import environ
+import pandas as pd
+from tqdm import tqdm
+from gemmi import UnitCell
+from careless.parser import laue_parser as parser
+from reciprocalspaceship.utils.rfree import *
+from reciprocalspaceship.utils.asu import hkl_is_absent
+import reciprocalspaceship as rs
+import tensorflow as tf
+import numpy as np
+from careless.utils.laue import expand_harmonics
+from careless.models.merging.variational import *
+
+
+#TODO: See if we still need this and decide if it should be a parser arg
+max_nancount = 20
+
+parser = parser.parse_args()
+filenames = parser.reflection_filename
+
+#Suppress most tensorflow output
+environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
+
+#Disable the GPU if requested. This can be useful for training multiple models at the same time
+if parser.disable_gpu:
+    environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+data = []
+print("Loading Mtz files...")
+a,b,c,alpha,beta,gamma=0.,0.,0.,0.,0.,0.
+for i,inFN in tqdm(enumerate(filenames)):
+    ds = rs.read_mtz(inFN)
+    spacegroup = ds.spacegroup
+    ds['file_id'] = i
+    a += ds.cell.a/len(filenames)
+    b += ds.cell.b/len(filenames)
+    c += ds.cell.c/len(filenames)
+    alpha += ds.cell.alpha/len(filenames)
+    beta  += ds.cell.beta/len(filenames)
+    gamma += ds.cell.gamma/len(filenames)
+    data.append(ds)
+data = pd.concat(data)
+data.cell = UnitCell(a, b, c, alpha, beta, gamma)
+data.spacegroup = spacegroup 
+data.compute_dHKL(inplace=True)
+
+del(data['M/ISYM'])
+
+#Set a potentially different spacegroup for merging
+if parser.space_group_number is not None:
+    data.spacegroup = rs.gemmi.SpaceGroup(parser.space_group_number)
+
+print("Done.")
+
+wavelength_key = parser.wavelength_key
+if wavelength_key not in data:
+    e = KeyError(f'Wavelength key "{parser.wavelength_key}" not found in Mtz files. Make sure to provide the correct wavelength key with "--wavelength-key".')
+    raise e
+
+metadata_keys = parser.metadata_keys
+for key in metadata_keys:
+    allowed_keys = list(data.keys()) + data.index.names
+    if key not in allowed_keys:
+        e = KeyError(f'Metadata key "{key}" not found in Mtz files.')
+        raise e
+
+output_filename = parser.output_mtz
+if len(output_filename) < 5  or output_filename[-4:] != '.mtz':
+    raise ValueError(f"{output_filename} is a valid output filename. Input filename must end in '.mtz'")
+output_base = output_filename[:-4]
+
+maxiter = parser.iterations
+learning_rate = parser.learning_rate 
+
+min_wavelength,max_wavelength = parser.wavelength_range
+if min_wavelength is None:
+    min_wavelength = data[parser.wavelength_key].min()
+if max_wavelength is None:
+    max_wavelength = data[parser.wavelength_key].max()
+
+dmin = parser.dmin if parser.dmin is not None else data['dHKL'].min()
+data = data[data.dHKL >= dmin]
+np.random.seed(parser.seed)
+tf.random.set_seed(parser.seed)
+
+if not parser.equate_batches:
+    data['BATCH'] = data.groupby(['BATCH', 'file_id']).ngroup()
+
+data['image_id'] = data.groupby(['BATCH', 'file_id']).ngroup()
+#Set up half datasets for crossvalidation
+data['half'] = (np.random.random(data['image_id'].max() + 1) > 0.5)[data['image_id']] 
+
+cutoff = parser.isigi_cutoff
+if cutoff is not None:
+    data = data[data.I/data.SigI >= cutoff]
+
+stashed = data.copy()
+data = expand_harmonics(data, dmin, wavelength_key)
+
+#Remove harmonics outside the wavelength range
+data = data[(data[wavelength_key] >= min_wavelength) & (data[wavelength_key] <= max_wavelength)]
+
+#Remove systematic absences for merging space group
+absent = hkl_is_absent(data.get_hkls(), data.spacegroup)
+data = data[~absent]
+
+#Move the hkls back to the asu for merging
+H,_ = rs.utils.hkl_to_asu(data.get_hkls(), data.spacegroup)
+data['H'],data['K'],data['L'] = H.T
+
+data['epsilon'] = rs.utils.compute_structurefactor_multiplicity(data[['H', 'K', 'L']].to_numpy(), spacegroup)
+data.set_index(['H', 'K', 'L'], inplace=True)
+data.label_centrics(inplace=True)
+data['dHKL'] = data['dHKL']**-2.
+data['FRIEDEL'] = rs.utils.hkl_to_asu(data.get_hkls(), data.spacegroup)[1] % 2
+
+if parser.merge_files:
+    data['experiment_id'] = 0
+else:
+    data['experiment_id'] = data['file_id']
+
+def prep_indices(df):
+    df = df.reset_index()
+    df['miller_id'] = df.groupby(['H', 'K', 'L', 'experiment_id']).ngroup()
+    df['image_id'] = df.groupby(['BATCH', 'experiment_id']).ngroup()
+    df['ray_id'] = df.groupby(['H_0','K_0', 'L_0']).ngroup()
+    df['observation_id'] = df.groupby(['ray_id', 'image_id']).ngroup()
+    return df
+
+def train_model(df, parser):
+    df = prep_indices(df)
+    corrections = []
+
+    from careless.models.scaling.nn import SequentialScaler
+
+    if df.experiment_id.max() > 0:
+        Xstar = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
+    else:
+        Xstar = df[metadata_keys].to_numpy().astype(np.float32) 
+
+    Xstar = (Xstar - Xstar.mean(0))/Xstar.std(0)
+
+    corrections.append(SequentialScaler(Xstar, layers=20))
+
+    if parser.weights:
+        merger = WeightedVariationalHarmonicMergingModel
+    else:
+        merger = VariationalHarmonicMergingModel
+
+
+    iobs = df.groupby('observation_id').first().I.to_numpy().astype(np.float32)
+    sigiobs = df.groupby('observation_id').first().SigI.to_numpy().astype(np.float32)
+    #sigiobs = sigiobs/iobs.std()
+    #iobs = iobs/iobs.std()
+
+    epsilons = df.groupby('miller_id').first()['epsilon'].to_numpy().astype(np.float32)
+    merger = merger(
+        iobs,
+        sigiobs,
+        df.miller_id.to_numpy().astype(np.int64),
+        epsilons,
+        df.groupby('miller_id').first()['CENTRIC'].to_numpy().astype(np.float32), 
+        corrections,
+        df['observation_id'].to_numpy().astype(np.int64),
+        parser.studentt_dof
+    )
+
+    optim = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
+
+    losses = []
+    print(f"{'#'*80}")
+    print(f'Optimizing model')
+    print(f"{'#'*80}")
+    loss_ = None
+    chol_fails = 0
+    nancount = 0
+    for _ in tqdm(range(maxiter)):
+        loss = merger.train_step(optim, s=parser.mc_iterations)
+        losses.append(float(loss))
+        if not tf.math.is_finite(loss):
+            merger.rescue_variational_distributions()
+            print(f"WARNING! Resetting stuck variational distributions!")
+            nancount += 1
+        else:
+            nancount = 0
+        loss_ = loss
+
+        if nancount > max_nancount:
+            print(f"WARNING! Optimization terminated due to too many failed gradient steps. Try decreasing the learning rate.")
+            break
+
+    results = pd.DataFrame()
+    results['E'] = merger.variational_distribution.mean()
+    results['SigE'] = merger.variational_distribution.stddev()
+    results['F'] = epsilons*results['E']
+    results['SigF'] = epsilons*results['SigE']
+    results['dHKL'] = df.groupby('miller_id').first()['dHKL']
+    results['H'] = df.groupby('miller_id')['H'].first()  
+    results['K'] = df.groupby('miller_id')['K'].first()  
+    results['L'] = df.groupby('miller_id')['L'].first()  
+    results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
+    cell = data.cell
+    keys = ['H', 'K', 'L', 'E', 'SigE', 'F', 'SigF', 'experiment_id']
+    results = rs.DataSet(results[keys], spacegroup=spacegroup, cell=cell) 
+    results.infer_mtz_dtypes(inplace=True)
+    results.set_index(['H', 'K', 'L'], inplace=True)
+    rfree_template_filename = parser.rfree_template
+    if rfree_template_filename is not None:
+        rfree_template = rs.read_mtz(rfree_template_filename)
+        copy_rfree(results, rfree_template, inplace=True)
+        results[np.isnan(results['R-free-flags'])] = 0
+    return merger,losses,results
+
+
+print("Merging and refining full data set ...")
+merger,losses,results = train_model(data, parser)
+np.save(output_filename[:-4] + "_losses.npy", losses)
+
+for i,ds in results.groupby('experiment_id'):
+    ds = ds.drop_duplicates() #TODO: This is probably a bug investigate this further. I am not sure why there are duplicates in here. It may have to do with harmonic deconvolution or the presence of multiple experiment_ids.
+    rs.io.write_mtz(ds, output_filename.split('.')[0] + f'_{i}.mtz')
+
+c = merger.corrections[0]
+c.save(output_filename[:-4] + "_correction_weights.h5", save_format='h5')
+
+print("Merging and refining first half data set ...")
+half1 = data[data['half']]
+_,_,results1= train_model(half1, parser)
+rs.io.write_mtz(results1, output_filename[:-4] + '_half1.mtz')
+
+print("Merging and refining second half data set ...")
+half2 = data[~data['half']]
+_,_,results2 = train_model(half2, parser)
+rs.io.write_mtz(results2, output_filename[:-4] + '_half2.mtz')

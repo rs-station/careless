@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+import pandas as pd
+import numpy as np
+from tqdm.autonotebook import tqdm
+import reciprocalspaceship as rs
+from reciprocalspaceship.utils.asu import hkl_to_asu
+import argparse
+
+
+
+def parse_ii_inp_file_pairs(ii_filenames, inp_filenames, spacegroup=None):
+    data = None
+    sg_number = None
+    p = []
+    cell = np.zeros(6)
+    for file_number,(iiFN,inpFN) in enumerate(tqdm(list(zip(ii_filenames, inp_filenames)))):
+        df = rs.read_precognition(iiFN)
+        with open(inpFN) as f:
+            for line in f:
+                if "Crystal" in line:
+                    cell +=  np.array(list(map(float, line.split()[1:7])))/len(ii_filenames)
+                    if spacegroup is None:
+                        sg_number  = int(line.split()[7])
+                if "Pixel" in line:
+                    pixel_x = float(line.split()[1])
+                    pixel_y = float(line.split()[2])
+        del(df['Resolution'])
+        df['BATCH'] = file_number
+
+        #Purge multiples from Precognition processing
+        #These will be recomputed during merging later
+        df = df.reset_index().groupby(['X', 'Y'], as_index=False).first()
+        data = pd.concat((data, df))
+
+    cell = rs.dataset.gemmi.UnitCell(*cell)
+    if sg_number is not None:
+        spacegroup = rs.dataset.gemmi.find_spacegroup_by_number(sg_number)
+    data = rs.DataSet(data, spacegroup=spacegroup, cell=cell) 
+
+    del(data['Multiplicity'])
+    data.set_index(['H', 'K', 'L'], inplace=True)
+    data.infer_mtz_dtypes(inplace=True)
+    return data
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input_files', nargs='+', help='Input ii and inp filenames.', type=str)
+    parser.add_argument('-o', '--output', help='Output mtz filename', type=str, default='output.mtz', metavar='output')
+    parser = parser.parse_args()
+
+    files = sorted(parser.input_files)
+    input_files = [i for i in files if i[-3:] == 'inp']
+    intensity_files = [i for i in files if i[-3:] == '.ii']
+    intensity_files = [i for i in intensity_files if i[:-3] + '.inp' in input_files]
+    input_files = [i for i in input_files if i[:-4] + '.ii' in intensity_files]
+    ds = parse_ii_inp_file_pairs(intensity_files, input_files)
+    from IPython import embed 
+    embed()
+    ds.write_mtz(parser.output)
