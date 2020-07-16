@@ -1,0 +1,228 @@
+#!/usr/bin/env python
+
+from os import environ
+from glob import glob
+import pickle
+import pandas as pd
+from tqdm import tqdm
+environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
+from careless.precognition import parse_ii_inp_file_pairs
+from careless.parser import parser,compile_corrections
+from reciprocalspaceship.utils.rfree import *
+import reciprocalspaceship as rs
+import tensorflow as tf
+import numpy as np
+from careless.models.merging.variational import *
+
+
+min_wavelength = 1.02
+max_wavelength = 1.25
+max_chol_fails = 10
+max_nancount = 20
+
+parser = parser.parse_args()
+np.random.seed(parser.seed)
+
+
+if parser.disable_gpu:
+    environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+maxiter = parser.max_iter
+convergence_tol = parser.rel_tol
+learning_rate = parser.learning_rate 
+
+output_filename = parser.output_mtz
+if len(output_filename) < 5  or output_filename[-4:] != '.mtz':
+    raise ValueError(f"{output_filename} is a valid output filename. Input filename must end in '.mtz'")
+output_base = output_filename[:-4]
+
+spacegroup = rs.dataset.gemmi.find_spacegroup_by_number(parser.space_group_number)
+dmin = parser.dmin
+
+print("Parsing input files ...")
+fx = parser.polarization_fraction_x
+
+data_sets = []
+
+if parser.templates is not None:
+    for experiment_id,template in enumerate(parser.templates.split(',')):
+        filenames = glob(template)
+        ii_files  = sorted([i for i in filenames if i[-3:]=='.ii'])
+        inp_files = sorted([i for i in filenames if i[-3:]=='inp'])
+        data = parse_ii_inp_file_pairs(ii_files, inp_files, dmin=dmin, spacegroup=spacegroup, polarization_fraction_x=fx)
+        data = data[data.Multiplicity == 1]
+        data['experiment_id'] = experiment_id
+        data_sets.append(data)
+else: #TODO: fix reflection_filename and --templates arg
+    filenames = parser.reflection_filename
+    ii_files  = sorted([i for i in filenames if i[-3:]=='.ii'])
+    inp_files = sorted([i for i in filenames if i[-3:]=='inp'])
+    data = parse_ii_inp_file_pairs(ii_files, inp_files, dmin=dmin, spacegroup=spacegroup, polarization_fraction_x=fx)
+    data = data[data.Multiplicity == 1]
+    data['experiment_id'] = 0
+    data_sets.append(data)
+
+data = pd.concat(data_sets)
+
+#Set up half datasets
+data['half'] = (np.random.random(data['image_id'].max() + 1) > 0.5)[data['image_id']] 
+
+cutoff = parser.isigi_cutoff
+if cutoff is not None:
+    data = data[data.I/data.SigI >= cutoff]
+
+# Apply polarization correction
+# TODO: control this with a parser arg.
+#data.I = data.I * data.Polarization
+#data.SigI = data.SigI * data.Polarization
+data['epsilon'] = rs.utils.compute_structurefactor_multiplicity(data[['H', 'K', 'L']].to_numpy(), spacegroup)
+data = rs.DataSet(data)
+data.spacegroup = spacegroup
+data.set_index(['H', 'K', 'L'], inplace=True)
+data.label_centrics(inplace=True)
+
+
+def prep_indices(df):
+    df = df.reset_index()
+    df['miller_id'] = df.groupby(['H', 'K', 'L', 'experiment_id']).ngroup()
+    df['crystal_id'] = df.groupby('crystal_id').ngroup()
+    df['image_id'] = df.groupby(['crystal_id', 'Image', 'experiment_id']).ngroup()
+    df['ray_id'] = df.groupby(['H_0','K_0', 'L_0']).ngroup()
+    df['observation_id'] = df.groupby(['ray_id', 'image_id']).ngroup()
+    return df
+
+def train_model(df, parser):
+    df = prep_indices(df)
+    corrections = []
+
+    from careless.models.scaling.nn import DenseScaler
+    metadata_keys = ['Peak_Wavelength', 'dHKL', 'pixel_x', 'pixel_y', 'Image']
+    #metadata_keys = ['Peak_Wavelength', 'pixel_x', 'pixel_y', 'Image']
+    if df.experiment_id.max() > 0:
+        Xstar = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
+    else:
+        Xstar = df[metadata_keys].to_numpy().astype(np.float32) 
+    #Xstar[:,1] = Xstar[:,1]**-2. #Use 1/d^2
+    Xstar = (Xstar - Xstar.mean(0))/Xstar.std(0)
+
+    corrections.append(DenseScaler(Xstar, layers=5))
+
+    merger = VariationalHarmonicMergingModel
+
+    epsilons = df.groupby('miller_id').first()['epsilon'].to_numpy().astype(np.float32)
+    merger = merger(
+        df.groupby('observation_id').first().I.to_numpy().astype(np.float32),
+        df.groupby('observation_id').first().SigI.to_numpy().astype(np.float32),
+        df.miller_id.to_numpy().astype(np.int64),
+        epsilons,
+        df.groupby('miller_id').first()['CENTRIC'].to_numpy().astype(np.float32), 
+        corrections,
+        df['observation_id'].to_numpy().astype(np.int64),
+        parser.studentt_dof
+    )
+
+    optim = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
+
+    losses = []
+    print(f"{'#'*80}")
+    print(f'Optimizing model')
+    print(f"{'#'*80}")
+    loss_ = None
+    chol_fails = 0
+    nancount = 0
+    for _ in tqdm(range(maxiter)):
+        try:
+            loss = merger.train_step(optim, s=parser.mc_iterations)
+            losses.append(float(loss))
+            #Test for convergence
+            if loss_ is not None:
+                delta = loss - loss_
+                if (np.abs(delta) / loss) < convergence_tol:
+                    print(f"Attained relative convergence tolerance of {convergence_tol}")
+                    break
+            if not tf.math.is_finite(loss):
+                merger.rescue_variational_distributions()
+                nancount += 1
+            else:
+                nancount = 0
+            loss_ = loss
+        #This will catch occasional invalid cholesky decompositions
+        except tf.python.framework.errors_impl.InvalidArgumentError:
+            chol_fails += 1
+            if chol_fails > max_chol_fails:
+                print(f"WARNING! Optimization terminated due to {chol_fails} failed cholesky decompositions. Try decreasing the learning rate.")
+                break
+        if nancount > max_nancount:
+            print(f"WARNING! Optimization terminated due to too many failed gradient steps. Try decreasing the learning rate.")
+            from IPython import embed
+            embed(colors = 'Linux')
+            break
+
+    results = pd.DataFrame()
+    #Sigma = merger.corrections[0].Ystar.numpy()
+    results['E'] = merger.get_normalized_structure_factors()
+    results['SigE'] = merger.get_normalized_structure_factor_errors()
+    results['F'] = epsilons*results['E']
+    results['SigF'] = epsilons*results['SigE']
+    results['dHKL'] = df.groupby('miller_id').first()['dHKL']
+    results['H'] = df.groupby('miller_id')['H'].first()  
+    results['K'] = df.groupby('miller_id')['K'].first()  
+    results['L'] = df.groupby('miller_id')['L'].first()  
+    results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
+    cell = rs.dataset.gemmi.UnitCell(*df[['A', 'B', 'C', 'alpha', 'beta', 'gamma']].mean().to_list())
+    keys = ['H', 'K', 'L', 'E', 'SigE', 'F', 'SigF', 'experiment_id']
+    results = rs.DataSet(results[keys], spacegroup=spacegroup, cell=cell) 
+    results['H'] = results['H'].astype(rs.dtypes.HKLIndexDtype())
+    results['K'] = results['K'].astype(rs.dtypes.HKLIndexDtype())
+    results['L'] = results['L'].astype(rs.dtypes.HKLIndexDtype())
+    results['experiment_id'] = results['experiment_id'].astype(rs.dtypes.MTZIntDtype())
+    results['E'] = results['E'].astype(rs.dtypes.ScaledStructureFactorAmplitudeDtype())
+    results['SigE'] = results['SigE'].astype(rs.dtypes.StandardDeviationDtype())
+    results['F'] = results['F'].astype(rs.dtypes.StructureFactorAmplitudeDtype())
+    results['SigF'] = results['SigF'].astype(rs.dtypes.StandardDeviationDtype())
+    results.set_index(['H', 'K', 'L'], inplace=True)
+    rfree_template_filename = parser.rfree_template
+    if rfree_template_filename is not None:
+        rfree_template = rs.read_mtz(rfree_template_filename)
+        copy_rfree(results, rfree_template, inplace=True)
+        results[np.isnan(results['R-free-flags'])] = 0
+    return merger,losses,results
+
+data = data[(data.Peak_Wavelength >= min_wavelength) & (data.Peak_Wavelength <= max_wavelength)]
+
+#TODO REMOVE REMOVE REMOVE
+#from scipy.interpolate import interp1d
+#spectrum_filename = "/home/kmdalton/xtal/laue/PYP/difference_map/doeke_test/spectrum.txt"
+#precog_wavenorm = pd.read_csv(spectrum_filename)
+#x,y = precog_wavenorm['wavelength'].to_numpy(dtype=np.float32), precog_wavenorm['intensity'].to_numpy(dtype=np.float32)
+##Pad the ends with zeros to make sure everything is in the interpolation range
+#x = np.hstack(([min_wavelength-0.1], x, [max_wavelength+0.1]))
+#y = np.hstack(([0], y, [0]))
+#data['precog_wavenorm'] = interp1d(x, y, kind='cubic')(data['Peak_Wavelength'].to_numpy(dtype=np.float32))
+#data = data[data['precog_wavenorm'] >1e-10]
+#data['Iobs'] =    data['I']/data['precog_wavenorm']
+#data['SigI'] = data['SigI']/data['precog_wavenorm']
+
+print("Merging and refining full data set ...")
+merger,losses,results = train_model(data, parser)
+np.save(output_filename[:-4] + "_losses.npy", losses)
+#with open(output_filename[:-4] + '_merger.pickle', 'wb') as picklefile: 
+#    pickle.dump(merger, picklefile)
+
+for i,ds in results.groupby('experiment_id'):
+    ds = ds.drop_duplicates() #TODO: This is probably a bug investigate this further. I am not sure why there are duplicates in here. It may have to do with harmonic deconvolution or the presence of multiple experiment_ids.
+    rs.io.write_mtz(ds, output_filename.split('.')[0] + f'_{i}.mtz')
+
+c = merger.corrections[0]
+c.save(output_filename[:-4] + "_correction_weights.h5", save_format='h5')
+
+print("Merging and refining first half data set ...")
+half1 = data[data['half']]
+_,_,results1= train_model(half1, parser)
+rs.io.write_mtz(results1, output_filename[:-4] + '_half1.mtz')
+
+print("Merging and refining second half data set ...")
+half2 = data[~data['half']]
+_,_,results2 = train_model(half2, parser)
+rs.io.write_mtz(results2, output_filename[:-4] + '_half2.mtz')
