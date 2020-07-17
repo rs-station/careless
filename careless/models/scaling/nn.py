@@ -21,9 +21,9 @@ class SequentialScaler(tf.keras.models.Sequential):
 
         self.add(tf.keras.Input(shape=d))
         for i in range(layers):
-            self.add(tf.keras.layers.Dense(d, activation='elu'))
+            self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU()))
 
-        self.add(tf.keras.layers.Dense(2, activation='relu'))
+        self.add(tf.keras.layers.Dense(2, activation='linear'))
 
     @property
     def loc(self):
@@ -33,6 +33,7 @@ class SequentialScaler(tf.keras.models.Sequential):
     @property
     def scale(self):
         loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        scale = tf.math.softplus(scale)
         return scale
 
     @property
@@ -41,6 +42,6 @@ class SequentialScaler(tf.keras.models.Sequential):
 
     def __call__(self):
         loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
-        #scale = tf.math.softplus(scale)
+        scale = tf.math.softplus(scale)
         return tfd.Normal(loc, scale).sample()
 

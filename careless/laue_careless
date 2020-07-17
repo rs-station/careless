@@ -4,14 +4,14 @@ from os import environ
 import pandas as pd
 from tqdm import tqdm
 from gemmi import UnitCell
-from careless.parser import laue_parser as parser
+from restoration_software.parser import laue_parser as parser
 from reciprocalspaceship.utils.rfree import *
 from reciprocalspaceship.utils.asu import hkl_is_absent
 import reciprocalspaceship as rs
 import tensorflow as tf
 import numpy as np
-from careless.utils.laue import expand_harmonics
-from careless.models.merging.variational import *
+from restoration_software.utils.laue import expand_harmonics
+from restoration_software.models.merging.variational import *
 
 
 #TODO: See if we still need this and decide if it should be a parser arg
@@ -81,6 +81,7 @@ if max_wavelength is None:
     max_wavelength = data[parser.wavelength_key].max()
 
 dmin = parser.dmin if parser.dmin is not None else data['dHKL'].min()
+harmonic_dmin = 0.8*dmin #TODO: should this be a parser arg? it probably shouldn't be hardcoded?
 data = data[data.dHKL >= dmin]
 np.random.seed(parser.seed)
 tf.random.set_seed(parser.seed)
@@ -97,7 +98,7 @@ if cutoff is not None:
     data = data[data.I/data.SigI >= cutoff]
 
 stashed = data.copy()
-data = expand_harmonics(data, dmin, wavelength_key)
+data = expand_harmonics(data, harmonic_dmin, wavelength_key)
 
 #Remove harmonics outside the wavelength range
 data = data[(data[wavelength_key] >= min_wavelength) & (data[wavelength_key] <= max_wavelength)]
@@ -133,7 +134,7 @@ def train_model(df, parser):
     df = prep_indices(df)
     corrections = []
 
-    from careless.models.scaling.nn import SequentialScaler
+    from restoration_software.models.scaling.nn import SequentialScaler
 
     if df.experiment_id.max() > 0:
         Xstar = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
@@ -142,7 +143,7 @@ def train_model(df, parser):
 
     Xstar = (Xstar - Xstar.mean(0))/Xstar.std(0)
 
-    corrections.append(SequentialScaler(Xstar, layers=20))
+    corrections.append(SequentialScaler(Xstar, layers=50))
 
     if parser.weights:
         merger = WeightedVariationalHarmonicMergingModel
