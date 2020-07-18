@@ -4,14 +4,17 @@ from os import environ
 import pandas as pd
 from tqdm import tqdm
 from gemmi import UnitCell
-from restoration_software.parser import laue_parser as parser
+from careless.parser import laue_parser as parser
+from careless.models.scaling.nn import SequentialScaler
+from careless.models.priors.normalized import WilsonPrior
+from careless.models.priors.empirical import SparseReferencePrior
 from reciprocalspaceship.utils.rfree import *
 from reciprocalspaceship.utils.asu import hkl_is_absent
 import reciprocalspaceship as rs
 import tensorflow as tf
 import numpy as np
-from restoration_software.utils.laue import expand_harmonics
-from restoration_software.models.merging.variational import *
+from careless.utils.laue import expand_harmonics
+from careless.models.merging.variational import *
 
 
 #TODO: See if we still need this and decide if it should be a parser arg
@@ -134,7 +137,6 @@ def train_model(df, parser):
     df = prep_indices(df)
     corrections = []
 
-    from restoration_software.models.scaling.nn import SequentialScaler
 
     if df.experiment_id.max() > 0:
         Xstar = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
