@@ -1,7 +1,7 @@
-#Normalized structure factor distributions based on tensorflow probability
-from careless.models.distributions.base import Prior
+from careless.models.priors.base import Prior
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
+import numpy as np
 
 
 def Centric(**kw):
@@ -45,13 +45,16 @@ def Acentric(**kw):
 
 class WilsonPrior(Prior):
     """Wilson's priors on normalized structure factor amplitudes."""
-    def __init__(self, centric):
+    def __init__(self, centric, epsilon):
         """
         Parameters
         ----------
         centric : array
             Floating point array with value 1. for centric reflections and 0. for acentric.
+        epsilon : array
+            Floating point array with multiplicity values for each structure factor.
         """
+        self.epsilon = np.array(epsilon, dtype=np.float32)
         self.centric = np.array(centric, dtype=np.float32)
         self.p_centric = Centric()
         self.p_acentric = Acentric()
@@ -70,7 +73,13 @@ class WilsonPrior(Prior):
         Parameters
         ----------
         x : tf.Tensor
-            Array of structure factor values with the same . 
+            Array of structure factor values with the same shape epsilon and centric.
         """
+        x = x / self.epsilon
         return self.centric*self.p_centric.prob(x) + (1. - self.centric)*self.p_acentric.prob(x)
 
+    def mean(self):
+        return self.centric*self.p_centric.mean() + (1. - self.centric)*self.p_acentric.mean()
+
+    def stddev(self):
+        return self.centric*self.p_centric.stddev() + (1. - self.centric)*self.p_acentric.stddev()
