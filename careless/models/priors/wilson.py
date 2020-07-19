@@ -87,3 +87,4 @@ class WilsonPrior(Prior):
 
     def stddev(self):
         return self.centric*self.p_centric.stddev() + (1. - self.centric)*self.p_acentric.stddev()
+
