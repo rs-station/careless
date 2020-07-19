@@ -41,6 +41,10 @@ def Acentric(**kw):
         bijector=tfb.Scale(2**-0.5),
         **kw
     )
+
+    #TODO: This is not the correct way to implement. I should make both Centric and Acentric proper classses
+    dist.mean = lambda : 0.5*np.sqrt(np.pi)
+    dist.stddev =  lambda : np.sqrt(1. - 0.25*np.pi)
     return dist
 
 class WilsonPrior(Prior):
