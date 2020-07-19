@@ -44,6 +44,6 @@ class StudentTLikelihood(tfd.StudentT, Likelihood):
             Degrees of freedom of the student t likelihood.
         """
         loc = np.array(iobs, dtype=np.float32)
-        scale = np.array(sigiobs, dtype=np.float32)/np.sqrt(2.)
+        scale = np.array(sigiobs, dtype=np.float32)
         super().__init__(dof, loc, scale)
 
