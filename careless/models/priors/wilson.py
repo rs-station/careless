@@ -64,7 +64,7 @@ class WilsonPrior(Prior):
         Parameters
         ----------
         x : tf.Tensor
-            Array of structure factor values with the same . 
+            Array of structure factor values with the same shape epsilon and centric.
         """
         return self.centric*self.p_centric.log_prob(x) + (1. - self.centric)*self.p_acentric.log_prob(x)
 
