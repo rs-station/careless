@@ -1,9 +1,10 @@
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
+from careless.models.scaling.base import Scaler
 import numpy as np
 
 
-class SequentialScaler(tf.keras.models.Sequential):
+class SequentialScaler(tf.keras.models.Sequential, Scaler):
     """
     Neural network based scaler with simple dense layers.
     """
@@ -36,12 +37,20 @@ class SequentialScaler(tf.keras.models.Sequential):
         scale = tf.math.softplus(scale)
         return scale
 
-    @property
-    def nn_vals(self):
-        return super().__call__(self.metadata)
-
     def __call__(self):
         loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
         scale = tf.math.softplus(scale)
         return tfd.Normal(loc, scale).sample()
+
+    def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
+        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        scale = tf.math.softplus(scale)
+        dist = tfd.Normal(loc, scale)
+        sample = dist.sample(sample_shape, seed, name, **kwargs)
+        if return_kl_term:
+            q = dist.prob(sample)
+            kl_div = q * tf.math.log(q)
+            return sample, tf.reduce_sum(kl_div, axis=-1)
+        else:
+            return sample
 
