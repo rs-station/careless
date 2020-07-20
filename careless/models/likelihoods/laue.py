@@ -4,7 +4,8 @@ from tensorflow_probability import distributions as tfd
 import tensorflow as tf
 import numpy as np
 
-class HarmonicLikelihood():
+class ConvolvedDist():
+    """This mixin can be used to extend tensorflow_probability distributions to apply a convolution before computing probabilities."""
     def log_prob(self, value, name='log_prob', **kwargs):
         return super().log_prob(self.convolve(value), name, **kwargs)
 
@@ -23,14 +24,22 @@ class HarmonicLikelihood():
         convolved : tf.Tensor
             array of predicted reflection intensities which have been convolved by a sparse matmul
         """
-        convolved = tf.squeeze(tf.sparse.sparse_dense_matmul(
-            self.harmonic_convolution_tensor, 
-            tf.expand_dims(tensor, -1), 
-            adjoint_a=True
-        ))
+        if tensor.ndim == 1:
+            convolved = tf.squeeze(tf.sparse.sparse_dense_matmul(
+                self.harmonic_convolution_tensor, 
+                tf.expand_dims(tensor, -1), 
+                adjoint_a=True
+            ))
+        else:
+            convolved = tf.transpose(tf.sparse.sparse_dense_matmul(
+                self.harmonic_convolution_tensor, 
+                tensor,
+                adjoint_a=True,
+                adjoint_b=True,
+            ))
         return convolved
 
-class NormalLikelihood(HarmonicLikelihood, tfd.Normal):
+class NormalLikelihood(ConvolvedDist, tfd.Normal, Likelihood):
     def __init__(self, iobs, sigiobs, harmonic_id):
         """
         Parameters
@@ -48,7 +57,7 @@ class NormalLikelihood(HarmonicLikelihood, tfd.Normal):
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
-class LaplaceLikelihood(HarmonicLikelihood, tfd.Laplace):
+class LaplaceLikelihood(ConvolvedDist, tfd.Laplace, Likelihood):
     def __init__(self, iobs, sigiobs, harmonic_id):
         """
         Parameters
@@ -66,7 +75,7 @@ class LaplaceLikelihood(HarmonicLikelihood, tfd.Laplace):
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
-class StudentTLikelihood(HarmonicLikelihood, tfd.StudentT):
+class StudentTLikelihood(ConvolvedDist, tfd.StudentT, Likelihood):
     def __init__(self, iobs, sigiobs, harmonic_id, dof):
         """
         Parameters
