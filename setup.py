@@ -10,7 +10,7 @@ setup(
     install_requires=[
         "reciprocalspaceship >= 0.8.6",
         "tensorflow",
-        "tensorflow-probability",
+        "tensorflow-probability>=0.10",
         "tqdm",
         "h5py",
         "tables",
