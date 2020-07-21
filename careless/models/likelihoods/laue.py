@@ -24,7 +24,7 @@ class ConvolvedDist():
         convolved : tf.Tensor
             array of predicted reflection intensities which have been convolved by a sparse matmul
         """
-        if tensor.ndim == 1:
+        if len(tensor.shape) == 1:
             convolved = tf.squeeze(tf.sparse.sparse_dense_matmul(
                 self.harmonic_convolution_tensor, 
                 tf.expand_dims(tensor, -1), 
