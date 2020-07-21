@@ -1,138 +1,132 @@
 from careless.models.base import PerGroupModel
 from careless.utils.shame import sanitize_tensor
-from careless.models.distributions.normalized import Acentric,Centric
-from careless.utils.math import softplus_inverse
+from tensorflow_probability import distributions as tfd
 import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
 
+
 class VariationalMergingModel(PerGroupModel):
     """
-    Merge data with a posterior parameterized by a truncated normal distribution.
+    Merge data with a posterior parameterized by a surrogate distribution.
     """
-    def __init__(self, iobs, sig_iobs, miller_ids, epsilons, centric, corrections, t_dof=None, posterior_truncated_normal_max=100000.):
+    def __init__(self, miller_ids, scaling_models, prior, likelihood, surrogate_posterior=None):
         """"
         Parameters
         ----------
-        iobs : array                                                                                                
-            array of observed reflection intensities                                                                
-        sig_iobs : array                                                                                            
-            error estimates for observed reflection intensities from integration                                    
-        miller_ids : array(int)
-            array of zero indexed integers with an id corresponding to each unique miller index.
-        centric : array(float)                                                                                        
-            array with `length == miller_ids.max() + 1`  which has ones for centric reflections and zeros elsewhere
-        epsilons : array(float)                                                                                        
-            array with `length == miller_ids.max() + 1` which has the multiplicity corrections for each reflection
-        corrections : list
-            list of correction models to iobs
-        t_dof : float (optional)
-            If supplied use a t-distributed error model with these degrees of freedom. The default is None => normal loss.
+        miller_ids : array
+            Numpy array or tf.Tensor with zero indexed miller ids that map each reflection observation to a 
+            miller index. In the case of a harmonic likelihood function, this array may be longer than actual
+            number of observed reflection intensities. 
+        scaling_models : careless.models.scaling.Scaler or iterable
+            An instance of a carless.model.scaling.Scaler class or list/tuple thereof.
+        prior : distribution
+            Prior distribution on merged, normalized structure factor amplitudes. 
+            Either a Distribution from tensorflow_probability.distributions or 
+            a Prior from careless.models.distributions. This must implement .prob and .log_prob. 
+            This distribution must have an `event_shape` equal to `np.max(miller_ids) + 1`.
         posterior_truncated_normal_max : float
-            the maximum value of the surrogate posterior distribution. this defaults to 100. which is sufficient for normalized structure factor amplitudes
+            the maximum value of the surrogate posterior distribution. 
+            this defaults to 1e10. this should only need to be changed if you are using a prior on an empirical scale.
+        likelihood : distribution
+            A distribution with a `log_prob` and `prob` method. 
+            These methods must accept a `x : tf.Tensor` with `len(x) == len(miller_ids)`. 
+            For harmonic likelihoods, it may be the case the returned vector is smaller than `len(miller_ids)`.
+        surrogate_posterior : tfd.Distribution
+            A surrogate posterior distribution to use. 
+            If non is supplied, the default truncated normal distribution will be used. 
+            Any posteriors passed in with this arg must have all properly transformed parameters in their
+            `self.trainable_variables` iterable.  Use `tfp.util.TransformedVariable` to ensure positivity constraints
+            where applicable.
         """
         super().__init__(miller_ids)
-        self.corrections = corrections
-        self.posterior_truncated_normal_max = posterior_truncated_normal_max
+        self.prior = prior
+        self.likelihood = likelihood
+        self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
 
-        self.centric = np.array(centric, dtype=np.float32)
-        self.epsilons = np.array(epsilons, dtype=np.float32)
-
-        centric_loc = 5.
-        #centric_scale = softplus_inverse(2.0)
-        centric_scale = 2.
-
-        acentric_loc = 5.
-        #acentric_scale = softplus_inverse(2.0)
-        acentric_scale = 2.
-
-        self._q_loc_init = self.centric*centric_loc + (1. - self.centric)*acentric_loc
-        self._q_scale_init = self.centric*centric_scale + (1. - self.centric)*acentric_scale
-
-        self.posterior_loc = tf.Variable(self._q_loc_init)
-        self._posterior_scale = tf.Variable(self._q_scale_init)
-
-        self.trainable_variables = tf.nest.flatten([
-            self.posterior_loc,
-            self._posterior_scale,
-        ] + [c.trainable_variables for c in self.corrections])
-
-        self.sig_iobs = sig_iobs
-        self.iobs = iobs
-        self.dof = t_dof
-
-    @property
-    def posterior_scale(self):
-        return tf.math.softplus(self._posterior_scale)
-        #return tf.nn.relu(self._posterior_scale)
-
-    def get_corrections(self):
-        corrections = 1.
-        for c in self.corrections:
-            corrections *= c()
-        return corrections
-
-    @property
-    def variational_distribution(self):
-        loc = self.posterior_loc
-        scale  = self.posterior_scale
-        q = tfp.distributions.TruncatedNormal(loc=loc, scale=scale, low=0., high=self.posterior_truncated_normal_max)
-        return q
-
-    def predict(self):
-        q = self.variational_distribution
-        E = q.mean()
-        corrections = self.get_corrections()
-        I = self.expand(self.epsilons * E**2.) * corrections
-        return I
-
-    def get_error_distributions(self):
-        if self.dof is None:
-            dists = tfp.distributions.Normal(self.iobs, self.sig_iobs)
-            return dists
-        elif self.dof < 0.:
-            dists = tfp.distributions.Laplace(self.iobs, np.sqrt(2.)*self.sig_iobs)
-            return dists
+        if surrogate_posterior is None:
+            self.surrogate_posterior = tfd.TruncatedNormal(
+                tf.Variable(self.prior.mean(), dtype=tf.float32),
+                tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
+                0., 
+                1e10,
+            )
         else:
-            dists = tfp.distributions.StudentT(self.dof, self.iobs, self.sig_iobs)
-            return dists
+            self.surrogate_posterior = surrogate_posterior
 
-    @property
-    def normalized_structure_factors(self):
-        return self.variational_distribution.mean()
+        # Cache the initial values of the surrogate posterior in case they must be rescued later
+        self._surrogate_posterior_init = [x.value() for x in self.surrogate_posterior.trainable_variables]
 
-    @property
-    def normalized_structure_factor_errors(self):
-        return self.variational_distribution.stddev()
+        # Put the trainable_variables at the top level
+        self.trainable_variables  = self.surrogate_posterior.trainable_variables 
+        for i,model in enumerate(self.scaling_models):
+            if isinstance(model.trainable_variables, (tuple, list)):
+                self.trainable_variables += tuple(model.trainable_variables )
+            else:
+                typename = type(model.trainable_variables)
+                raise TypeError(f"scaling_models[{i}].trainable_variables has type {typename} but only tuple or list allowed")
 
-    def __call__(self):
+    def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
         """
+        Randomly sample predicted reflection observations.
+
+        Parameters
+        ----------
+        return_kl_term : bool
+            if `True` this function returns a tuple of `tf.Tensor` instances, `(sample, kl_term)`, wherein `kl_term` 
+            is the Kullback-Leibler divergence between the variational distribution and its prior plus the 
+            divergence between the scales and any priors that may be placed on them.
+        sample_shape : int
+            Shape of returned samples. Defaults to () for a single sample. 
+        seed : int
+            Defaults to None.
+        name : str
+            Defaults to 'sample'
+
+        Returns
+        -------
+        sample or (sample, kl_term) : tf.Tensor
+            Either a sample of the predicted reflections intensities or a sample and corresponding kl_div.
+        """
+        F = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
+
+        kl_div = 0.
+        if return_kl_term:
+            q_F = self.surrogate_posterior.prob(F)
+            p_F = self.prior.prob(F)
+            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F) - tf.math.log(p_F) ) )
+
+        scale = 1.
+        for model in self.scaling_models:
+            if return_kl_term:
+                sample, kl_term = model.sample(return_kl_term, sample_shape)
+                kl_div += kl_term
+            else: 
+                sample = model.sample(return_kl_term, sample_shape)
+
+            scale = scale*sample
+
+        I = self.expand(F**2.) * scale
+
+        if return_kl_term:
+            return I,kl_div
+        else:
+            return I
+
+    def __call__(self, sample_shape=()):
+        """
+        Parameters
+        ----------
+        sample_shape : () or int
+            () for a single sample or an integer number of samples. More complex sample shapes are not supported.
+
         Returns
         -------
         loss : Tensor
             The scalar value of the Evidence Lower BOund.
         """
-        #Variational distributions
-        q = self.variational_distribution
-
-        #Log likelihood
-        E = q.sample()
-        I = self.epsilons*E**2
-        corrections = self.get_corrections()
-        dists = self.get_error_distributions()
-        log_probs = dists.log_prob(self.expand(I)*corrections)
-        log_likelihood = tf.reduce_sum(log_probs)
-
-        #Prior Distribution
-        p_centric = Centric()
-        p_acentric = Acentric()
-
-        #Prior probs
-        p_E = p_centric.prob(E)*self.centric + p_acentric.prob(E)*(1. - self.centric)
-        q_E = q.prob(E/100.)
-
-        eps = 1e-12
-        kl_div = tf.reduce_sum(q_E * (tf.math.log(q_E + eps) - tf.math.log(p_E + eps)))
+        I,kl_div = self.sample(return_kl_term=True, sample_shape=sample_shape)
+        log_likelihood = self.likelihood.log_prob(I)
         loss = -log_likelihood + kl_div
         return loss
 
@@ -144,9 +138,15 @@ class VariationalMergingModel(PerGroupModel):
         grads = tape.gradient(loss, variables)
         return loss, grads
 
-    def is_valid_gradient(self, grads):
-        invalid = tf.reduce_any([tf.reduce_any(~tf.math.is_finite(i)) for i in grads])
-        return ~invalid
+    def _train_step(self, optimizer, s=1):
+        variables = self.trainable_variables
+        loss, grads = self.loss_and_grads(variables, s)
+        #Occasionally, low probability samples will lead to overflows in the gradients. 
+        #Since, VI is usually done by coordinate ascent anyway, 
+        #it is totally fine to just skip those updates.
+        grads = [sanitize_tensor(g) for g in grads]
+        optimizer.apply_gradients(zip(grads, variables))
+        return loss
 
     @tf.function
     def train_step(self, optimizer, s=1):
@@ -160,177 +160,16 @@ class VariationalMergingModel(PerGroupModel):
         loss : float
             The current value of the Evidence Lower BOund
         """
-
-        variables = self.trainable_variables
-        loss, grads = self.loss_and_grads(variables, s)
-        grads = [sanitize_tensor(g) for g in grads]
-        optimizer.apply_gradients(zip(grads, variables))
-        return loss
+        return self._train_step(optimizer, s=1)
 
     def rescue_variational_distributions(self):
         """
         Reset values for problem distributions to their intial values. 
+        This is useful if probabilities posteriors get stuck in a low probability region and samples underflow. 
         """
-        q = self.variational_distribution
-        q_E = q.prob(q.sample())
-        self.posterior_loc.assign(
-            tf.where(tf.math.is_finite(q_E), self.posterior_loc, self._q_loc_init)
-        )
-        self._posterior_scale.assign(
-            tf.where(tf.math.is_finite(q_E), self.posterior_scale, self._q_scale_init)
-        )
-        
+        F = self.surrogate_posterior.sample()
+        q_F = self.surrogate_posterior.prob(F)
+        #This is useful if some of the posteriors get stuck
+        for initial_value,var in zip(self._surrogate_posterior_init, self.surrogate_posterior.trainable_variables):
+            var.assign(tf.where(tf.math.is_finite(q_F), var, initial_value))
 
-class VariationalHarmonicMergingModel(VariationalMergingModel):
-    """
-    Merging model for polychromatic X-ray diffraction data which may contain harmonically overlapped spots. 
-    This class works like other variational models in this package by maximizing the evidence lower bound between
-    a truncated normal posterior surrogate distribution and the historical Wilson priors on normalized
-    structure factor amplitudes.
-
-    The difference between this class and others is that all reflections are predicted, corrected, and subsequently
-    harmonics are summed to square with the observed intensities. Briefly, the algorithm works as follows
-
-    1. Samples are drawn from the surrogate posterior
-        - at this point, there is one sampled structure factor amplitude per unique miller index in the reciprocal asu
-    2. Samples are corrected for reflection multiplicity
-        - this refers to the epsilon factors which are a spacegroup dependent correction for reciprocal space symmetry
-    3. Samples are expanded to the size of the full set of harmonically deconvolved reflection observations and squared
-        - at this stage there will be __more__ reflections than were actually observed in the data set. 
-    4. Expanded samples are now corrected by whatever correction objects were passed to this class's constructor
-    5. Harmonic samples are merged 
-        - now the samples will have the same number of entries as the observed data set.
-    6. The log likelihood and kl div are now computed with respect to the harmonically convolved samples
-    """
-    def __init__(self, iobs, sig_iobs, miller_ids, epsilons, centric, corrections, harmonic_index, t_dof=None):
-        """"
-        Constructing this object is a little more complex than a monochromatic merging model. 
-        In particular, the user needs to pay attention to the lengths of the arrays being passed to the constructor. 
-        In general, 
-        
-        >>> len(epsilons) == len(centric) <= len(iobs) == len(sig_iobs) <= len(miller_ids) == len(harmonic_index)
-
-        Parameters
-        ----------
-        iobs : array                                                                                                
-            array of observed reflection intensities. the length of this is the actual number of integrated refl intensities.
-        sig_iobs : array                                                                                            
-            error estimates for observed reflection intensities from integration. the length of this is the actual number of integrated refl intensities.
-        miller_ids : array(int)                                                                                        
-            zero indexed array of integer reflection indices in the length of the full set of haromically convolved reflections. For a typical laue data set, this should be longer than iobs.
-        centric : array(float)                                                                                        
-            array with `length == miller_ids.max() + 1`  which has ones for centric reflections and zeros elsewhere
-        epsilons : array(float)                                                                                        
-            array with `length == miller_ids.max() + 1` which has the multiplicity corrections for each reflection
-        corrections : list
-            list of correction models
-        harmonic_index : array(int)
-            the harmonic index groups reflections from the same image and central ray. it should have the same length as miller_ids and harmonic_index.max() + 1 is the number of reflection observations. simulated reflections with harmonic index n will be summed to predict the iobs[n].
-        t_dof : float (optional)
-            If supplied use a t-distributed error model with these degrees of freedom. The default is None => normal loss.
-        """
-        super().__init__(iobs, sig_iobs, miller_ids, epsilons, centric, corrections, t_dof=None)
-        # The base class takes care of most of the setup for us. However, we need a sparse tensor for merging
-        # Harmonically convolved reflections. The PerGroupModel constructure will take care of this for us.
-        # Formally, PerGroupModel(harmonic_index).expansion_tensor is the transpose of what we need.  
-        self.harmonic_index = harmonic_index
-        self.harmonic_convolution_tensor = PerGroupModel(harmonic_index).expansion_tensor
-
-    def convolve(self, tensor):
-        """
-        Paramters
-        ---------
-        tensor : tf.Tensor
-            array of predicted reflection intensities with length self.harmonic_convolution_tensor.shape[1]
-        
-        Returns
-        -------
-        convolved : tf.Tensor
-            array of predicted reflection intensities which have been convolved by a sparse matmul
-        """
-        convolved = tf.squeeze(tf.sparse.sparse_dense_matmul(
-            self.harmonic_convolution_tensor, 
-            tf.expand_dims(tensor, -1), 
-            adjoint_a=True
-        ))
-        return convolved
-
-    @tf.function
-    def __call__(self):
-        """
-        Returns
-        -------
-        loss : Tensor
-            The scalar value of the Evidence Lower BOund.
-        """
-        #Variational distributions
-        q = self.variational_distribution
-
-        #Log likelihood
-        E = q.sample()
-        I = self.epsilons*E**2
-        corrections = self.get_corrections()
-        dists = self.get_error_distributions()
-        I_raw = self.expand(I)*corrections
-        I = self.convolve(I_raw) #This is the only thing changed relative to the base VariationalMergingModel
-        log_probs = dists.log_prob(I)
-        log_likelihood = tf.reduce_sum(log_probs)
-
-        #Prior Distribution
-        p_centric = Centric()
-        p_acentric = Acentric()
-
-        #Prior probs
-        p_E = p_centric.prob(E)*self.centric + p_acentric.prob(E)*(1. - self.centric)
-        q_E = q.prob(E/100.)
-
-        eps = 1e-12
-        kl_div = tf.reduce_sum(q_E * (tf.math.log(q_E + eps) - tf.math.log(p_E + eps)))
-        for c in self.corrections:
-            if hasattr(c, 'kl_term'):
-                kl_div += c.kl_term()
-
-        loss = -log_likelihood + kl_div
-        return loss
-
-class WeightedVariationalHarmonicMergingModel(VariationalHarmonicMergingModel):
-    @tf.function
-    def __call__(self):
-        """
-        Returns
-        -------
-        loss : Tensor
-            The scalar value of the Evidence Lower BOund.
-        """
-        #Variational distributions
-        q = self.variational_distribution
-
-        #Log likelihood
-        E = q.sample()
-        I = self.epsilons*E**2
-        corrections = self.get_corrections()
-        dists = self.get_error_distributions()
-        I_raw = self.expand(I)*corrections
-        I = self.convolve(I_raw) #This is the only thing changed relative to the base VariationalMergingModel
-        log_probs = dists.log_prob(I)
-        #raise NotImplementedError("Look into different functional forms for weights!")
-        weights = self.iobs / self.sig_iobs
-        log_probs = log_probs*weights
-        log_likelihood = tf.reduce_sum(log_probs)
-
-        #Prior Distribution
-        p_centric = Centric()
-        p_acentric = Acentric()
-
-        #Prior probs
-        p_E = p_centric.prob(E)*self.centric + p_acentric.prob(E)*(1. - self.centric)
-        q_E = q.prob(E/100.)
-
-        eps = 1e-12
-        kl_div = tf.reduce_sum(q_E * (tf.math.log(q_E + eps) - tf.math.log(p_E + eps)))
-        for c in self.corrections:
-            if hasattr(c, 'kl_term'):
-                kl_div += c.kl_term()
-
-        loss = -log_likelihood + kl_div
-        return loss
