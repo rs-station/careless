@@ -18,5 +18,7 @@ setup(
     scripts = [
             'careless/careless',
             'careless/laue_careless',
-    ]
+    ],
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
 )
