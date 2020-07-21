@@ -11,6 +11,7 @@ setup(
         "reciprocalspaceship >= 0.8.6",
         "tensorflow",
         "tensorflow-probability >= 0.10",
+        "numpy < 1.19.0, >= 1.16.0",
         "tqdm",
         "h5py",
         "tables",
