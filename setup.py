@@ -9,7 +9,7 @@ setup(
     description='Scaling and merging crystallographic data with TensorFlow and Variational Inference',
     install_requires=[
         "reciprocalspaceship >= 0.8.6",
-        "tensorflow >= 2.3.0",
+        "tensorflow",
         "tensorflow-probability >= 0.10",
         "tqdm",
         "h5py",
