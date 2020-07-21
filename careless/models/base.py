@@ -2,27 +2,8 @@ import tensorflow as tf
 import numpy as np
 
 
-class BaseModel(object):
-    """
-    Base class for components in the postrefinement, scaling, and merging model. 
-    Subclasses must implement __init__ and __call__.
 
-    Attributes
-    ----------
-    trainable_variables : iterable
-    """
-    trainable_variables = []
-
-    def __init__(self):
-        e = NotImplementedError("Every model must implement __init__")
-        raise e
-
-#    def __call__(self):
-#        e = NotImplementedError("Every model must implement __call__")
-#        raise e
-
-
-class PerGroupModel(BaseModel):
+class PerGroupModel():
     """
     Base class for corrections that are applied to reflection observations by some grouping.
     This uses tensorflow SparseTensor multiplication to take care of indexing.
@@ -95,7 +76,10 @@ class PerGroupModel(BaseModel):
         expanded : tf.Tensor
             1D tensor with length num_observations
         """
-        expanded = tf.sparse.sparse_dense_matmul(self.expansion_tensor, group_variables[:,None])[:,0]
+        if len(group_variables.shape) == 1:
+            expanded = tf.sparse.sparse_dense_matmul(self.expansion_tensor, group_variables[:,None])[:,0]
+        else:
+            expanded = tf.transpose(tf.sparse.sparse_dense_matmul(self.expansion_tensor, group_variables, adjoint_b=True))
         #expanded = tf.gather(group_variables, self.group_ids)
         return expanded
 
