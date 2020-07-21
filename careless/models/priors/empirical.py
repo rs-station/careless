@@ -38,3 +38,23 @@ class NormalReferencePrior(tfd.Normal, Prior):
         scale = np.array(SigFobs, dtype=np.float32)
         super().__init__(loc, scale)
 
+
+class StudentTReferencePrior(tfd.StudentT, Prior):
+    """
+    A Student's T prior distribution centered at empirical structure factor amplitudes derived from a conventional experiment.
+    """
+    def __init__(self, Fobs, SigFobs, dof):
+        """
+        Parameters
+        ----------
+        Fobs : array
+            numpy array or tf.Tensor containing observed structure factors amplitudes from a reference structure.
+        SigFobs : array
+            numpy array or tf.Tensor containing error estimates for structure factors amplitudes from a reference structure.
+        dof : float
+            Degrees of freedom for the Student T distribution.
+        """
+        loc = np.array(Fobs, dtype=np.float32)
+        scale = np.array(SigFobs, dtype=np.float32)
+        super().__init__(dof, loc, scale)
+
