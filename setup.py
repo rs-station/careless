@@ -14,6 +14,7 @@ setup(
         "tqdm",
         "h5py",
         "tables",
+        "numpy <1.19,>=1.16"
     ],
     scripts = [
             'careless/careless',
