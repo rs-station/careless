@@ -15,7 +15,7 @@ setup(
         "tables",
         "cloudpickle==1.3.0",
         "tensorflow>=2.1.0",
-        "tensorflow-probability >= 0.09",
+        "tensorflow-probability < 0.11",
     ],
     scripts = [
             'careless/careless',
