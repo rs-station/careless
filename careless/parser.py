@@ -91,6 +91,12 @@ arguments = {
         'default': None, 
     },
 
+    ("--anomalous", ) : {
+        'help' : f"If this flag is supplied, Friedel mates will be kept separate.", 
+        'action' : 'store_true', 
+        'default' : False, 
+    },
+
     ("--seed", ) : {
         'help' : f"Random number seed for consistent half dataset generation.", 
         'type' : int, 
@@ -114,13 +120,6 @@ arguments = {
         'type': float, 
         'default': 0.1, 
     },
-
-    ("--studentt-dof", ) : {
-        'help': "Degrees of freedom for student t error model.", 
-        'type': float, 
-        'default': None, 
-    },
-
     ("--mc-iterations", ) : {
         'help': "This is the number of samples to take per gradient step with default = 1.", 
         'type': int, 
@@ -153,14 +152,47 @@ arguments = {
         'default': 3,
     },
 
-    ("--weights", ) : {
-        'help': "Use a weighted log likelihood term.", 
-        'type': bool, 
-        'nargs' : 1,
-        'default': False,
-    },
+#Not a thing for now
+#    ("--weights", ) : {
+#        'help': "Use a weighted log likelihood term.", 
+#        'type': bool, 
+#        'nargs' : 1,
+#        'default': False,
+#    },
     
 }
+
+#These groups will be mutually exclusive
+exclusive_groups = (
+    { #Group one is for defining prior distributions
+        ("--laplace-prior", ) : {
+            'help': "Use empirical reference structure factor apmlitudes from an Mtz file to parameterize a Laplacian prior distribution. ", 
+            'type': str, 
+            'default': False,
+        },
+
+        ("--normal-prior", ) : {
+            'help': "Use empirical reference structure factor apmlitudes from an Mtz file to parameterize a Normal prior distribution. ", 
+            'type': str, 
+            'default': False,
+        }, 
+    },
+
+    { #Group two is for definining likelihood functions
+        ("--studentt", ) : {
+            'help': "Degrees of freedom for student t likelihood function.", 
+            'type': float, 
+            'default': None, 
+        },
+
+        ("--laplace", ) : {
+            'help': "Use a Laplacian likelihood function.", 
+            'default': False, 
+            'action' : 'store_true',
+        },
+
+    },
+)
 
 mono_parser = ArgumentParser()
 laue_parser = ArgumentParser()
@@ -168,6 +200,13 @@ laue_parser = ArgumentParser()
 for args, kwargs in arguments.items():
     laue_parser.add_argument(*args, **kwargs)
     mono_parser.add_argument(*args, **kwargs)
+
+for group in exclusive_groups:
+    for args, kwargs in group.items():
+        group = laue_parser.add_mutually_exclusive_group()
+        group.add_argument(*args, **kwargs)
+        group = mono_parser.add_mutually_exclusive_group()
+        group.add_argument(*args, **kwargs)
 
 for args, kwargs in laue_arguments.items():
     laue_parser.add_argument(*args, **kwargs)

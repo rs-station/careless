@@ -3,8 +3,7 @@
 from os import environ
 import pandas as pd
 from tqdm import tqdm
-from gemmi import UnitCell
-from reciprocalspaceship.utils.asu import hkl_is_absent
+from gemmi import UnitCell,SpaceGroup
 import reciprocalspaceship as rs
 import tensorflow as tf
 import numpy as np
@@ -30,17 +29,10 @@ filenames = parser.reflection_filename
 data = careless.utils.io.load_isomorphous_mtzs(*filenames)
 data.compute_dHKL(inplace=True)
 
-from IPython import embed
-embed(colors='Linux')
-
-"""
-del(data['M/ISYM'])
 
 #Set a potentially different spacegroup for merging
 if parser.space_group_number is not None:
-    data.spacegroup = rs.gemmi.SpaceGroup(parser.space_group_number)
-
-print("Done.")
+    data.spacegroup = SpaceGroup(parser.space_group_number)
 
 wavelength_key = parser.wavelength_key
 if wavelength_key not in data:
@@ -85,74 +77,76 @@ cutoff = parser.isigi_cutoff
 if cutoff is not None:
     data = data[data.I/data.SigI >= cutoff]
 
-stashed = data.copy()
 data = expand_harmonics(data, harmonic_dmin, wavelength_key)
 
 #Remove harmonics outside the wavelength range
 data = data[(data[wavelength_key] >= min_wavelength) & (data[wavelength_key] <= max_wavelength)]
 
+
 #Remove systematic absences for merging space group
-absent = hkl_is_absent(data.get_hkls(), data.spacegroup)
+absent = rs.utils.hkl_is_absent(data.get_hkls(), data.spacegroup)
 data = data[~absent]
 
 #Move the hkls back to the asu for merging
 H,_ = rs.utils.hkl_to_asu(data.get_hkls(), data.spacegroup)
 data['H'],data['K'],data['L'] = H.T
 
-data['epsilon'] = rs.utils.compute_structurefactor_multiplicity(data[['H', 'K', 'L']].to_numpy(), spacegroup)
-data.set_index(['H', 'K', 'L'], inplace=True)
+data['epsilon'] = rs.utils.compute_structurefactor_multiplicity(data[['H', 'K', 'L']].to_numpy(), data.spacegroup)
+if parser.anomalous:
+    plus = (data['M/ISYM'] %2).astype(bool)
+    data.loc[~plus, 'H'] = -data.loc[~plus, 'H'] 
+    data.loc[~plus, 'K'] = -data.loc[~plus, 'K'] 
+    data.loc[~plus, 'L'] = -data.loc[~plus, 'L'] 
 data.label_centrics(inplace=True)
 data['dHKL'] = data['dHKL']**-2.
-data['FRIEDEL'] = rs.utils.hkl_to_asu(data.get_hkls(), data.spacegroup)[1] % 2
+
 
 if parser.merge_files:
     data['experiment_id'] = 0
 else:
     data['experiment_id'] = data['file_id']
 
-def prep_indices(df):
+def train_model(df):
     df = df.reset_index()
     df['miller_id'] = df.groupby(['H', 'K', 'L', 'experiment_id']).ngroup()
     df['image_id'] = df.groupby(['BATCH', 'experiment_id']).ngroup()
     df['ray_id'] = df.groupby(['H_0','K_0', 'L_0']).ngroup()
     df['observation_id'] = df.groupby(['ray_id', 'image_id']).ngroup()
-    return df
-
-def train_model(df, parser):
-    df = prep_indices(df)
-    corrections = []
-
 
     if df.experiment_id.max() > 0:
-        Xstar = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
+        metadata = df[metadata_keys + ['experiment_id']].to_numpy().astype(np.float32) 
     else:
-        Xstar = df[metadata_keys].to_numpy().astype(np.float32) 
+        metadata= df[metadata_keys].to_numpy().astype(np.float32) 
 
-    Xstar = (Xstar - Xstar.mean(0))/Xstar.std(0)
-
-    corrections.append(SequentialScaler(Xstar, layers=50))
-
-    if parser.weights:
-        merger = WeightedVariationalHarmonicMergingModel
-    else:
-        merger = VariationalHarmonicMergingModel
-
+    metadata = (metadata - metadata.mean(0))/metadata.std(0)
 
     iobs = df.groupby('observation_id').first().I.to_numpy().astype(np.float32)
     sigiobs = df.groupby('observation_id').first().SigI.to_numpy().astype(np.float32)
-    #sigiobs = sigiobs/iobs.std()
-    #iobs = iobs/iobs.std()
 
     epsilons = df.groupby('miller_id').first()['epsilon'].to_numpy().astype(np.float32)
-    merger = merger(
-        iobs,
-        sigiobs,
-        df.miller_id.to_numpy().astype(np.int64),
-        epsilons,
-        df.groupby('miller_id').first()['CENTRIC'].to_numpy().astype(np.float32), 
-        corrections,
-        df['observation_id'].to_numpy().astype(np.int64),
-        parser.studentt_dof
+    centric = df.groupby('miller_id').first()['CENTRIC'].to_numpy().astype(np.float32)
+    scaling_model = SequentialScaler(metadata, layers=20) #Gotta make this a parser argument
+
+    harmonic_id = df['observation_id'].to_numpy().astype(np.int64)
+    if parser.studentt:
+        likelihood = StudentTLikelihood(iobs, sigiobs, harmonic_id, parser.studentt_dof)
+    elif parser.laplace:
+        likelihood = LaplaceLikelihood(iobs, sigiobs, harmonic_id)
+    else:
+        likelihood = NormalLikelihood(iobs, sigiobs, harmonic_id)
+
+    if parser.laplace_prior:
+        prior = LaplaceReferencePrior(Fobs, SigFobs)
+    elif parser.normal_prior:
+        prior = NormalReferencePrior(Fobs, SigFobs)
+    else:
+        prior = WilsonPrior(centric, epsilons)
+
+    merger = VariationalMergingModel(
+        df['miller_id'].to_numpy().astype(np.int64),
+        [scaling_model],
+        prior,
+        likelihood,
     )
 
     optim = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
@@ -180,17 +174,15 @@ def train_model(df, parser):
             break
 
     results = pd.DataFrame()
-    results['E'] = merger.variational_distribution.mean()
-    results['SigE'] = merger.variational_distribution.stddev()
-    results['F'] = epsilons*results['E']
-    results['SigF'] = epsilons*results['SigE']
+    results['F'] = merger.surrogate_posterior.mean()
+    results['SigF'] = merger.surrogate_posterior.stddev()
     results['dHKL'] = df.groupby('miller_id').first()['dHKL']
     results['H'] = df.groupby('miller_id')['H'].first()  
     results['K'] = df.groupby('miller_id')['K'].first()  
     results['L'] = df.groupby('miller_id')['L'].first()  
     results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
     cell = data.cell
-    keys = ['H', 'K', 'L', 'E', 'SigE', 'F', 'SigF', 'experiment_id']
+    keys = ['H', 'K', 'L', 'F', 'SigF', 'experiment_id']
     results = rs.DataSet(results[keys], spacegroup=spacegroup, cell=cell) 
     results.infer_mtz_dtypes(inplace=True)
     results.set_index(['H', 'K', 'L'], inplace=True)
@@ -198,24 +190,19 @@ def train_model(df, parser):
 
 
 print("Merging and refining full data set ...")
-merger,losses,results = train_model(data, parser)
+merger,losses,results = train_model(data)
 np.save(output_filename[:-4] + "_losses.npy", losses)
 
 for i,ds in results.groupby('experiment_id'):
     ds = ds.drop_duplicates() #TODO: This is probably a bug investigate this further. I am not sure why there are duplicates in here. It may have to do with harmonic deconvolution or the presence of multiple experiment_ids.
     rs.io.write_mtz(ds, output_filename.split('.')[0] + f'_{i}.mtz')
 
-c = merger.corrections[0]
-c.save(output_filename[:-4] + "_correction_weights.h5", save_format='h5')
-
 print("Merging and refining first half data set ...")
 half1 = data[data['half']]
-_,_,results1= train_model(half1, parser)
+_,_,results1= train_model(half1)
 rs.io.write_mtz(results1, output_filename[:-4] + '_half1.mtz')
 
 print("Merging and refining second half data set ...")
 half2 = data[~data['half']]
-_,_,results2 = train_model(half2, parser)
+_,_,results2 = train_model(half2)
 rs.io.write_mtz(results2, output_filename[:-4] + '_half2.mtz')
-"""
-
