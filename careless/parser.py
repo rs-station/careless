@@ -1,5 +1,24 @@
 import argparse
 
+class TfSettingsMixin():
+    """
+    This will automagically set tensorflow environment variables when parse_args is called.
+    """
+    def parse_args(self, *args, **kwargs):
+        parser = super().parse_args(*args, **kwargs)
+
+        from os import environ
+        #Suppress most tensorflow output
+        environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
+
+        #Disable the GPU if requested. This can be useful for training multiple models at the same time
+        if parser.disable_gpu:
+            environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        return parser
+
+class ArgumentParser(TfSettingsMixin, argparse.ArgumentParser):
+    pass
+
 
 description = """
 Scale and merge crystallographic data by approximate inference.
@@ -58,12 +77,6 @@ arguments = {
         'help' : f"Avalailable error models are {', '.join(error_models)}", 
         'type' : str, 
         'default' : 'Gaussian', 
-    },
-
-    ("-r", "--rfree-template") : {
-        'help' : f"Template mtz file from which to copy the Rfree flag.", 
-        'type' : str,
-        'default' : None, 
     },
 
     ("-s", "--space-group-number") : {
@@ -149,8 +162,8 @@ arguments = {
     
 }
 
-mono_parser = argparse.ArgumentParser()
-laue_parser = argparse.ArgumentParser()
+mono_parser = ArgumentParser()
+laue_parser = ArgumentParser()
 
 for args, kwargs in arguments.items():
     laue_parser.add_argument(*args, **kwargs)
@@ -161,4 +174,3 @@ for args, kwargs in laue_arguments.items():
 
 for args, kwargs in mono_arguments.items():
     mono_parser.add_argument(*args, **kwargs)
-
