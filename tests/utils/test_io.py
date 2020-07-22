@@ -1,4 +1,5 @@
 import reciprocalspaceship as rs
+import gemmi
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname
 
@@ -18,4 +19,6 @@ def test_load_isomorphous_mtzs():
     assert isinstance(ds, rs.DataSet)
     assert length == len(ds)
     assert 'file_id' in ds
+    assert isinstance(ds.spacegroup, gemmi.SpaceGroup)
+    assert isinstance(ds.cell, gemmi.UnitCell)
 
