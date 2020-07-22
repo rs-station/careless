@@ -3,19 +3,27 @@ import reciprocalspaceship as rs
 
 def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     """
-    Expand reflection observations to include all contributing harmonics. All contributing reflections will be included out to a resolution cutoff irrespective of peak wavelength.
+    Expand reflection observations to include all contributing harmonics. All 
+    contributing reflections will be included out to a resolution cutoff 
+    irrespective of peak wavelength.
 
     Parameters
     ----------
     ds : rs.DataSet
-        Laue data without multiples. Miller indices must correspond to the observed Miller index for this to work properly.do not supply Miller indices in the reciprocal asymmetric unit.
+        Laue data without multiples. Miller indices must correspond to the 
+        observed Miller index for this to work properly.do not supply Miller 
+        indices in the reciprocal asymmetric unit.
     dmin : float
-        Highest resolution in Å to which harmonics will be predicted. If not supplied, the highest resolution reflection in ds will set dmin.
+        Highest resolution in Å to which harmonics will be predicted. If not 
+        supplied, the highest resolution reflection in ds will set dmin.
 
     Returns
     -------
     ds : rs.DataSet
-        DataSet with all reflection observations expanded to include their constituent reflections. New columns 'H_0', 'K_0', 'L_0' will be added to each reflection to store the Miller indices of the innermost reflection on each central ray. 
+        DataSet with all reflection observations expanded to include their 
+        constituent reflections. New columns 'H_0', 'K_0', 'L_0' will be added 
+        to each reflection to store the Miller indices of the innermost 
+        reflection on each central ray. 
     """
     ds = ds.copy()
 
