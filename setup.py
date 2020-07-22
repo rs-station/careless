@@ -18,7 +18,6 @@ setup(
         "tensorflow-probability",
     ],
     scripts = [
-            'careless/careless',
             'careless/laue_careless',
     ],
     setup_requires=['pytest-runner'],
