@@ -1,8 +1,8 @@
 import reciprocalspaceship as rs
-from careless.loader import load_isomorphous_mtzs
+from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname
 
-path = dirname(abspath(__file__)) + "/../data/laue/pyp/"
+path = dirname(abspath(__file__)) + "/../../data/laue/pyp/"
 
 filenames = [
     "off_varEll.mtz",
