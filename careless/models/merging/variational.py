@@ -126,7 +126,7 @@ class VariationalMergingModel(PerGroupModel):
             The scalar value of the Evidence Lower BOund.
         """
         I,kl_div = self.sample(return_kl_term=True, sample_shape=sample_shape)
-        log_likelihood = self.likelihood.log_prob(I)
+        log_likelihood = tf.reduce_sum(self.likelihood.log_prob(I))
         loss = -log_likelihood + kl_div
         return loss
 

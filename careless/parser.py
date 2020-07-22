@@ -118,7 +118,7 @@ arguments = {
     ("--learning-rate", ) : {
         'help': "Adam learning rate.", 
         'type': float, 
-        'default': 0.1, 
+        'default': 0.01, 
     },
     ("--mc-iterations", ) : {
         'help': "This is the number of samples to take per gradient step with default = 1.", 
