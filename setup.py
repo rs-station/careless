@@ -8,14 +8,14 @@ setup(
     packages=find_packages(),
     description='Scaling and merging crystallographic data with TensorFlow and Variational Inference',
     install_requires=[
+        "numpy>=1.10.0,<1.19",
         "reciprocalspaceship >= 0.8.6",
-        "tensorflow",
-        "tensorflow-probability >= 0.10",
-        "numpy < 1.19.0, >= 1.16.0",
         "tqdm",
         "h5py",
         "tables",
-        "numpy <1.19,>=1.16"
+        "cloudpickle==1.3.0",
+        "tensorflow>=2.1.0",
+        "tensorflow-probability >= 0.09",
     ],
     scripts = [
             'careless/careless',
