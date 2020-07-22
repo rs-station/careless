@@ -4,18 +4,21 @@ from os import environ
 import pandas as pd
 from tqdm import tqdm
 from gemmi import UnitCell
-from careless.parser import laue_parser as parser
-from careless.models.scaling.nn import SequentialScaler
-from careless.models.priors.normalized import WilsonPrior
-from careless.models.priors.empirical import SparseReferencePrior
-from reciprocalspaceship.utils.rfree import *
 from reciprocalspaceship.utils.asu import hkl_is_absent
 import reciprocalspaceship as rs
 import tensorflow as tf
 import numpy as np
-from careless.utils.laue import expand_harmonics
-from careless.models.merging.variational import *
 
+#Explicitly import everything until we figure out what should be in the __init__.py files
+import careless
+from careless.models.likelihoods.laue import *
+from careless.models.scaling.nn import *
+from careless.models.merging.variational import *
+from careless.models.priors.empirical import *
+from careless.models.priors.wilson import *
+from careless.utils.io import *
+from careless.utils.laue import *
+from careless.parser import laue_parser as parser
 
 #TODO: See if we still need this and decide if it should be a parser arg
 max_nancount = 20
@@ -23,32 +26,14 @@ max_nancount = 20
 parser = parser.parse_args()
 filenames = parser.reflection_filename
 
-#Suppress most tensorflow output
-environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
 
-#Disable the GPU if requested. This can be useful for training multiple models at the same time
-if parser.disable_gpu:
-    environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-data = []
-print("Loading Mtz files...")
-a,b,c,alpha,beta,gamma=0.,0.,0.,0.,0.,0.
-for i,inFN in tqdm(enumerate(filenames)):
-    ds = rs.read_mtz(inFN)
-    spacegroup = ds.spacegroup
-    ds['file_id'] = i
-    a += ds.cell.a/len(filenames)
-    b += ds.cell.b/len(filenames)
-    c += ds.cell.c/len(filenames)
-    alpha += ds.cell.alpha/len(filenames)
-    beta  += ds.cell.beta/len(filenames)
-    gamma += ds.cell.gamma/len(filenames)
-    data.append(ds)
-data = pd.concat(data)
-data.cell = UnitCell(a, b, c, alpha, beta, gamma)
-data.spacegroup = spacegroup 
+data = careless.utils.io.load_isomorphous_mtzs(*filenames)
 data.compute_dHKL(inplace=True)
 
+from IPython import embed
+embed(colors='Linux')
+
+"""
 del(data['M/ISYM'])
 
 #Set a potentially different spacegroup for merging
@@ -209,11 +194,6 @@ def train_model(df, parser):
     results = rs.DataSet(results[keys], spacegroup=spacegroup, cell=cell) 
     results.infer_mtz_dtypes(inplace=True)
     results.set_index(['H', 'K', 'L'], inplace=True)
-    rfree_template_filename = parser.rfree_template
-    if rfree_template_filename is not None:
-        rfree_template = rs.read_mtz(rfree_template_filename)
-        copy_rfree(results, rfree_template, inplace=True)
-        results[np.isnan(results['R-free-flags'])] = 0
     return merger,losses,results
 
 
@@ -237,3 +217,5 @@ print("Merging and refining second half data set ...")
 half2 = data[~data['half']]
 _,_,results2 = train_model(half2, parser)
 rs.io.write_mtz(results2, output_filename[:-4] + '_half2.mtz')
+"""
+
