@@ -181,9 +181,8 @@ def train_model(df):
     results['K'] = df.groupby('miller_id')['K'].first()  
     results['L'] = df.groupby('miller_id')['L'].first()  
     results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
-    cell = data.cell
     keys = ['H', 'K', 'L', 'F', 'SigF', 'experiment_id']
-    results = rs.DataSet(results[keys], spacegroup=spacegroup, cell=cell) 
+    results = rs.DataSet(results[keys], spacegroup=data.spacegroup, cell=data.cell) 
     results.infer_mtz_dtypes(inplace=True)
     results.set_index(['H', 'K', 'L'], inplace=True)
     return merger,losses,results

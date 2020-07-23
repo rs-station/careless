@@ -128,8 +128,8 @@ arguments = {
 
     ("--merge-files", ) : {
         'help': "Use this flag to merge all the supplied Mtzs together. Otherwise the different files will be scaled together but merged separately.", 
-        'type': bool, 
-        'default': False, 
+        'action' : 'store_true',
+        'default' : False
     },
 
     ("--equate-batches", ) : {
