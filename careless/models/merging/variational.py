@@ -1,6 +1,7 @@
 from careless.models.base import PerGroupModel
 from careless.utils.shame import sanitize_tensor
 from tensorflow_probability import distributions as tfd
+from tqdm.autonotebook import tqdm
 import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
@@ -40,6 +41,7 @@ class VariationalMergingModel(PerGroupModel):
             where applicable.
         """
         super().__init__(miller_ids)
+        self.eps = 1e-12
         self.prior = prior
         self.likelihood = likelihood
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
@@ -94,7 +96,7 @@ class VariationalMergingModel(PerGroupModel):
         if return_kl_term:
             q_F = self.surrogate_posterior.prob(F)
             p_F = self.prior.prob(F)
-            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F) - tf.math.log(p_F) ) )
+            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
 
         scale = 1.
         for model in self.scaling_models:
@@ -173,3 +175,50 @@ class VariationalMergingModel(PerGroupModel):
         for initial_value,var in zip(self._surrogate_posterior_init, self.surrogate_posterior.trainable_variables):
             var.assign(tf.where(tf.math.is_finite(q_F), var, initial_value))
 
+    def fit(self, optimizer=None, iterations=10000, max_nancount=20, s=1):
+        """
+        Fit the model by making the specified number of optimizer steps.
+
+        Parameters
+        ----------
+        optimizer : tf.keras.optimizers.Optimizer
+            Keras style optimizer. If none is supplied, an Adam optimizer with learning rate 0.01 will be used.
+        iterations : int
+            Number of gradient steps to make. The default is 10,000
+        max_nancount : int
+            Maximum number of successive NaN valued losses before terminating opimization. The Default is 20. 
+            This rarely matters with the current implementation, but it might be important for tricky likelihoods.
+        s : int
+            Number of samples used for gradient estimates. The Default is 1.
+
+        Returns
+        -------
+        losses : ndarray
+            Numpy array containing the loss function value for each gradient step.
+        """
+        if optimizer is None:
+            optimzer = tf.keras.optimizers.Adam(learning_rate)
+
+        losses = []
+        print(f"{'#'*80}")
+        print(f'Optimizing model')
+        print(f"{'#'*80}")
+        loss_ = None
+        chol_fails = 0
+        nancount = 0
+        for _ in tqdm(range(iterations)):
+            loss = self.train_step(optimizer, s=s)
+            losses.append(float(loss))
+            if not tf.math.is_finite(loss):
+                self.rescue_variational_distributions()
+                print(f"WARNING! Resetting stuck variational distributions!")
+                nancount += 1
+            else:
+                nancount = 0
+            loss_ = loss
+
+            if nancount > max_nancount:
+                print(f"WARNING! Optimization terminated due to too many failed gradient steps. Try decreasing the learning rate.")
+                break
+
+        return np.array(losses)

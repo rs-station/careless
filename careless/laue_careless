@@ -19,8 +19,6 @@ from careless.utils.io import *
 from careless.utils.laue import *
 from careless.parser import laue_parser as parser
 
-#TODO: See if we still need this and decide if it should be a parser arg
-max_nancount = 20
 
 parser = parser.parse_args()
 filenames = parser.reflection_filename
@@ -149,29 +147,11 @@ def train_model(df):
         likelihood,
     )
 
-    optim = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
-
-    losses = []
+    optimizer = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
     print(f"{'#'*80}")
     print(f'Optimizing model')
     print(f"{'#'*80}")
-    loss_ = None
-    chol_fails = 0
-    nancount = 0
-    for _ in tqdm(range(maxiter)):
-        loss = merger.train_step(optim, s=parser.mc_iterations)
-        losses.append(float(loss))
-        if not tf.math.is_finite(loss):
-            merger.rescue_variational_distributions()
-            print(f"WARNING! Resetting stuck variational distributions!")
-            nancount += 1
-        else:
-            nancount = 0
-        loss_ = loss
-
-        if nancount > max_nancount:
-            print(f"WARNING! Optimization terminated due to too many failed gradient steps. Try decreasing the learning rate.")
-            break
+    losses = merger.fit(optimizer, maxiter, s=parser.mc_iterations)
 
     results = pd.DataFrame()
     results['F'] = merger.surrogate_posterior.mean()
@@ -193,7 +173,6 @@ merger,losses,results = train_model(data)
 np.save(output_filename[:-4] + "_losses.npy", losses)
 
 for i,ds in results.groupby('experiment_id'):
-    ds = ds.drop_duplicates() #TODO: This is probably a bug investigate this further. I am not sure why there are duplicates in here. It may have to do with harmonic deconvolution or the presence of multiple experiment_ids.
     rs.io.write_mtz(ds, output_filename.split('.')[0] + f'_{i}.mtz')
 
 print("Merging and refining first half data set ...")
