@@ -44,6 +44,19 @@ This model takes reflection metadata as input and outputs a gaussian distributio
 `careless` supports custom variational likelihoods as well. 
 These scaling models differ from the current neural network model inasmuch as their parameters may have their own prior distributions. 
 
+Special metadata keys for scaling. 
+`careless` will happy parse any existing metadata keys in the input Mtz(s). 
+During configuration some new metadata keys will be populated that are useful in many instances. 
+ - dHKL : The inverse square of the reflection resolution. Supplying this key is a convenient way to parameterize isotropic scaling.
+ - file_id : An integer ID unique to each input Mtz. 
+
+### Considerations when choosing metadata. 
+ - <b>Polarization correction</b> : Careless does not apply a specific polarization correction. 
+   In order to be sure the model accounts for polarization, it is important to supply the x,y 
+   coordinates of each reflection observation. 
+ - <b>Isotropic scaling</b> : This is easily accounted for by supplying the 'dHKL' metadata key.
+ - <b>Image scaling</b> : Most properly formatted Mtzs have a "Batch" column which contains a unique id for each image.
+
 
 <a name="wilson">1</a>: Wilson, A. J. C. “The Probability Distribution of X-Ray Intensities.” Acta Crystallographica 2, no. 5 (October 2, 1949): 318–21. https://doi.org/10.1107/S0365110X49000813.
 
