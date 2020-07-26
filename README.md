@@ -47,16 +47,21 @@ These scaling models differ from the current neural network model inasmuch as th
 Special metadata keys for scaling. 
 `careless` will happy parse any existing metadata keys in the input Mtz(s). 
 During configuration some new metadata keys will be populated that are useful in many instances. 
- - dHKL : The inverse square of the reflection resolution. Supplying this key is a convenient way to parameterize isotropic scaling.
- - file_id : An integer ID unique to each input Mtz. 
+ - <b>dHKL</b> : The inverse square of the reflection resolution. Supplying this key is a convenient way to parameterize isotropic scaling.
+ - <b>file_id</b> : An integer ID unique to each input Mtz. 
+ - <b>image_id</b> : An integer ID unique to each image accross all input Mtzs. 
+
 
 ### Considerations when choosing metadata. 
  - <b>Polarization correction</b> : Careless does not apply a specific polarization correction. 
    In order to be sure the model accounts for polarization, it is important to supply the x,y 
    coordinates of each reflection observation. 
  - <b>Isotropic scaling</b> : This is easily accounted for by supplying the 'dHKL' metadata key.
- - <b>Image scaling</b> : Most properly formatted Mtzs have a "Batch" column which contains a unique id for each image.
-
+ - <b>Interleaved rotation series</b> : Most properly formatted Mtzs have a "Batch" column which contains a unique id for each image. 
+   Importantly, these are usually in order. If you have time resolved data with multiple timepoints per angle, you may
+   want to use the "Batch" key in conjunction with the "file_id" key. This way images from the same rotation angle will
+   be constrained to scale more similarly. 
+ - <b>Multi crystal scaling</b> : For scaling multiple crystals, it is best if image identifiers in the metadata do not overlap. Therefore, use the 'image_id' key. 
 
 <a name="wilson">1</a>: Wilson, A. J. C. “The Probability Distribution of X-Ray Intensities.” Acta Crystallographica 2, no. 5 (October 2, 1949): 318–21. https://doi.org/10.1107/S0365110X49000813.
 
