@@ -14,7 +14,7 @@ setup(
         "h5py",
         "tables",
         "cloudpickle == 1.3.0",
-        "tensorflow",
+        "tensorflow < 2.3",
         "tensorflow-probability",
     ],
     scripts = [
