@@ -1,6 +1,9 @@
 import argparse
+import numpy as np 
+import tensorflow as tf
+from os.path import exists
 
-class TfSettingsMixin():
+class EnvironmentSettingsMixin(argparse.ArgumentParser):
     """
     This will automagically set tensorflow environment variables when parse_args is called.
     """
@@ -11,205 +14,76 @@ class TfSettingsMixin():
         #Suppress most tensorflow output
         environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
 
+        np.random.seed(parser.seed)
+        tf.random.set_seed(parser.seed)
+
         #Disable the GPU if requested. This can be useful for training multiple models at the same time
         if parser.disable_gpu:
             environ["CUDA_VISIBLE_DEVICES"] = "-1"
         return parser
 
-class ArgumentParser(TfSettingsMixin, argparse.ArgumentParser):
-    pass
+class CustomParser(EnvironmentSettingsMixin):
+    """
+    A custom ArgumentParser with parse_args overloaded in order to 
+     - Set tensorflow environment variables
+     - Detect conflicting arguments and raise an informative error
+    """
+    def _validate_input_files(self, parser):
+        for inFN in parser.mtzinput:
+            if not exists(inFN):
+                self.error(f"Unmerged Mtz file {inFN} does not exist")
+
+        if parser.prior_mtz:
+            if not exists(parser.prior_mtz):
+                self.error(f"Prior Mtz file {parser.prior_mtz} does not exist")
+
+    def _validate_priors(self, parser):
+        if parser.studentt_prior_dof:
+            if not parser.prior_mtz:
+                print(parser.studentt_prior_dof)
+                self.error("--studentt-prior-dof requires --prior-mtz")
+        if parser.laplace_prior:
+            if not parser.prior_mtz:
+                print(parser.studentt_prior_dof)
+                self.error("--laplace-prior requires --prior-mtz")
+        if parser.normal_prior:
+            if not parser.prior_mtz:
+                print(parser.studentt_prior_dof)
+                self.error("--normal-prior requires --prior-mtz")
+
+    def parse_args(self, *args, **kwargs):
+        parser = super().parse_args(*args, **kwargs)
+        self._validate_input_files(parser)
+        self._validate_priors(parser)
+        return parser
 
 
 description = """
 Scale and merge crystallographic data by approximate inference.
 """
 
+parser = CustomParser(description=description)
+subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
+mono = subs.add_parser("mono", help="Process monochromatic diffraction data.")
+poly = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.")
 
-error_models = [
-    "Gaussian", 
-    "StudentT", 
-    "Laplace",
-]
+from careless.args.common import args_and_kwargs
+for args,kwargs in args_and_kwargs:
+    mono.add_argument(*args, **kwargs)
+    poly.add_argument(*args, **kwargs)
 
-#Specific arguments for laue version with harmonic deconvolution
-laue_arguments = {
-    ("-l", "--wavelength-range") : {
-        'help' : f"Minimum and maximum wavelength for harmonic deconvolution in Ångstroms. If this is not supplied, Harmonics will be predicted out to the minimum and maximum wavelengths recorded in the mtz.", 
-        'type' : float, 
-        'default': (None, None), 
-        'nargs' : 2,
-        #'dest': ['lambda_min', 'lambda_max'], 
-    },
+from careless.args.poly import args_and_kwargs
+for args,kwargs in args_and_kwargs:
+    poly.add_argument(*args, **kwargs)
 
-    ("-w", "--wavelength-key") : {
-        'help' : f"Mtz column name corresponding to the reflections' peak wavelength.", 
-        'type' : str, 
-        'default': 'Wavelength', 
-        'nargs' : 1,
-        'dest': 'wavelength_key', 
-    },
-}
+from careless.args.exclusive import groups
+for group in groups:
+    mono_group = mono.add_mutually_exclusive_group()
+    poly_group = poly.add_mutually_exclusive_group()
+    for args,kwargs in group:
+        mono_group.add_argument(*args, **kwargs)
+        poly_group.add_argument(*args, **kwargs)
 
-#Specific arguments for monochromatic version without harmonic deconvolution
-mono_arguments = {
-}
-
-arguments = {
-    ("reflection_filename" ,) : {
-        'help' : "Mtz filename(s).", 
-        'type' : str, 
-        'nargs':'+',
-        'default' : None,
-    },
-
-    ("output_mtz", ) : {
-        'help': "Ouput merged reflection filename", 
-        'type': str,
-    },
-
-    ("-c", "--isigi-cutoff") : {
-        'help': "Minimum I over Sigma(I) for included reflections. Default is to include all reflections", 
-        'type': float, 
-        'default': None,
-    },
-
-    ("-e", "--error-model") : {
-        'help' : f"Avalailable error models are {', '.join(error_models)}", 
-        'type' : str, 
-        'default' : 'Gaussian', 
-    },
-
-    ("-s", "--space-group-number") : {
-        'help' : f"What space group number to merge in. By default use the Mtz spacegroup.", 
-        'type' : int, 
-        'default' : None,
-    },
-
-    ("-d", "--dmin") : {
-        'help' : f"Maximum resolution in Ångstroms. If this is not supplied, reflections will be merged out to the highest resolution reflection present in the input.", 
-        'type' : float, 
-        'default': None, 
-    },
-
-    ("--anomalous", ) : {
-        'help' : f"If this flag is supplied, Friedel mates will be kept separate.", 
-        'action' : 'store_true', 
-        'default' : False, 
-    },
-
-    ("--seed", ) : {
-        'help' : f"Random number seed for consistent half dataset generation.", 
-        'type' : int, 
-        'default' : 1234, 
-    },
-
-    ("--iterations", ) : {
-        'help': "Number of gradient steps to take.", 
-        'type': int, 
-        'default': 2000, 
-    },
-
-    ("--disable-gpu", ) : {
-        'help': "Disable GPU for high memory models.", 
-        'type': bool, 
-        'default': False, 
-    },
-
-    ("--learning-rate", ) : {
-        'help': "Adam learning rate.", 
-        'type': float, 
-        'default': 0.01, 
-    },
-    ("--mc-iterations", ) : {
-        'help': "This is the number of samples to take per gradient step with default = 1.", 
-        'type': int, 
-        'default': 1, 
-    },
-
-    ("--merge-files", ) : {
-        'help': "Use this flag to merge all the supplied Mtzs together. Otherwise the different files will be scaled together but merged separately.", 
-        'action' : 'store_true',
-        'default' : False
-    },
-
-    ("--equate-batches", ) : {
-        'help': "Should batch IDs be treated the same between experiments? You might want to set this to true if, for instance you are scaling a time resolved experiment with multiple images per orientation. The default is False.", 
-        'type': bool, 
-        'default': False, 
-    },
-
-    ("--metadata-keys", ) : {
-        'help': "Mtz column labels of metadata. If this this not supplied, all suitable columns will be used. By default Intensity, Stddev, and HKL dtypes will not be included.", 
-        'type': str, 
-        'nargs' : "+",
-        'default': None,
-    },
-
-    ("--tf-log-level", ) : {
-        'help': "Change the TensorFlow log level by setting the 'TF_CPP_MIN_LOG_LEVEL' environment variable. The default is '3' which is quiet.", 
-        'type': int, 
-        'nargs' : 1,
-        'default': 3,
-    },
-
-#Not a thing for now
-#    ("--weights", ) : {
-#        'help': "Use a weighted log likelihood term.", 
-#        'type': bool, 
-#        'nargs' : 1,
-#        'default': False,
-#    },
-    
-}
-
-#These groups will be mutually exclusive
-exclusive_groups = (
-    { #Group one is for defining prior distributions
-        ("--laplace-prior", ) : {
-            'help': "Use empirical reference structure factor apmlitudes from an Mtz file to parameterize a Laplacian prior distribution. ", 
-            'type': str, 
-            'default': False,
-        },
-
-        ("--normal-prior", ) : {
-            'help': "Use empirical reference structure factor apmlitudes from an Mtz file to parameterize a Normal prior distribution. ", 
-            'type': str, 
-            'default': False,
-        }, 
-    },
-
-    { #Group two is for definining likelihood functions
-        ("--studentt", ) : {
-            'help': "Degrees of freedom for student t likelihood function.", 
-            'type': float, 
-            'default': None, 
-        },
-
-        ("--laplace", ) : {
-            'help': "Use a Laplacian likelihood function.", 
-            'default': False, 
-            'action' : 'store_true',
-        },
-
-    },
-)
-
-mono_parser = ArgumentParser()
-laue_parser = ArgumentParser()
-
-for args, kwargs in arguments.items():
-    laue_parser.add_argument(*args, **kwargs)
-    mono_parser.add_argument(*args, **kwargs)
-
-for group in exclusive_groups:
-    for args, kwargs in group.items():
-        group = laue_parser.add_mutually_exclusive_group()
-        group.add_argument(*args, **kwargs)
-        group = mono_parser.add_mutually_exclusive_group()
-        group.add_argument(*args, **kwargs)
-
-for args, kwargs in laue_arguments.items():
-    laue_parser.add_argument(*args, **kwargs)
-
-for args, kwargs in mono_arguments.items():
-    mono_parser.add_argument(*args, **kwargs)
+if __name__=="__main__":
+    #This makes debugging without running the full script easy
+    parser=parser.parse_args()
