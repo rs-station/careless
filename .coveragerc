@@ -1,3 +1,2 @@
 [run]
 source = careless 
-omit = careless/merge/*

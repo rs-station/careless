@@ -18,7 +18,7 @@ setup(
         "tensorflow-probability",
     ],
     scripts = [
-            'careless/laue_careless',
+            'careless/careless',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
