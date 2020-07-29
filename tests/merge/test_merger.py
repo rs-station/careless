@@ -1,5 +1,6 @@
 import pytest
 from careless.merge.merge import *
+from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname,exists
 
 
@@ -9,6 +10,8 @@ mtz_filenames = [
     base_dir + '/../../data/laue/pyp/2ms_varEll.mtz',
 ]
 
+mtz_data = load_isomorphous_mtzs(*mtz_filenames)
+
 reference_filename = base_dir + '/../../data/laue/pyp/pyp_off_phenix.mtz'
 
 for f in mtz_filenames:
@@ -17,6 +20,20 @@ assert exists(reference_filename)
 
 reference_data = rs.read_mtz(reference_filename)
 
+@pytest.mark.parametrize("merger_class", [MonoMerger, PolyMerger])
+@pytest.mark.parametrize("anomalous", [False, True])
+def test_Constructor(merger_class, anomalous):
+    merger = merger_class.from_isomorphous_mtzs(*mtz_filenames, anomalous=anomalous)
+
+@pytest.mark.parametrize("merger_class", [MonoMerger, PolyMerger])
+@pytest.mark.parametrize("anomalous", [False, True])
+@pytest.mark.parametrize("data", [reference_filename, reference_data])
+def test_AppendReference(merger_class, data, anomalous):
+    merger = merger_class.from_isomorphous_mtzs(*mtz_filenames, anomalous=anomalous)
+    merger.append_reference_data(data)
+    assert 'REF' in merger.data
+    assert 'SIGREF' in merger.data
+
 
 @pytest.mark.parametrize("merger_class", [MonoMerger, PolyMerger])
 @pytest.mark.parametrize("metadata_keys", [None, ['dHKL', 'X', 'Y', 'BATCH']])
@@ -24,7 +41,7 @@ reference_data = rs.read_mtz(reference_filename)
 @pytest.mark.parametrize("likelihood", ["Normal", "Laplace", "StudentT"])
 @pytest.mark.parametrize("prior", ["Wilson", "Normal", "Laplace", "StudentT"])
 def test_MonoMerger_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys):
-    merger = merger_class.from_isomorphous_mtzs(*mtz_filenames, anomalous=anomalous)
+    merger = merger_class(mtz_data, anomalous=anomalous)
 
     if prior != "Wilson":
         #The empirical priors need reference data
