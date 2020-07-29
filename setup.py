@@ -13,8 +13,7 @@ setup(
         "tqdm",
         "h5py",
         "tables",
-        "cloudpickle == 1.3.0",
-        "tensorflow < 2.3",
+        "tensorflow",
         "tensorflow-probability",
     ],
     scripts = [
