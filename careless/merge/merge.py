@@ -41,7 +41,7 @@ class BaseMerger():
     sigma_intensity_key = None
 
     def __init__(self, dataset, anomalous=False):
-        self.data = dataset
+        self.data = dataset.copy() #chaos ensues otherwise
         self.data.reset_index(inplace=True)
         self.data[['Hobs', 'Kobs', 'Lobs']] = self.data.loc[:,['H', 'K', 'L']]
         self.data.hkl_to_asu(inplace=True)
