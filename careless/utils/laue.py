@@ -10,9 +10,8 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     Parameters
     ----------
     ds : rs.DataSet
-        Laue data without multiples. Miller indices must correspond to the 
-        observed Miller index for this to work properly.do not supply Miller 
-        indices in the reciprocal asymmetric unit.
+        Laue data without multiples. Must have 'Hobs', 'Kobs', and 'Lobs' columns.
+        These must correspond to the observed miller indices not those in the ASU.
     dmin : float
         Highest resolution in Å to which harmonics will be predicted. If not 
         supplied, the highest resolution reflection in ds will set dmin.
@@ -25,14 +24,19 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
         to each reflection to store the Miller indices of the innermost 
         reflection on each central ray. 
     """
-    ds = ds.copy()
+    if 'Hobs' not in ds:
+        raise KeyError("Expected 'Hobs' column in ds, but no 'Hobs' found")
+    if 'Kobs' not in ds:
+        raise KeyError("Expected 'Kobs' column in ds, but no 'Kobs' found")
+    if 'Lobs' not in ds:
+        raise KeyError("Expected 'Lobs' column in ds, but no 'Lobs' found")
 
-    #In case the HKLs are being used as indices
-    ds.reset_index(inplace=True)
+    ds = ds.copy()
 
     #Here's where we get the metadata for Laue harmonic deconvolution
     #This is the HKL of the closest refl on each central ray
-    H_0 = (ds.get_hkls()/np.gcd.reduce(ds.get_hkls(), axis=1)[:,None]).astype(np.int32)
+    Hobs = ds.loc[:,['Hobs', 'Kobs', 'Lobs']].to_numpy()
+    H_0 = (Hobs/np.gcd.reduce(Hobs, axis=1)[:,None]).astype(np.int32)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0.T
 
     #This list of HKLs is going to be very redundant so we should compress it
@@ -46,14 +50,14 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     ds['n_max'] =  np.floor(ds['d_0']/dmin).astype(int)
 
     #This is the harmonic number as indexed
-    n_obs = (np.linalg.norm(ds[['H', 'K', 'L']].astype(float), 2, 1) /
+    n_obs = (np.linalg.norm(ds[['Hobs', 'Kobs', 'Lobs']].astype(float), 2, 1) /
         np.linalg.norm(ds[['H_0', 'K_0', 'L_0']].astype(float), 2, 1)).astype(int)
 
     #Change peak wavelength to correspond to H_0
     # \lambda_n = (1/n) * \lambda_1
     # there is some abuse of notation here \lambda_1 corresponds to H_0
     ds[wavelength_key] = ds[wavelength_key] * n_obs
-    ds.loc[:,'H'],ds.loc[:,'K'],ds.loc[:,'L'] = ds['H_0'],ds['K_0'],ds['L_0']
+    ds.loc[:,'Hobs'],ds.loc[:,'Kobs'],ds.loc[:,'Lobs'] = ds['H_0'],ds['K_0'],ds['L_0']
 
     #This is difficult to read but basically this is where we make the indices to expand
     #each harmonic the appropriate number of times given dmin
@@ -65,7 +69,7 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     ds = ds.iloc[idx]
     ds['harmonic'] = n
     ds[wavelength_key] = ds[wavelength_key] / n
-    ds['H'],ds['K'],ds['L'] = n*ds['H_0'],n*ds['K_0'],n*ds['L_0']
+    ds['Hobs'],ds['Kobs'],ds['Lobs'] = n*ds['H_0'],n*ds['K_0'],n*ds['L_0']
     ds.compute_dHKL(inplace=True)
 
     return ds
