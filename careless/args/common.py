@@ -1,12 +1,18 @@
 #This file contains arguments that should be common to all running modes of careless
 
 args_and_kwargs = (
-    (("metadata-keys", ),  {
+    (("metadata_keys", ),  {
         "help":"Metadata keys for scaling. This is expected to be a comma delimitted string",
         "type":str, 
     }),
 
-    (("image-id-key", ),  {
+    (("--embed", ),  {
+        "help":"Drop to an IPython shell at the end of optimization to play around.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
+    (("--image-id-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",
         "type":str, 
@@ -102,5 +108,11 @@ args_and_kwargs = (
         "type":str, 
         "default":None, 
     }),
+
+    (("--sequential-layers",), {
+        "help": "The number of sequential dense neural network layers in the scaling model.",
+        "type":int,
+        "default":20,
+    })
 
 )

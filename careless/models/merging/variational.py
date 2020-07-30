@@ -168,12 +168,19 @@ class VariationalMergingModel(PerGroupModel):
         """
         Reset values for problem distributions to their intial values. 
         This is useful if probabilities posteriors get stuck in a low probability region and samples underflow. 
+        They can also get stuck in a regime where the stddev overflows. 
+        This method corrects that pathology as well.
         """
         F = self.surrogate_posterior.sample()
         q_F = self.surrogate_posterior.prob(F)
-        #This is useful if some of the posteriors get stuck
+        #This is useful if some of the posteriors get stuck and probabilities underflow
         for initial_value,var in zip(self._surrogate_posterior_init, self.surrogate_posterior.trainable_variables):
             var.assign(tf.where(tf.math.is_finite(q_F), var, initial_value))
+
+        #This is useful if some of the posteriors get stuck and stddev overflows
+        sigma = self.surrogate_posterior.stddev()
+        for initial_value,var in zip(self._surrogate_posterior_init, self.surrogate_posterior.trainable_variables):
+            var.assign(tf.where(tf.math.is_finite(sigma), var, initial_value))
 
     def fit(self, optimizer=None, iterations=10000, max_nancount=20, s=1):
         """

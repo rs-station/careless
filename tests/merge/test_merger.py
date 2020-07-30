@@ -7,6 +7,7 @@ from careless.utils.tensorflow import disable_gpu
 status = disable_gpu()
 assert status
 
+dmin = 5. #Use less memory and go faster
 
 base_dir = dirname(abspath(__file__))
 mtz_filenames = [
@@ -23,6 +24,7 @@ for f in mtz_filenames:
 assert exists(reference_filename)
 
 reference_data = rs.read_mtz(reference_filename)
+reference_data = reference_data[reference_data.compute_dHKL().dHKL >= dmin]
 
 @pytest.mark.parametrize("merger_class", [MonoMerger, PolyMerger])
 @pytest.mark.parametrize("anomalous", [False, True])
@@ -34,6 +36,8 @@ def test_Constructor(merger_class, anomalous):
 @pytest.mark.parametrize("data", [reference_filename, reference_data])
 def test_AppendReference(merger_class, data, anomalous):
     merger = merger_class.from_isomorphous_mtzs(*mtz_filenames, anomalous=anomalous)
+    if merger_class == PolyMerger:
+        merger.expand_harmonics()
     merger.append_reference_data(data)
     assert 'REF' in merger.data
     assert 'SIGREF' in merger.data
@@ -46,6 +50,8 @@ def test_AppendReference(merger_class, data, anomalous):
 @pytest.mark.parametrize("prior", ["Wilson", "Normal", "Laplace", "StudentT"])
 def test_MonoMerger_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys):
     merger = merger_class(mtz_data, anomalous=anomalous)
+    if merger_class == PolyMerger:
+        merger.expand_harmonics()
 
     if prior != "Wilson":
         #The empirical priors need reference data
