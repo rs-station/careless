@@ -5,7 +5,7 @@ args_and_kwargs = (
                "If this is not supplied, Harmonics will be predicted out to the minimum and "
                "maximum wavelengths recorded in the mtz.", 
         "type": float, 
-        "default":(None,None), 
+        "default": None,
         "nargs":2, 
         "metavar": ('lambda_min', 'lambda_max'),
     }),

@@ -40,7 +40,7 @@ class BaseMerger():
     intensity_key = None
     sigma_intensity_key = None
 
-    def __init__(self, dataset, anomalous=False):
+    def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None):
         self.data = dataset.copy() #chaos ensues otherwise
 
         if self.data.index.names != [None]: #If you have a non-numeric index
@@ -77,10 +77,17 @@ class BaseMerger():
             self.metadata_keys += ['file_id']
         self.metadata_keys += ['dHKL']
 
+        if dmin is not None:
+            self.data = self.data[self.data.dHKL >= dmin]
+
+        if isigi_cutoff is not None:
+            isigi = self.data[self.intensity_key] / self.data[self.sigma_intensity_key]
+            self.data = self.data[isigi >= isigi_cutoff]
+
     @classmethod
-    def from_isomorphous_mtzs(cls, *filenames, anomalous=False):
+    def from_isomorphous_mtzs(cls, *filenames, anomalous=False, dmin=None, isigi_cutoff=None):
         from careless.utils.io import load_isomorphous_mtzs
-        return cls(load_isomorphous_mtzs(*filenames), anomalous)
+        return cls(load_isomorphous_mtzs(*filenames), anomalous, dmin, isigi_cutoff)
 
     def append_anomalous_data(self, mtz_filename):
         raise NotImplementedError("This module does not support priors with anomalous differences yet")
@@ -216,10 +223,6 @@ class HarmonicDeconvolutionMixin:
         return self
 
 class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.expand_harmonics()
-
     def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
         """
         Parameters
