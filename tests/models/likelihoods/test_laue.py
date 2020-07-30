@@ -1,5 +1,11 @@
 from careless.models.likelihoods.laue import *
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
+
+
+
 # This is a bit tricky, but we need to test that all the dimensions for harmonic deconvolutions work out
 # We're going to have a certain number of observed reflections `n_refls`. We're going to have a larger number
 # of harmonics that need predicting, `n_harmonics`. 

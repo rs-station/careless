@@ -1,6 +1,11 @@
 from careless.models.priors.empirical import *
 import numpy as np
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
+
+
 Fobs,SigFobs = np.random.random((2, 100)).astype(np.float32)
 
 

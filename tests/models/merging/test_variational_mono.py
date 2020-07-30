@@ -6,6 +6,9 @@ import pytest
 import tensorflow as tf
 import numpy as np 
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
 
 
 
