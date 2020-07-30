@@ -6,6 +6,13 @@ args_and_kwargs = (
         "type":str, 
     }),
 
+    (("image-id-key", ),  {
+        "help":"The name of the key indicating image number for each data set. "
+               "If no key is given, careless will use the first key with the BATCH dtype."
+        "type":str, 
+        "default" : None,
+    }),
+
     (("mtzinput", ), { 
         "metavar":"file.mtz", 
         "help":"Mtz filename(s).", 
@@ -64,7 +71,8 @@ args_and_kwargs = (
 
     (("--merge-files",), {
         "help":"Use this flag to merge all the supplied Mtzs together." 
-               "Otherwise the different files will be scaled together but merged separately.", 
+               "Otherwise the different files will be scaled together but merged separately."
+               "The default is to merge all the files into a single output.", 
         "action":'store_true', 
         "default":False,
     }),
@@ -76,11 +84,11 @@ args_and_kwargs = (
     }),
 
     (("--tf-log-level",), {
-        "help": "Change the TensorFlow log level by setting the "
-                "'TF_CPP_MIN_LOG_LEVEL' environment variable. The default is '3' which is quiet.", 
+        "help": "Change the TensorFlow autograph verbosity by setting the "
+                "The default is 0 which is quiet.", 
         "type":int, 
         "nargs":1, 
-        "default":3,
+        "default":0,
     }),
 
     (("--seed",), { 
