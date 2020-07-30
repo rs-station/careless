@@ -3,6 +3,10 @@ from careless.merge.merge import *
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname,exists
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
+
 
 base_dir = dirname(abspath(__file__))
 mtz_filenames = [

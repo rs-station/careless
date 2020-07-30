@@ -1,5 +1,10 @@
 from careless.models.likelihoods.mono import *
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
+
+
 iobs,sigiobs = np.random.random((2, 100)).astype(np.float32)
 samples = np.random.random(100).astype(np.float32)
 

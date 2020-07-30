@@ -3,6 +3,11 @@ import pytest
 import tensorflow as tf
 import numpy as np
 
+from careless.utils.tensorflow import disable_gpu
+status = disable_gpu()
+assert status
+
+
 @pytest.mark.parametrize("nsamples", [(), 10])
 @pytest.mark.parametrize("return_kl_term", [False, True])
 def test_SequentialScaler(nsamples, return_kl_term):
