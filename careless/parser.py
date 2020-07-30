@@ -12,14 +12,13 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
 
         from os import environ
         #Suppress most tensorflow output
-        environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
-
+        tf.autograph.set_verbosity(parser.tf_log_level)
         np.random.seed(parser.seed)
         tf.random.set_seed(parser.seed)
 
         #Disable the GPU if requested. This can be useful for training multiple models at the same time
         if parser.disable_gpu:
-            environ["CUDA_VISIBLE_DEVICES"] = "-1"
+            tf.config.set_visible_devices([], 'GPU')
         return parser
 
 class CustomParser(EnvironmentSettingsMixin):
@@ -87,3 +86,5 @@ for group in groups:
 if __name__=="__main__":
     #This makes debugging without running the full script easy
     parser=parser.parse_args()
+    from IPython import embed
+    embed(colors="Linux")

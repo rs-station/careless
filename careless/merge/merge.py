@@ -136,7 +136,7 @@ class BaseMerger():
         results.set_index(['H', 'K', 'L'], inplace=True)
         return results
 
-    def prep_indices(self, image_id_key='BATCH', experiment_id_key='file_id'):
+    def prep_indices(self, image_id_key=None, experiment_id_key='file_id'):
         #This is for merging equivalent millers accross mtzs
         df = self.data.copy().dropna() #There will be nans if reference data were added
         df['miller_id'] = df.groupby(['H', 'K', 'L']).ngroup() 
@@ -220,18 +220,21 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         super().__init__(*args, **kwargs)
         self.expand_harmonics()
 
-    def prep_indices(self, separate_files=False, image_id_key='BATCH', experiment_id_key='file_id'):
+    def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
         """
         Parameters
         ----------
         separate_files : bool
             Default is False. If True, miller indices originating from different input files will be kept separate.
         image_id_key : str
-            Key used to identify which image an observation originated from. Default is 'BATCH'. 
+            Key used to identify which image an observation originated from. Default is to use the first 'BATCH' key. 
         file_id_key : str
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
+        if image_id_key is None:
+            image_id_key = get_first_key_of_type(self.data, 'B')
+
         #This is for merging equivalent millers accross mtzs
         df = self.data.copy() #There will be nans if reference data were added
         df['null'] = df.isnull().any(axis=1)
@@ -279,7 +282,7 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
 
 class MonoMerger(BaseMerger):
-    def prep_indices(self, separate_files=False, image_id_key='BATCH', experiment_id_key='file_id'):
+    def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
         """
         Parameters
         ----------
@@ -291,6 +294,9 @@ class MonoMerger(BaseMerger):
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
+        if image_id_key is None:
+            image_id_key = get_first_key_of_type(self.data, 'B')
+
         #This is for merging equivalent millers accross mtzs
         df = self.data.copy().dropna() #There will be nans if reference data were added
         if separate_files:
