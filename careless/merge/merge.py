@@ -42,9 +42,21 @@ class BaseMerger():
 
     def __init__(self, dataset, anomalous=False):
         self.data = dataset.copy() #chaos ensues otherwise
-        self.data.reset_index(inplace=True)
+
+        if self.data.index.names != [None]: #If you have a non-numeric index
+            self.data.reset_index(inplace=True)
         self.data[['Hobs', 'Kobs', 'Lobs']] = self.data.loc[:,['H', 'K', 'L']]
+
+        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
+        # The next line can be removed after the next release.
+        self.data.set_index(['H', 'K', 'L'], inplace=True) 
+
         self.data.hkl_to_asu(inplace=True)
+
+        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
+        # The next line can be removed after the next release.
+        self.data.reset_index(inplace=True) #Return to numerical indices
+
         if anomalous:
             friedel_sign = 2 * (self.data['M/ISYM'] %2 - 0.5).to_numpy()
             self.data.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * self.data.loc[:,['H', 'K', 'L']]
