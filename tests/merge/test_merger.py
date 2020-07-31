@@ -48,10 +48,13 @@ def test_AppendReference(merger_class, data, anomalous):
 @pytest.mark.parametrize("anomalous", [False, True])
 @pytest.mark.parametrize("likelihood", ["Normal", "Laplace", "StudentT"])
 @pytest.mark.parametrize("prior", ["Wilson", "Normal", "Laplace", "StudentT"])
-def test_MonoMerger_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys):
+def test_Merger_on_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys):
     merger = merger_class(mtz_data, anomalous=anomalous)
     if merger_class == PolyMerger:
         merger.expand_harmonics()
+
+    assert merger.data[merger.sigma_intensity_key].dtype == 'Q'
+    assert merger.data[merger.intensity_key].dtype == 'J'
 
     if prior != "Wilson":
         #The empirical priors need reference data
