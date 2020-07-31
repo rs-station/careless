@@ -79,8 +79,8 @@ args_and_kwargs = (
         "help":"Use this flag to merge all the supplied Mtzs together." 
                "Otherwise the different files will be scaled together but merged separately."
                "The default is to merge all the files into a single output.", 
-        "action":'store_true', 
-        "default":False,
+        "type" : bool,
+        "default": True,
     }),
 
     (("--disable-gpu",), {
