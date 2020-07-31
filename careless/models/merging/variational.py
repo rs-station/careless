@@ -162,7 +162,7 @@ class VariationalMergingModel(PerGroupModel):
         loss : float
             The current value of the Evidence Lower BOund
         """
-        return self._train_step(optimizer, s=1)
+        return self._train_step(optimizer, s=s)
 
     def rescue_variational_distributions(self):
         """
