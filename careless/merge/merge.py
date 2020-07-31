@@ -6,14 +6,12 @@ import reciprocalspaceship as rs
 
 
 def get_first_key_of_type(ds, typestring):
-    idx = ds.dtypes=='J'
+    idx = ds.dtypes==typestring
     if idx.sum() < 1:
         raise KeyError(f"No key matching typestring {typestring}")
     else:
         return ds.dtypes[idx].keys()[0]
         
-
-
 
 class BaseMerger():
     """
