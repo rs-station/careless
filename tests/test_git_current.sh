@@ -6,6 +6,7 @@ eval "$(conda shell.bash hook)"
 
 conda create -yn $NAME python=$PYTHON_VERSION
 conda activate $NAME
+pip install -U pip
 git clone ssh://git@$URL
 cd $NAME
 pip install --no-cache-dir -e .
