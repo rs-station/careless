@@ -8,7 +8,8 @@ setup(
     packages=find_packages(),
     description='Scaling and merging crystallographic data with TensorFlow and Variational Inference',
     install_requires=[
-        "numpy",
+        "numpy<1.19.0,>=1.16.0",
+        "scipy==1.4.1",
         "reciprocalspaceship",
         "tqdm",
         "h5py",
