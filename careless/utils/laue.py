@@ -39,12 +39,8 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     H_0 = (Hobs/np.gcd.reduce(Hobs, axis=1)[:,None]).astype(np.int32)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0.T
 
-    #This list of HKLs is going to be very redundant so we should compress it
-    hkls,inverse = np.unique(H_0, axis=0, return_inverse=True)
-    d_0 = np.zeros(len(hkls))
-    for i,hkl in enumerate(hkls):
-        d_0[i] = ds.cell.calculate_d(hkl)
-    ds['d_0'] = rs.DataSeries(d_0[inverse], dtype="MTZReal", index=ds.index)
+    d_0 = rs.utils.compute_dHKL(H_0, ds.cell)
+    ds['d_0'] = rs.DataSeries(d_0, dtype="MTZReal", index=ds.index)
     if dmin is None:
         dmin = ds['dHKL'].min() - 1e-12
     ds['n_max'] =  np.floor(ds['d_0']/dmin).astype(int)
