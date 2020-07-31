@@ -161,8 +161,10 @@ class BaseMerger():
             self.prior,
             self.likelihood,
         )
+        
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate)#, clipvalue=.1)
+        #optimizer = tf.keras.optimizers.SGD(learning_rate, momentum=0.1)
+        optimizer = tf.keras.optimizers.Adam(learning_rate)
         losses = self.merger.fit(optimizer, iterations, s=mc_samples)
         self.results = self.get_results()
         return losses
@@ -218,7 +220,7 @@ class HarmonicDeconvolutionMixin:
         else:
             lambda_min, lambda_max = wavelength_range
 
-        expanded = expand_harmonics(expanded, dmin=None, wavelength_key='Wavelength')
+        expanded = expand_harmonics(expanded, dmin=dmin, wavelength_key='Wavelength')
         self.data = expanded[(expanded[wavelength_key] >= lambda_min) & (expanded[wavelength_key] <= lambda_max)]
         return self
 
