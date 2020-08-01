@@ -90,11 +90,12 @@ args_and_kwargs = (
     }),
 
     (("--tf-log-level",), {
-        "help": "Change the TensorFlow autograph verbosity by setting the "
-                "The default is 0 which is quiet.", 
+        "help": "Change the TensorFlow log verbosity by setting the "
+                "TF_CPP_MIN_LOG_LEVEL environment variable. "
+                "The default is 3 which is quiet.", 
         "type":int, 
         "nargs":1, 
-        "default":0,
+        "default":3,
     }),
 
     (("--seed",), { 

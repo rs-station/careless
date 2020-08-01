@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 
 from careless.parser import parser
+# This needs to be called before tf is imported 
+# otherwise the log level will not be set properly
+parser = parser.parse_args()
+
 from careless.merge.merge import *
 import numpy as np
 
-
-parser = parser.parse_args()
 
 if parser.type == 'mono':
     merger = MonoMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=parser.dmin, isigi_cutoff=parser.isigi_cutoff)
 elif parser.type == 'poly':
     merger = PolyMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=None, isigi_cutoff=parser.isigi_cutoff)
+    num_obs = len(merger.data)
     merger.expand_harmonics(dmin=parser.dmin, wavelength_key=parser.wavelength_key, wavelength_range=parser.wavelength_range)
+    print(f"Adding {len(merger.data) - num_obs} harmonic reflections")
 else:
     raise ValueError(f"Parser.type is {parser.type} but expected either 'mono' or 'poly'")
 
