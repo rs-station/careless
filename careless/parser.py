@@ -1,6 +1,5 @@
 import argparse
 import numpy as np 
-import tensorflow as tf
 from os.path import exists
 
 class EnvironmentSettingsMixin(argparse.ArgumentParser):
@@ -11,8 +10,9 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         parser = super().parse_args(*args, **kwargs)
 
         from os import environ
-        #Suppress most tensorflow output
-        tf.autograph.set_verbosity(parser.tf_log_level)
+        environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
+
+        import tensorflow as tf
         np.random.seed(parser.seed)
         tf.random.set_seed(parser.seed)
 
