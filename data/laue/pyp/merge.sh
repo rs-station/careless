@@ -1,3 +1,4 @@
+mkdir merge
 careless poly \
   --merge-files=False \
   --iterations=10000 \
