@@ -69,6 +69,24 @@ args_and_kwargs = (
         "default":0.01,
     }),
 
+    (("--clip-value",), {
+        "help":"Maximum gradient absolute value.", 
+        "type": float, 
+        "default": None,
+    }),
+
+    (("--beta-1",), {
+        "help":"Adam beta_1 param.", 
+        "type":float, 
+        "default":0.5,
+    }),
+
+    (("--beta-2",), {
+        "help":"Adam beta_2 param.", 
+        "type":float, 
+        "default":0.9,
+    }),
+
     (("--mc-samples",), {
         "help":"This is the number of samples to take per gradient step with default 1", 
         "type": int, 
