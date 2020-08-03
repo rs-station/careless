@@ -37,6 +37,7 @@ class BaseMerger():
     scaling_model = None
     intensity_key = None
     sigma_intensity_key = None
+    anomalous = False
 
     def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None):
         self.data = dataset.copy() #chaos ensues otherwise
@@ -56,6 +57,7 @@ class BaseMerger():
         self.data.reset_index(inplace=True) #Return to numerical indices
 
         if anomalous:
+            self.anomalous = True
             friedel_sign = 2 * (self.data['M/ISYM'] %2 - 0.5).to_numpy()
             self.data.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * self.data.loc[:,['H', 'K', 'L']]
 
@@ -131,12 +133,11 @@ class BaseMerger():
         results = rs.DataSet(cell = self.data.cell, spacegroup = self.data.spacegroup)
         results['F'] = self.merger.surrogate_posterior.mean()
         results['SigF'] = self.merger.surrogate_posterior.stddev()
-        results['dHKL'] = df.groupby('miller_id').first()['dHKL']
+        results['N'] = df.groupby('miller_id').size()
         results['H'] = df.groupby('miller_id')['H'].first()  
         results['K'] = df.groupby('miller_id')['K'].first()  
         results['L'] = df.groupby('miller_id')['L'].first()  
         results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
-        keys = ['H', 'K', 'L', 'F', 'SigF', 'experiment_id']
         results.infer_mtz_dtypes(inplace=True)
         results.set_index(['H', 'K', 'L'], inplace=True)
         return results
@@ -150,7 +151,7 @@ class BaseMerger():
         self.data = df
         return self
 
-    def train_model(self, iterations, mc_samples=1, learning_rate=0.01):
+    def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
         from careless.models.merging.variational import VariationalMergingModel
 
         self.merger = VariationalMergingModel(
@@ -162,8 +163,8 @@ class BaseMerger():
         
 
         #optimizer = tf.keras.optimizers.SGD(learning_rate, momentum=0.1)
-        optimizer = tf.keras.optimizers.Adam(learning_rate)
-        losses = self.merger.fit(optimizer, iterations, s=mc_samples)
+        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=beta_1, beta_2=beta_2)
+        losses = self.merger.fit(optimizer, iterations, s=mc_samples, clip_value=clip_value)
         self.results = self.get_results()
         return losses
 

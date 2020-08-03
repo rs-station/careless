@@ -48,13 +48,25 @@ else:
 metadata_keys = parser.metadata_keys.split(',')
 merger.add_scaling_model(parser.sequential_layers, metadata_keys)
 
-losses = merger.train_model(parser.iterations, mc_samples=parser.mc_samples, learning_rate=parser.learning_rate)
+losses = merger.train_model(
+    parser.iterations, 
+    mc_samples=parser.mc_samples, 
+    learning_rate=parser.learning_rate,
+    beta_1=parser.beta_1,
+    beta_2=parser.beta_2,
+    clip_value=parser.clip_value,
+)
 np.save(f"{parser.output_base}_losses.npy", losses)
-results = merger.get_results()
 
-for file_id,df in results.groupby("experiment_id"):
-    df = df.dropna() #This will not be necessary after i fix "rescue_variational_distributions"
-    df.cell,df.spacegroup = results.cell,results.spacegroup
+for file_id,df in merger.results.groupby("experiment_id"):
+    #df = df.dropna() #This will not be necessary after i fix "rescue_variational_distributions"
+    df.cell,df.spacegroup = merger.results.cell,merger.results.spacegroup
+    del(df['experiment_id'])
+    if parser.anomalous:
+        df.merged = True
+        df = df.unstack_anomalous()
+    df.fillna(0., inplace=True)
+    df.infer_mtz_dtypes(inplace=True)
     df.write_mtz(f"{parser.output_base}_{file_id}.mtz")
 
 if parser.embed:
