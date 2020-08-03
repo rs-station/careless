@@ -51,6 +51,7 @@ During configuration some new metadata keys will be populated that are useful in
  - <b>dHKL</b> : The inverse square of the reflection resolution. Supplying this key is a convenient way to parameterize isotropic scaling.
  - <b>file_id</b> : An integer ID unique to each input Mtz. 
  - <b>image_id</b> : An integer ID unique to each image accross all input Mtzs. 
+ - <b>{H,K,L}obs</b> : Internally, `careless` refers to the original miller indices from indexing as `Hobs`, `Kobs`, and `Lobs`. Supplying these three keys is the typical method to enable anisotropic scaling. 
 
 
 ### Considerations when choosing metadata. 
