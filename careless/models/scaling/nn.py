@@ -20,12 +20,13 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         self.metadata = np.array(metadata, dtype=np.float32)
         n,d = metadata.shape
 
-
         self.add(tf.keras.Input(shape=d))
         for i in range(layers):
-            self.add(tf.keras.layers.Dense(d, activation="relu", use_bias=True))
+            self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True))
+            #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
 
-        self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True))
+        #self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True))
+        self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True))
 
     @property
     def loc(self):

@@ -140,18 +140,20 @@ class VariationalMergingModel(PerGroupModel):
         grads = tape.gradient(loss, variables)
         return loss, grads
 
-    def _train_step(self, optimizer, s=1):
+    def _train_step(self, optimizer, s=1, clip_value=None):
         variables = self.trainable_variables
         loss, grads = self.loss_and_grads(variables, s)
         #Occasionally, low probability samples will lead to overflows in the gradients. 
         #Since, VI is usually done by coordinate ascent anyway, 
         #it is totally fine to just skip those updates.
         grads = [sanitize_tensor(g) for g in grads]
+        if clip_value is not None:
+            grads = [tf.clip_by_value(g, -clip_value, clip_value) for g in grads]
         optimizer.apply_gradients(zip(grads, variables))
         return loss
 
     @tf.function
-    def train_step(self, optimizer, s=1):
+    def train_step(self, optimizer, s=1, clip_value=None):
         """
         Parameters
         ----------
@@ -162,7 +164,7 @@ class VariationalMergingModel(PerGroupModel):
         loss : float
             The current value of the Evidence Lower BOund
         """
-        return self._train_step(optimizer, s=s)
+        return self._train_step(optimizer, s=s, clip_value=clip_value)
 
     def rescue_variational_distributions(self):
         """
@@ -182,7 +184,7 @@ class VariationalMergingModel(PerGroupModel):
         for initial_value,var in zip(self._surrogate_posterior_init, self.surrogate_posterior.trainable_variables):
             var.assign(tf.where(tf.math.is_finite(sigma), var, initial_value))
 
-    def fit(self, optimizer=None, iterations=10000, max_nancount=20, s=1):
+    def fit(self, optimizer=None, iterations=10000, max_nancount=20, s=1, clip_value=None):
         """
         Fit the model by making the specified number of optimizer steps.
 
@@ -214,7 +216,7 @@ class VariationalMergingModel(PerGroupModel):
         chol_fails = 0
         nancount = 0
         for _ in tqdm(range(iterations)):
-            loss = self.train_step(optimizer, s=s)
+            loss = self.train_step(optimizer, s=s, clip_value=clip_value)
             losses.append(float(loss))
             if not tf.math.is_finite(loss):
                 self.rescue_variational_distributions()
