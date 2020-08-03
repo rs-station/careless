@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import reciprocalspaceship as rs
+import numpy as np
+from argparse import ArgumentParser
+
+
+parser = ArgumentParser()
+
+parser.add_argument(
+    'anom_mtz',
+    type=str,
+    help = "Mtz with anomalous structure factors.",
+  )
+
+parser.add_argument(
+    'phase_mtz',
+    type=str,
+    help='Mtz with reference phases to use.',
+  )
+
+parser.add_argument(
+    'out_mtz',
+    type=str,
+    help='output filename',
+  )
+
+parser.add_argument(
+    '-p',
+    type=str,
+    help='Phase key: by default the first phase dtype key will be used.',
+    default=None,
+)
+
+parser.add_argument(
+    '-f',
+    type=str,
+    help='Structure factor key base. Defaults to "F".',
+    default='F',
+)
+
+parser = parser.parse_args()
+
+anom  = rs.read_mtz(parser.anom_mtz)
+phase = rs.read_mtz(parser.phase_mtz)
+
+
+phase_key = parser.p
+if phase_key is None:
+  phase_key = phase.dtypes[phase.dtypes=='P'].keys()[0]
+
+out = rs.DataSet({
+    'DANOM' : anom[parser.f + '(+)'] - anom[parser.f + '(-)'].astype('F'),
+    'SIGANOM' : np.sqrt(anom['Sig' + parser.f + '(+)']**2. - anom['Sig' + parser.f + '(-)']**2.),
+}, cell=anom.cell, spacegroup=anom.spacegroup)
+
+
+out = out.join(phase[phase_key]).dropna()
+out.spacegroup,out.cell = anom.spacegroup,anom.cell
+out['PHANOM'] = out[phase_key] - 90. - 180.*(out['DANOM'] >= 0.)
+del(out[phase_key])
+out.infer_mtz_dtypes(inplace=True)
+out['DANOM'] = out['DANOM'].astype("F")
+
+out.write_mtz(parser.out_mtz)
+
