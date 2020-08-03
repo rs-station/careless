@@ -89,6 +89,18 @@ class BaseMerger():
         from careless.utils.io import load_isomorphous_mtzs
         return cls(load_isomorphous_mtzs(*filenames), anomalous, dmin, isigi_cutoff)
 
+    @classmethod
+    def half_datasets_from_isomorphous_mtzs(cls, *filenames, anomalous=False, dmin=None, isigi_cutoff=None):
+        from careless.utils.io import load_isomorphous_mtzs
+        data = load_isomorphous_mtzs(*filenames)
+        image_id_key = get_first_key_of_type(data, 'B')
+        data['image_id'] = data.groupby([image_id_key, 'file_id']).ngroup()
+        data['half'] = (np.random.random(data['image_id'].max() + 1) > 0.5)[data['image_id']] 
+        del(data['image_id'])
+        half1,half2 = data[data.half],data[~data.half]
+        del(half1['half'], half2['half'])
+        return cls(half1, anomalous, dmin, isigi_cutoff), cls(half2, anomalous, dmin, isigi_cutoff)
+
     def append_anomalous_data(self, mtz_filename):
         raise NotImplementedError("This module does not support priors with anomalous differences yet")
 
