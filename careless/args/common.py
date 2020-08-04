@@ -93,12 +93,12 @@ args_and_kwargs = (
         "default": 1,
     }),
 
-    (("--merge-files",), {
-        "help":"Use this flag to merge all the supplied Mtzs together." 
-               "Otherwise the different files will be scaled together but merged separately."
+    (("--separate-files",), {
+        "help":"Use this flag to produce a separate output for each input mtz." 
+               "In this mode, the data will be 'scaled' together and 'merged' separately." 
                "The default is to merge all the files into a single output.", 
-        "type" : bool,
-        "default": True,
+        "action" : "store_true",
+        "default": False,
     }),
 
     (("--disable-gpu",), {

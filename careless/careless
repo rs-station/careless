@@ -8,15 +8,14 @@ parser = parser.parse_args()
 from careless.merge.merge import *
 import numpy as np
 
-
 def main(merger, parser):
     if parser.prior_mtz:
         merger.append_reference_data(parser.prior_mtz)
 
-    if parser.merge_files:
-        merger.prep_indices(separate_files=False, image_id_key=parser.image_id_key)
-    else:
+    if parser.separate_files:
         merger.prep_indices(separate_files=True, image_id_key=parser.image_id_key)
+    else:
+        merger.prep_indices(separate_files=False, image_id_key=parser.image_id_key)
 
 # Now populate merger.prior
     if parser.normal_prior:
