@@ -154,13 +154,9 @@ class BaseMerger():
         results.set_index(['H', 'K', 'L'], inplace=True)
         return results
 
-    def prep_indices(self, image_id_key=None, experiment_id_key='file_id'):
-        #This is for merging equivalent millers accross mtzs
-        df = self.data.copy().dropna() #There will be nans if reference data were added
-        df['miller_id'] = df.groupby(['H', 'K', 'L']).ngroup() 
-        df['image_id'] = df.groupby([image_id_key, experiment_id_key]).ngroup()
-        df['observation_id'] = df.groupby(['miller_id', 'image_id']).ngroup()
-        self.data = df
+    def _remove_sys_absences(self):
+        idx = rs.utils.hkl_is_absent(self.data.get_hkls(), self.data.spacegroup)
+        self.data = self.data[~idx]
         return self
 
     def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
@@ -248,6 +244,8 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
+        self._remove_sys_absences()
+
         if image_id_key is None:
             image_id_key = get_first_key_of_type(self.data, 'B')
 
@@ -310,6 +308,8 @@ class MonoMerger(BaseMerger):
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
+        self._remove_sys_absences()
+
         if image_id_key is None:
             image_id_key = get_first_key_of_type(self.data, 'B')
 
