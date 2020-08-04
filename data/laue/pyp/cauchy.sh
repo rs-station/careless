@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=v100
 
-mkdir merge
+mkdir cauchy
 careless poly \
   --separate-files \
   --iterations=30000 \
