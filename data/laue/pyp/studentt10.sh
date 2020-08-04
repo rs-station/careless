@@ -7,15 +7,16 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=v100
 
-mkdir merge
+OUT=studentt10
+mkdir $OUT
 careless poly \
   --separate-files \
   --iterations=30000 \
   --learning-rate=0.01 \
-  --studentt-likelihood-dof=1. \
+  --studentt-likelihood-dof=10. \
   --wavelength-key='Wavelength' \
   "X,Y,Wavelength,BATCH,dHKL,file_id" \
   off_varEll.mtz \
   2ms_varEll.mtz \
-  cauchy/pyp
+  $OUT/pyp
 
