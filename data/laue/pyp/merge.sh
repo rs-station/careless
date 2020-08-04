@@ -10,7 +10,7 @@
 mkdir merge
 careless poly \
   --separate-files \
-  --iterations=3 \
+  --iterations=30000 \
   --learning-rate=0.001 \
   --wavelength-key='Wavelength' \
   "X,Y,Wavelength,Hobs,Kobs,Lobs,image_id" \
