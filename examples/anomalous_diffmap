@@ -49,9 +49,15 @@ phase_key = parser.p
 if phase_key is None:
   phase_key = phase.dtypes[phase.dtypes=='P'].keys()[0]
 
+if 'Sig' + parser.f + '(+)' in anom:
+    sig = 'Sig'
+elif 'SIG' + parser.f + '(+)' in anom:
+    sig = 'SIG'
+
+
 out = rs.DataSet({
     'DANOM' : anom[parser.f + '(+)'] - anom[parser.f + '(-)'].astype('F'),
-    'SIGANOM' : np.sqrt(anom['Sig' + parser.f + '(+)']**2. - anom['Sig' + parser.f + '(-)']**2.),
+    'SIGANOM' : np.sqrt(anom[sig + parser.f + '(+)']**2. - anom[sig + parser.f + '(-)']**2.),
 }, cell=anom.cell, spacegroup=anom.spacegroup)
 
 
