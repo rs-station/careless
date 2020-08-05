@@ -32,7 +32,7 @@ Gradiennt ascent is used to maximize the `ELBO`.
 The simplest prior which `careless` implements are the popular priors<sup>[1](#wilson)</sup> derived by A. J. C. Wilson from the random atom model. 
 This is a relatively weak prior, but it is sufficient in practice for many types of crystallographic data. 
 `careless` can also use reference structure amplitudes as priors. 
-In this case, the structure factors are supposed to be drawn from a distributrion centered at an empirical reference value. 
+In this case, the structure factors are supposed to be drawn from a distribution centered at an empirical reference value. 
 `careless` has reference priors implemented for Normal, Laplacian, and Student T distributions. 
 
 ### Likelihoods
@@ -50,8 +50,9 @@ Special metadata keys for scaling.
 During configuration some new metadata keys will be populated that are useful in many instances. 
  - <b>dHKL</b> : The inverse square of the reflection resolution. Supplying this key is a convenient way to parameterize isotropic scaling.
  - <b>file_id</b> : An integer ID unique to each input Mtz. 
- - <b>image_id</b> : An integer ID unique to each image accross all input Mtzs. 
+ - <b>image_id</b> : An integer ID unique to each image across all input Mtzs. 
  - <b>{H,K,L}obs</b> : Internally, `careless` refers to the original miller indices from indexing as `Hobs`, `Kobs`, and `Lobs`. Supplying these three keys is the typical method to enable anisotropic scaling. 
+ - <b>Z-{intensity key,sigma key}</b> : Careless supplies a Z-score of the intensity and sigma intensity for each reflection observation calculated amongst the set of redundant symmetry equivalents being merged. These inherit the name of the intensity/sigma intensity keys being used for merging prefixed by `'Z-'`. One might consider supplying these equivalent to using a sort of weighted likelihood function. 
 
 
 ### Considerations when choosing metadata. 
