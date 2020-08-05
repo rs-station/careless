@@ -68,5 +68,9 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     ds['Hobs'],ds['Kobs'],ds['Lobs'] = n*ds['H_0'],n*ds['K_0'],n*ds['L_0']
     ds.compute_dHKL(inplace=True)
 
+    #Update the HKLs to reflect the new harmonics
+    ds['H'],ds['K'],ds['L'] = ds['Hobs'],ds['Kobs'],ds['Lobs'] 
+    ds = ds.set_index(['H','K','L']).hkl_to_asu().reset_index()
+
     return ds
 
