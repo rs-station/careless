@@ -11,9 +11,11 @@ def group_z_score(groupby, z_score_key, df):
             groupby = list(groupby)
 
         df = df[groupby + [z_score_key]].copy()
+        #2020-08-05 -- this to_numpy call can be removed after the next rs pypi release
         df[z_score_key] = df[z_score_key].to_numpy()
-        std  = df[groupby + [z_score_key]].groupby(groupby).transform('std')[z_score_key].fillna(1.)
-        std[std==0.] = 1. 
+
+        std  = df[groupby + [z_score_key]].groupby(groupby).transform(np.std, ddof=0)[z_score_key]
+        std[std==0.] = 1.
         mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
         df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
         return df['Z-' + z_score_key]
@@ -237,7 +239,8 @@ class BaseMerger():
             groupby = ['H', 'K', 'L']
 
         if keys is None:
-            keys = [self.intensity_key, self.sigma_intensity_key]
+            self.data['ISigI'] = self.data[self.intensity_key]/self.data[self.sigma_intensity_key]
+            keys = [self.intensity_key, self.sigma_intensity_key, 'ISigI']
 
         for key in keys:
             self.data['Z-' + key] = group_z_score(groupby, key, self.data)

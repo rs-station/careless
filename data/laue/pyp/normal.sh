@@ -11,9 +11,9 @@ mkdir normal
 careless poly \
   --separate-files \
   --iterations=30000 \
-  --learning-rate=0.01 \
+  --learning-rate=0.001 \
   --wavelength-key='Wavelength' \
-  "X,Y,Wavelength,BATCH,dHKL,file_id" \
+  "X,Y,Wavelength,BATCH,Hobs,Kobs,Lobs,file_id" \
   off_varEll.mtz \
   2ms_varEll.mtz \
   normal/pyp
