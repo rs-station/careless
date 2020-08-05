@@ -134,6 +134,7 @@ class BaseMerger():
             raise TypeError(f"append_reference_data expected string or rs.DataSet, but received {type(ds)}")
 
         cell,sg = self.data.cell,self.data.spacegroup
+        ds = ds.hkl_to_asu() 
         ds = pd.concat((ds, ds.apply_symop(gemmi.Op("-x, -y, -z"))))
         self.data = self.data.join(ds.loc[:,ds.dtypes=='F'].iloc[:,0].rename("REF"), on=['H', 'K', 'L'])
         self.data = self.data.join(ds.loc[:,ds.dtypes=='Q'].iloc[:,0].rename("SIGREF"), on=['H', 'K', 'L'])
