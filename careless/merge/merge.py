@@ -4,6 +4,19 @@ import tensorflow as tf
 import pandas as pd
 import reciprocalspaceship as rs
 
+def group_z_score(groupby, z_score_key, df):
+        if isinstance(groupby, str):
+            groupby = [groupby]
+        else:
+            groupby = list(groupby)
+
+        df = df[groupby + [z_score_key]].copy()
+        df[z_score_key] = df[z_score_key].to_numpy()
+        std  = df[groupby + [z_score_key]].groupby(groupby).transform('std')[z_score_key].fillna(1.)
+        std[std==0.] = 1. 
+        mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
+        df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
+        return df['Z-' + z_score_key]
 
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
@@ -216,6 +229,19 @@ class BaseMerger():
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
         self.scaling_model = SequentialScaler(metadata, layers)
+
+    def append_z_score_metadata(self, separate_files=False, keys=None):
+        if separate_files:
+            groupby = ['H', 'K', 'L', 'file_id']
+        else:
+            groupby = ['H', 'K', 'L']
+
+        if keys is None:
+            keys = [self.intensity_key, self.sigma_intensity_key]
+
+        for key in keys:
+            self.data['Z-' + key] = group_z_score(groupby, key, self.data)
+
 
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):
