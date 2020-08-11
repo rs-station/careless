@@ -19,6 +19,13 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--intensity-key", ),  {
+        "help":"What key to use for reflection intensities. "
+               "If no key is given, careless will use the first key with the intensity dtype.",
+        "type":str, 
+        "default" : None,
+    }),
+
     (("mtzinput", ), { 
         "metavar":"file.mtz", 
         "help":"Mtz filename(s).", 

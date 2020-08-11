@@ -54,7 +54,7 @@ class BaseMerger():
     sigma_intensity_key = None
     anomalous = False
 
-    def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None):
+    def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None):
         self.data = dataset.copy() #chaos ensues otherwise
 
         if self.data.index.names != [None]: #If you have a non-numeric index
@@ -78,7 +78,9 @@ class BaseMerger():
 
         # Try to guess sensible default keys. 
         # The user can change after the constructor is finished
-        self.intensity_key = get_first_key_of_type(self.data, "J")
+        self.intensity_key = intensity_key
+        if self.intensity_key is None:
+            self.intensity_key = get_first_key_of_type(self.data, "J")
         if f'Sig{self.intensity_key}' in self.data:
             self.sigma_intensity_key = f'Sig{self.intensity_key}'
         elif f'SIG{self.intensity_key}' in self.data:
@@ -100,12 +102,12 @@ class BaseMerger():
             self.data = self.data[isigi >= isigi_cutoff]
 
     @classmethod
-    def from_isomorphous_mtzs(cls, *filenames, anomalous=False, dmin=None, isigi_cutoff=None):
+    def from_isomorphous_mtzs(cls, *filenames, **kwargs):
         from careless.utils.io import load_isomorphous_mtzs
-        return cls(load_isomorphous_mtzs(*filenames), anomalous, dmin, isigi_cutoff)
+        return cls(load_isomorphous_mtzs(*filenames), **kwargs)
 
     @classmethod
-    def half_datasets_from_isomorphous_mtzs(cls, *filenames, anomalous=False, dmin=None, isigi_cutoff=None):
+    def half_datasets_from_isomorphous_mtzs(cls, *filenames, **kwargs):
         from careless.utils.io import load_isomorphous_mtzs
         data = load_isomorphous_mtzs(*filenames)
         image_id_key = get_first_key_of_type(data, 'B')
@@ -114,7 +116,7 @@ class BaseMerger():
         del(data['image_id'])
         half1,half2 = data[data.half],data[~data.half]
         del(half1['half'], half2['half'])
-        return cls(half1, anomalous, dmin, isigi_cutoff), cls(half2, anomalous, dmin, isigi_cutoff)
+        return cls(half1, **kwargs), cls(half2, **kwargs)
 
     def append_anomalous_data(self, mtz_filename):
         raise NotImplementedError("This module does not support priors with anomalous differences yet")
