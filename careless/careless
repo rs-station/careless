@@ -63,14 +63,14 @@ def main(merger, parser):
 
 
 if parser.type == 'mono':
-    merger = MonoMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=parser.dmin, isigi_cutoff=parser.isigi_cutoff)
-    half1,half2 = MonoMerger.half_datasets_from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=parser.dmin, isigi_cutoff=parser.isigi_cutoff)
+    merger = MonoMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=parser.dmin, isigi_cutoff=parser.isigi_cutoff, intensity_key=parser.intensity_key)
+    half1,half2 = MonoMerger.half_datasets_from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=parser.dmin, isigi_cutoff=parser.isigi_cutoff, intensity_key=parser.intensity_key)
     merger.append_z_score_metadata(separate_files=parser.separate_files)
     half1.append_z_score_metadata(separate_files=parser.separate_files)
     half2.append_z_score_metadata(separate_files=parser.separate_files)
 elif parser.type == 'poly':
-    merger = PolyMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=None, isigi_cutoff=parser.isigi_cutoff)
-    half1,half2 = PolyMerger.half_datasets_from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=None, isigi_cutoff=parser.isigi_cutoff)
+    merger = PolyMerger.from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=None, isigi_cutoff=parser.isigi_cutoff, intensity_key=parser.intensity_key)
+    half1,half2 = PolyMerger.half_datasets_from_isomorphous_mtzs(*parser.mtzinput, anomalous=parser.anomalous, dmin=None, isigi_cutoff=parser.isigi_cutoff, intensity_key=parser.intensity_key)
 
     merger.append_z_score_metadata(separate_files=parser.separate_files)
     half1.append_z_score_metadata(separate_files=parser.separate_files)
