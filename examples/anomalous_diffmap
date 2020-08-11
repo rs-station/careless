@@ -39,6 +39,12 @@ parser.add_argument(
     default='F',
 )
 
+parser.add_argument(
+    '--embed',
+    action='store_true',
+    default=False,
+  )
+
 parser = parser.parse_args()
 
 anom  = rs.read_mtz(parser.anom_mtz)
@@ -60,13 +66,38 @@ out = rs.DataSet({
     'SIGANOM' : np.sqrt(anom[sig + parser.f + '(+)']**2. - anom[sig + parser.f + '(-)']**2.),
 }, cell=anom.cell, spacegroup=anom.spacegroup)
 
+out['WANOM'] = ((1 + out['SIGANOM']/out['SIGANOM'].mean())**-1.).astype('W')
 
 out = out.join(phase[phase_key]).dropna()
 out.spacegroup,out.cell = anom.spacegroup,anom.cell
 out['PHANOM'] = out[phase_key] - 90. - 180.*(out['DANOM'] >= 0.)
 del(out[phase_key])
 out.infer_mtz_dtypes(inplace=True)
-out['DANOM'] = out['DANOM'].astype("F")
+out['DANOM'] = -1.*out['DANOM'].astype("F")
 
 out.write_mtz(parser.out_mtz)
 
+if parser.embed:
+    from matplotlib import pyplot as plt
+    plt.errorbar(
+        anom[parser.f + '(+)'],
+        anom[parser.f + '(-)'],
+        xerr = anom[sig + parser.f + '(+)'],
+        yerr = anom[sig + parser.f + '(-)'],
+        ls = 'none',
+        color = 'k',
+        alpha = 0.2,
+    )
+    plt.semilogx()
+    plt.semilogy()
+    plt.grid(which='both')
+    plt.xlabel(parser.f + '(+)')
+    plt.ylabel(parser.f + '(-)')
+    plt.plot(plt.xlim(), plt.xlim(), '--r', scalex=False, scaley=False)
+
+    plt.figure()
+    plt.hist(out['DANOM'], 100, color='k')
+    plt.xlabel(r"$\Delta_{anom}$")
+
+    from IPython import embed
+    embed(colors='neutral')
