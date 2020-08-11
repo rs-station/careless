@@ -50,6 +50,11 @@ parser = parser.parse_args()
 anom  = rs.read_mtz(parser.anom_mtz)
 phase = rs.read_mtz(parser.phase_mtz)
 
+if 'N(+)' in anom:
+    anom = anom[anom['N(+)'] > 0]
+if 'N(-)' in anom:
+    anom = anom[anom['N(-)'] > 0]
+
 
 phase_key = parser.p
 if phase_key is None:
@@ -62,18 +67,18 @@ elif 'SIG' + parser.f + '(+)' in anom:
 
 
 out = rs.DataSet({
+    'F' : 0.5*(anom[parser.f + '(+)'] + anom[parser.f + '(-)']).astype('F'),
+    'SIGF' : (anom[sig + parser.f + '(+)']**2. + anom[sig + parser.f + '(-)']**2.)**0.5,
     'DANOM' : anom[parser.f + '(+)'] - anom[parser.f + '(-)'].astype('F'),
-    'SIGANOM' : np.sqrt(anom[sig + parser.f + '(+)']**2. - anom[sig + parser.f + '(-)']**2.),
+    'SIGANOM' : (anom[sig + parser.f + '(+)']**2. + anom[sig + parser.f + '(-)']**2.)**0.5,
 }, cell=anom.cell, spacegroup=anom.spacegroup)
 
 out['WANOM'] = ((1 + out['SIGANOM']/out['SIGANOM'].mean())**-1.).astype('W')
 
-out = out.join(phase[phase_key]).dropna()
-out.spacegroup,out.cell = anom.spacegroup,anom.cell
+out['PHIFMODEL'] = phase.loc[out.index, phase_key]
 out['PHANOM'] = out[phase_key] - 90. - 180.*(out['DANOM'] >= 0.)
-del(out[phase_key])
 out.infer_mtz_dtypes(inplace=True)
-out['DANOM'] = -1.*out['DANOM'].astype("F")
+out['DANOM'] = out['DANOM'].astype("F")
 
 out.write_mtz(parser.out_mtz)
 
