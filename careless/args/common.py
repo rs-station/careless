@@ -71,9 +71,9 @@ args_and_kwargs = (
     }),
 
     (("--learning-rate",), {
-        "help":"Adam learning rate.", 
+        "help":"Adam learning rate. The default is 0.001", 
         "type":float, 
-        "default":0.01,
+        "default":0.001,
     }),
 
     (("--clip-value",), {
