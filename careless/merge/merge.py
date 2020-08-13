@@ -75,6 +75,7 @@ class BaseMerger():
             self.anomalous = True
             friedel_sign = 2 * (self.data['M/ISYM'] %2 - 0.5).to_numpy()
             self.data.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * self.data.loc[:,['H', 'K', 'L']]
+            self.data['FRIEDEL'] = friedel_sign
 
         # Try to guess sensible default keys. 
         # The user can change after the constructor is finished
@@ -95,6 +96,7 @@ class BaseMerger():
         self.metadata_keys += ['dHKL']
 
         if dmin is not None:
+            self.data.compute_dHKL(inplace=True)
             self.data = self.data[self.data.dHKL >= dmin]
 
         if isigi_cutoff is not None:
