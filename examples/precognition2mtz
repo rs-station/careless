@@ -54,6 +54,4 @@ if __name__=='__main__':
     intensity_files = [i for i in intensity_files if i[:-3] + '.inp' in input_files]
     input_files = [i for i in input_files if i[:-4] + '.ii' in intensity_files]
     ds = parse_ii_inp_file_pairs(intensity_files, input_files)
-    from IPython import embed 
-    embed()
     ds.write_mtz(parser.output)
