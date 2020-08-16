@@ -191,7 +191,7 @@ class VariationalMergingModel(PerGroupModel):
         Parameters
         ----------
         optimizer : tf.keras.optimizers.Optimizer
-            Keras style optimizer. If none is supplied, an Adam optimizer with learning rate 0.01 will be used.
+            Keras style optimizer. If none is supplied, an Adam optimizer with learning rate 0.001 will be used.
         iterations : int
             Number of gradient steps to make. The default is 10,000
         max_nancount : int
@@ -206,7 +206,7 @@ class VariationalMergingModel(PerGroupModel):
             Numpy array containing the loss function value for each gradient step.
         """
         if optimizer is None:
-            optimzer = tf.keras.optimizers.Adam(learning_rate)
+            optimzer = tf.keras.optimizers.Adam(0.001)
 
         losses = []
         print(f"{'#'*80}")
