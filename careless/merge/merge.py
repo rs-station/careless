@@ -5,21 +5,22 @@ import pandas as pd
 import reciprocalspaceship as rs
 from careless.models.merging.variational import VariationalMergingModel
 
+
 def group_z_score(groupby, z_score_key, df):
-        if isinstance(groupby, str):
-            groupby = [groupby]
-        else:
-            groupby = list(groupby)
+    if isinstance(groupby, str):
+        groupby = [groupby]
+    else:
+        groupby = list(groupby)
 
-        df = df[groupby + [z_score_key]].copy()
-        #2020-08-05 -- this to_numpy call can be removed after the next rs pypi release
-        df[z_score_key] = df[z_score_key].to_numpy()
+    df = df[groupby + [z_score_key]].copy()
+    #2020-08-05 -- this to_numpy call can be removed after the next rs pypi release
+    df[z_score_key] = df[z_score_key].to_numpy()
 
-        std  = df[groupby + [z_score_key]].groupby(groupby).transform(np.std, ddof=0)[z_score_key]
-        std[std==0.] = 1.
-        mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
-        df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
-        return df['Z-' + z_score_key]
+    std  = df[groupby + [z_score_key]].groupby(groupby).transform(np.std, ddof=0)[z_score_key]
+    std[std==0.] = 1.
+    mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
+    df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
+    return df['Z-' + z_score_key]
 
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
@@ -266,7 +267,7 @@ class HarmonicDeconvolutionMixin:
         else:
             lambda_min, lambda_max = wavelength_range
 
-        expanded = expand_harmonics(expanded, dmin=dmin, wavelength_key='Wavelength')
+        expanded = expand_harmonics(expanded, dmin=dmin, wavelength_key='Wavelength', anomalous=self.anomalous)
         self.data = expanded[(expanded[wavelength_key] >= lambda_min) & (expanded[wavelength_key] <= lambda_max)]
         return self
 

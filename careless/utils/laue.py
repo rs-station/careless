@@ -1,7 +1,7 @@
 import numpy as np
 import reciprocalspaceship as rs
 
-def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
+def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength', anomalous=False):
     """
     Expand reflection observations to include all contributing harmonics. All 
     contributing reflections will be included out to a resolution cutoff 
@@ -71,6 +71,10 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     #Update the HKLs to reflect the new harmonics
     ds['H'],ds['K'],ds['L'] = ds['Hobs'],ds['Kobs'],ds['Lobs'] 
     ds = ds.set_index(['H','K','L']).hkl_to_asu().reset_index()
+
+    if anomalous:
+        friedel_sign = 2 * (ds['M/ISYM'] %2 - 0.5).to_numpy()
+        ds.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * ds.loc[:,['H', 'K', 'L']]
 
     return ds
 
