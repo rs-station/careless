@@ -11,6 +11,14 @@ Merging crystallography data without much physics.
     cd careless
     pip -e install .
 
+## Dependencies
+Pip will handle installation of all dependencies. 
+`careless` uses mostly tools from the conventional scientific python stack plus
+ - optimization routines from [TensorFlow](https://www.tensorflow.org/)
+ - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)
+ - crystallographic computing resources from [ReciprocalSpaceship](https://hekstra-lab.github.io/reciprocalspaceship/) as well as
+ - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
+
 
 ## Core Model
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
