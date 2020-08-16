@@ -190,11 +190,10 @@ class BaseMerger():
         )
         
 
-    def train_model(self, iterations, mc_samples=2, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
+    def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
         if self.merger is None:
             self._build_merger()
 
-        #optimizer = tf.keras.optimizers.SGD(learning_rate, momentum=1.1)
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=beta_1, beta_2=beta_2)
         losses = self.merger.fit(optimizer, iterations, s=mc_samples, clip_value=clip_value)
         self.results = self.get_results()

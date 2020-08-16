@@ -48,7 +48,8 @@ def test_AppendReference(merger_class, data, anomalous):
 @pytest.mark.parametrize("anomalous", [False, True])
 @pytest.mark.parametrize("likelihood", ["Normal", "Laplace", "StudentT"])
 @pytest.mark.parametrize("prior", ["Wilson", "Normal", "Laplace", "StudentT"])
-def test_Merger_on_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys):
+@pytest.mark.parametrize("mc_samples", [2])
+def test_Merger_on_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys, mc_samples):
     merger = merger_class(mtz_data, anomalous=anomalous)
     if merger_class == PolyMerger:
         merger.expand_harmonics()
@@ -91,8 +92,5 @@ def test_Merger_on_reference_data(merger_class, anomalous, prior, likelihood, me
     merger.add_scaling_model(layers=1, metadata_keys=metadata_keys)
     merger.scaling_model.sample()
 
-    loss = merger.train_model(10)
-    assert np.all(np.isfinite(loss))
-
-    loss = merger.train_model(10, mc_samples=2)
+    loss = merger.train_model(10, mc_samples=mc_samples)
     assert np.all(np.isfinite(loss))
