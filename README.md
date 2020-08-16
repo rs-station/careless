@@ -1,5 +1,5 @@
 # Careless
-`¯\_(ツ)_/¯`
+# `¯\_(ツ)_/¯`
 Merging crystallography data without much physics. 
 
 ![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
