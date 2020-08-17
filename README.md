@@ -1,14 +1,27 @@
-# Careless
+# Careless 
 Merging crystallography data without much physics. 
 
 ![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/master/graph/badge.svg?token=Y39W8T060L)](https://codecov.io/gh/Hekstra-Lab/careless)
 
 
+## Installation
+    pip install -U pip
+    git clone git@github.com:Hekstra-Lab/careless
+    cd careless
+    pip -e install .
+
+## Dependencies
+Pip will handle installation of all dependencies. 
+`careless` uses mostly tools from the conventional scientific python stack plus
+ - optimization routines from [TensorFlow](https://www.tensorflow.org/)
+ - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)
+ - crystallographic computing resources from 
+    - [ReciprocalSpaceship](https://hekstra-lab.github.io/reciprocalspaceship/)
+    - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 
-
-# Core Model
+## Core Model
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
 The model which is implemented in `careless` tries to scale individual reflection observations such that they become consistent with a set of prior beliefs.
 During optimization of a model, `careless` trades off between consistency of the merged structure factor amplitudes with the data and consistency with the priors.
