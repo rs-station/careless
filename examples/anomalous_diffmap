@@ -69,16 +69,16 @@ elif 'SIG' + parser.f + '(+)' in anom:
 out = rs.DataSet({
     'F' : 0.5*(anom[parser.f + '(+)'] + anom[parser.f + '(-)']).astype('F'),
     'SIGF' : (anom[sig + parser.f + '(+)']**2. + anom[sig + parser.f + '(-)']**2.)**0.5,
-    'DANOM' : anom[parser.f + '(+)'] - anom[parser.f + '(-)'].astype('F'),
+    'ANOM' : anom[parser.f + '(+)'] - anom[parser.f + '(-)'].astype('F'),
     'SIGANOM' : (anom[sig + parser.f + '(+)']**2. + anom[sig + parser.f + '(-)']**2.)**0.5,
 }, cell=anom.cell, spacegroup=anom.spacegroup)
 
 out['WANOM'] = ((1 + out['SIGANOM']/out['SIGANOM'].mean())**-1.).astype('W')
 
 out['PHIFMODEL'] = phase.loc[out.index, phase_key]
-out['PHANOM'] = out[phase_key] - 90. - 180.*(out['DANOM'] >= 0.)
+out['PHANOM'] = out[phase_key] - 90. - 180.*(out['ANOM'] >= 0.)
 out.infer_mtz_dtypes(inplace=True)
-out['DANOM'] = out['DANOM'].astype("F")
+out['ANOM'] = out['ANOM'].astype("F")
 
 out.write_mtz(parser.out_mtz)
 
@@ -101,8 +101,33 @@ if parser.embed:
     plt.plot(plt.xlim(), plt.xlim(), '--r', scalex=False, scaley=False)
 
     plt.figure()
-    plt.hist(out['DANOM'], 100, color='k')
+    plt.hist(out['ANOM'], 100, color='k')
     plt.xlabel(r"$\Delta_{anom}$")
+
+    nbins = 20
+    out.compute_dHKL(inplace=True)
+    bins = np.percentile(out.dHKL, np.linspace(100, 0, nbins + 1))
+    bins = np.vstack((bins[:-1], bins[1:]))
+
+    mean_isigi = []
+    median_isigi = []
+    ticks = []
+    from tqdm import tqdm
+    for binnumber, (i,j) in tqdm(enumerate(zip(*bins))):
+        idx = (out.dHKL >= j) & (out.dHKL <= i)
+        mean_isigi.append((np.abs(out[idx]['ANOM']) / out[idx]['SIGANOM']).mean())
+        median_isigi.append((np.abs(out[idx]['ANOM']) / out[idx]['SIGANOM']).median())
+        ticks.append(f'{i:0.2f}-{j:0.2f}')
+
+    plt.figure()
+    plt.plot(mean_isigi, '-k', label='Mean')
+    plt.plot(median_isigi, '--k', label='Median')
+    plt.legend()
+    plt.title(r"Signal to Noise by Resolution Bin ")
+    plt.ylabel(r"$<|\Delta F |/ \sigma_{\Delta F}>$")
+    plt.xticks(np.arange(nbins), ticks, rotation=45, ha='right')
+    plt.xlabel(r"$Resolution\ (\AA)$")
+    plt.tight_layout()
 
     from IPython import embed
     embed(colors='neutral')
