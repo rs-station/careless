@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import reciprocalspaceship as rs
+from argparse import ArgumentParser
+
+p = ArgumentParser()
+p.add_argument('input_mtz', type=str)
+p.add_argument('output_mtz', type=str)
+p = p.parse_args()
+
+
+def get_isigi_key_pairs(ds):
+    for key in ds:
+        if isinstance(ds[key].dtype, rs.dtypes.base.MTZDtype) and ds[key].dtype == 'J':
+            if f'Sig{key}' in ds:
+                yield key, f'Sig{key}'
+            elif f'SIG{key}' in ds:
+                yield key, f'SIG{key}'
+
+ds = rs.read_mtz(p.input_mtz)
+out = None
+for n,(ikey,sigikey) in enumerate(get_isigi_key_pairs(ds)):
+    stack = ds.copy()
+    stack['icol_id'] = n
+    stack['I'] = stack[ikey]
+    stack['SigI'] = stack[sigikey]
+    if out is None:
+        out = stack
+    else:
+        out = out.append(stack)
+
+for ikey,sigikey in get_isigi_key_pairs(ds):
+    if ikey not in ('I', 'SigI', 'icol_id'):
+        del(out[ikey])
+    if sigikey not in ('I', 'SigI', 'icol_id'):
+        del(out[sigikey])
+
+out.cell,out.spacegroup = ds.cell,ds.spacegroup
+out.infer_mtz_dtypes(inplace=True)
+out.write_mtz(p.output_mtz)
