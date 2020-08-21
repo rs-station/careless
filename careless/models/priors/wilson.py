@@ -48,7 +48,7 @@ def Acentric(**kw):
     return dist
 
 class WilsonPrior(Prior):
-    """Wilson's priors on normalized structure factor amplitudes."""
+    """Wilson's priors on structure factor amplitudes."""
     def __init__(self, centric, epsilon):
         """
         Parameters
