@@ -9,6 +9,7 @@ refinement {
 #    }
     xray_data {
       labels = F,SigF
+      outliers_rejection = True
       french_wilson_scale = False
       r_free_flags.generate = True
     }
@@ -57,7 +58,8 @@ refinement {
     modify {
       adp {
         atom_selection = """All"""
-        randomize = True
+        set_b_iso = 50.0
+        convert_to_isotropic = True
       }
     }
   }
