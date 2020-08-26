@@ -58,7 +58,7 @@ refinement {
     modify {
       adp {
         atom_selection = """All"""
-        set_b_iso = 50.0
+        set_b_iso = 10.0
         convert_to_isotropic = True
       }
     }
