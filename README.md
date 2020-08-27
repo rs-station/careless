@@ -202,3 +202,13 @@ We can now use coot to have a look at the electron density map by calling `coot 
 You can quickly find the chromophore by pressing `ctrl-l`.
 
 ![2fo-fc map](data/images/pyp-2fo-fc.gif)
+
+Making a difference map using `careless/examples/make_difference_map`. Run the following
+
+    cd ..
+    ../../../../examples/make_difference_map pyp_0.mtz pyp_1.mtz phenix/PYP_refine_1.mtz
+
+which will generate `difference.mtz`. 
+
+![load-differences](data/images/pyp-load-differences.gif)
+
