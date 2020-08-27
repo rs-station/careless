@@ -17,7 +17,7 @@ mtz_filenames = [
 
 mtz_data = load_isomorphous_mtzs(*mtz_filenames)
 
-reference_filename = base_dir + '/../../examples/data/pyp/pyp_off_phenix.mtz'
+reference_filename = base_dir + '/pyp_off.mtz'
 
 for f in mtz_filenames:
     assert exists(f)
