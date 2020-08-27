@@ -3,7 +3,7 @@ import gemmi
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname
 
-path = dirname(abspath(__file__)) + "/../../data/laue/pyp/"
+path = dirname(abspath(__file__)) + "/../../examples/data/pyp/"
 
 filenames = [
     "off_varEll.mtz",

@@ -11,13 +11,13 @@ dmin = 5. #Use less memory and go faster
 
 base_dir = dirname(abspath(__file__))
 mtz_filenames = [
-    base_dir + '/../../data/laue/pyp/off_varEll.mtz',
-    base_dir + '/../../data/laue/pyp/2ms_varEll.mtz',
+    base_dir + '/../../examples/data/pyp/off_varEll.mtz',
+    base_dir + '/../../examples/data/pyp/2ms_varEll.mtz',
 ]
 
 mtz_data = load_isomorphous_mtzs(*mtz_filenames)
 
-reference_filename = base_dir + '/../../data/laue/pyp/pyp_off_phenix.mtz'
+reference_filename = base_dir + '/../../examples/data/pyp/pyp_off_phenix.mtz'
 
 for f in mtz_filenames:
     assert exists(f)
