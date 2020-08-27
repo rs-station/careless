@@ -87,7 +87,7 @@ During configuration some new metadata keys will be populated that are useful in
 
 ### PYP Time Resolved Data
 The goal of this example is to demonstrate how `Careless` can be used to create an isomorphous difference map between time points in a time resolved experiment. 
-You will find data from a time resolved experiment conducted at BioCARS on photoactive yellow protein (PYP). 
+You will find data from a time resolved experiment conducted at BioCARS on photoactive yellow protein (PYP) in `careless/data/laue/pyp`. 
 PYP undergoes a trans to cis isomerization when it is exposed to blue light. 
 The data set consisted of 20 dark images and 20 images which were acquired 2ms after the arrival of a blue laser pulse. 
 For starters, let's enter the data directory and have a look around. 
