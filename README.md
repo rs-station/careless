@@ -201,4 +201,4 @@ To make a difference map from these data, we first need to refine the dark data.
 We can now use coot to have a look at the electron density map by calling `coot PYP_refine_1.mtz PYP_refine_1.pdb`
 You can quickly find the chromophore by pressing `ctrl-l`.
 
-![2fo-fc map](data/images/pyp-2fo-fc.apng)
+![2fo-fc map](data/images/pyp-2fo-fc.gif)
