@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import numpy as np
+import pandas as pd
+import reciprocalspaceship as rs
+from argparse import ArgumentParser
+from os import environ
+
+
+parser = ArgumentParser()
+parser.add_argument("off_mtz")
+parser.add_argument("on_mtz")
+parser.add_argument("phase_mtz")
+parser.add_argument("-o", help='output mtz filename', default='difference.mtz')
+parser.add_argument("--embed", action='store_true')
+parser.add_argument("--positive", action='store_true', help='convert difference structurefactors to be strictly postive')
+parser = parser.parse_args()
+
+
+phase_key = 'PHIF-model'
+phases_filename = parser.phase_mtz
+off_mtz_filename = parser.off_mtz
+on_mtz_filename = parser.on_mtz
+outFN = parser.o
+
+
+
+
+ds = rs.read_mtz(phases_filename).dropna()
+if phase_key not in ds:
+    phase_key = ds.dtypes[ds.dtypes=='P'].keys()[0]
+
+off = rs.read_mtz(off_mtz_filename)
+on  = rs.read_mtz(on_mtz_filename)
+
+idx = off.index.intersection(on.index).intersection(ds.index)
+
+off = off.loc[idx]
+on  =  on.loc[idx]
+ds  = ds.loc[idx]
+
+
+
+output = rs.DataSet({
+    'Foff' : off['F'],
+    'SigFoff' : off['SigF'],
+    'Fon' : on['F'],
+    'SigFon' : on['SigF'],
+    'PhiFoff' : ds[phase_key],
+})
+
+
+
+output['DeltaF'] = (output['Fon'] - output['Foff']).astype('F')
+output['SigDeltaF'] = np.sqrt(output['SigFon']**2. + output['SigFoff']**2.).astype('Q')
+
+if parser.positive:
+    cmplx = rs.utils.to_structurefactor(output.DeltaF, output.PhiFoff)
+    output['DeltaF'] = np.abs(cmplx)
+    output['PhiDeltaF'] = np.rad2deg(np.angle(cmplx))
+    output['DeltaF'] = output.DeltaF.astype('F')
+    output['PhiDeltaF'] = output.DeltaF.astype('P')
+
+
+#output['W'] = ((1 + output.SigDeltaF/output.SigDeltaF.mean())**-1.).astype('W')
+output['W'] = (output.SigDeltaF**-2.).astype('W')
+
+output.cell = ds.cell
+output.spacegroup = ds.spacegroup
+
+output.write_mtz(outFN)
+
+if parser.embed:
+    from IPython import embed
+    from pylab import *
+    embed(colors='Linux')

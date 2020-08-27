@@ -1,11 +1,11 @@
 ### PYP Time Resolved Data
 The goal of this example is to demonstrate how `Careless` can be used to create an isomorphous difference map between time points in a time resolved experiment. 
-You will find data from a time resolved experiment conducted at BioCARS on photoactive yellow protein (PYP) in `careless/data/laue/pyp`. 
+You will find data from a time resolved experiment conducted at BioCARS on photoactive yellow protein (PYP) in `careless/examples/data/pyp`. 
 PYP undergoes a trans to cis isomerization when it is exposed to blue light. 
 The data set consisted of 20 dark images and 20 images which were acquired 2ms after the arrival of a blue laser pulse. 
 For starters, let's enter the data directory and have a look around. 
 Type 
-    cd [Path to your careless installation]/data/laue/pyp
+    cd [Path to your careless installation]/examples/data/pyp
     ls
 
 You will see the following items:
@@ -114,14 +114,14 @@ To make a difference map from these data, we first need to refine the dark data.
 We can now use coot to have a look at the electron density map by calling `coot PYP_refine_1.mtz PYP_refine_1.pdb`
 You can quickly find the chromophore by pressing `ctrl-l`.
 
-![2fo-fc map](../data/images/pyp-2fo-fc.gif)
+![2fo-fc map](images/pyp-2fo-fc.gif)
 
 Making a difference map using `careless/examples/make_difference_map`. Run the following
 
     cd ..
-    ../../../../examples/make_difference_map pyp_0.mtz pyp_1.mtz phenix/PYP_refine_1.mtz
+    ../../../make_difference_map pyp_0.mtz pyp_1.mtz phenix/PYP_refine_1.mtz
 
 which will generate `difference.mtz`. 
 
-![load-differences](../data/images/pyp-load-differences.gif)
+![load-differences](images/pyp-load-differences.gif)
 
