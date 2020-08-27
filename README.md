@@ -175,5 +175,30 @@ Here's a breakdown of what each argument means.
  - the final argument is always the *output filename* base.
 
 Running the optimization will take different amounts of time depending on your particular hardware. 
+On a powerful CPU, it will likely take 30-45 minutes.
+However, with a relatively recent NVIDIA GPU it will take just a few minutes. 
 Once it is completed, the output files will appear in the `merge/` directory. 
+The output will begin with the base filename supplied as the last argument to careless. 
+There will be three files for each input mtz. 
 
+ - pyp_0.mtz - merged data from the first mtz (off_varEll.mtz)
+ - pyp_1.mtz - merged data from the second mtz (2ms_varEll.mtz)
+ - pyp_half1_0.mtz - merged data from the first mtz and first half data set
+ - pyp_half1_1.mtz - merged data from the second mtz and first half data set
+ - pyp_half2_0.mtz - merged data from the first mtz and second half data set
+ - pyp_half2_1.mtz - merged data from the second mtz and second half data set
+ - pyp_losses.npy  - loss function values for the full data set
+ - pyp_half1_losses.mtz - loss function balues for the first half data set
+ - pyp_half2_losses.mtz - loss function balues for the second half data set
+
+To make a difference map from these data, we first need to refine the dark data. 
+
+    cd merge
+    mkdir phenix
+    cd phenix
+    phenix.refine ../pyp_0.mtz ../../off.pdb ../../ligands.cif ../../refine.eff
+
+We can now use coot to have a look at the electron density map by calling `coot PYP_refine_1.mtz PYP_refine_1.pdb`
+You can quickly find the chromophore by pressing `ctrl-l`.
+
+![2fo-fc map](data/images/pyp-2fo-fc.apng)
