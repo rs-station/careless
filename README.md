@@ -20,6 +20,8 @@ Pip will handle installation of all dependencies.
     - [ReciprocalSpaceship](https://hekstra-lab.github.io/reciprocalspaceship/)
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
+## Examples
+- [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
 
 ## Core Model
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
@@ -83,5 +85,3 @@ During configuration some new metadata keys will be populated that are useful in
 
 <a name="frenchwilson">2</a>: French, S., and K. Wilson. “On the Treatment of Negative Intensity Observations.” Acta Crystallographica Section A: Crystal Physics, Diffraction, Theoretical and General Crystallography 34, no. 4 (July 1, 1978): 517–25. https://doi.org/10.1107/S0567739478001114.
 
-### Examples
-- [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
