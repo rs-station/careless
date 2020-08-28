@@ -24,6 +24,9 @@ Pip will handle installation of all dependencies.
 - [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
 
 ## Core Model
+
+![pgm](doc/figures/pgm_v1.svg)
+
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
 The model which is implemented in `careless` tries to scale individual reflection observations such that they become consistent with a set of prior beliefs.
 During optimization of a model, `careless` trades off between consistency of the merged structure factor amplitudes with the data and consistency with the priors.
