@@ -58,6 +58,12 @@ args_and_kwargs = (
         "default":None,
     }),
 
+    (("--use-quadrature",), { 
+        "help":f"If this flag is supplied, quadrature rather than black box likelihoods will be used.", 
+        "action":'store_true', 
+        "default":False,
+    }),
+
     (("--anomalous",), { 
         "help":f"If this flag is supplied, Friedel mates will be kept separate.", 
         "action":'store_true', 
@@ -92,12 +98,6 @@ args_and_kwargs = (
         "help":"Adam beta_2 param.", 
         "type":float, 
         "default":0.9,
-    }),
-
-    (("--mc-samples",), {
-        "help":"This is the number of samples to take per gradient step with default 1", 
-        "type": int, 
-        "default": 1,
     }),
 
     (("--separate-files",), {

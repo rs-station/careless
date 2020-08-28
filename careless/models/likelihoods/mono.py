@@ -10,7 +10,7 @@ class NormalLikelihood(tfd.Normal, Likelihood):
         ----------
         iobs : array or tensor
             Numpy array or tf.Tensor of observed reflection intensities.
-        iobs : array or tensor
+        sigiobs : array or tensor
             Numpy array or tf.Tensor of reflection intensity error estimates.
         """
         loc = np.array(iobs, dtype=np.float32)
@@ -24,7 +24,7 @@ class LaplaceLikelihood(tfd.Laplace, Likelihood):
         ----------
         iobs : array or tensor
             Numpy array or tf.Tensor of observed reflection intensities.
-        iobs : array or tensor
+        sigiobs : array or tensor
             Numpy array or tf.Tensor of reflection intensity error estimates.
         """
         loc = np.array(iobs, dtype=np.float32)
@@ -38,7 +38,7 @@ class StudentTLikelihood(tfd.StudentT, Likelihood):
         ----------
         iobs : array or tensor
             Numpy array or tf.Tensor of observed reflection intensities.
-        iobs : array or tensor
+        sigiobs : array or tensor
             Numpy array or tf.Tensor of reflection intensity error estimates.
         dof : float
             Degrees of freedom of the student t likelihood.

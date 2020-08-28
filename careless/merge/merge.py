@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import reciprocalspaceship as rs
-from careless.models.merging.variational import VariationalMergingModel
+from careless.models.merging.variational import VariationalMergingModel,QuadratureMergingModel
 
 
 def group_z_score(groupby, z_score_key, df):
@@ -182,13 +182,22 @@ class BaseMerger():
         return self
 
     def _build_merger(self):
-        self.merger = VariationalMergingModel(
-            self.data['miller_id'].to_numpy().astype(np.int32),
-            [self.scaling_model],
-            self.prior,
-            self.likelihood,
-        )
-        
+        from careless.models.likelihoods.quadrature.base import QuadratureBase
+        if isinstance(self.likelihood, QuadratureBase):
+            self.merger = QuadratureMergingModel(
+                self.data['miller_id'].to_numpy().astype(np.int32),
+                [self.scaling_model],
+                self.prior,
+                self.likelihood,
+            )
+        else:
+            self.merger = VariationalMergingModel(
+                self.data['miller_id'].to_numpy().astype(np.int32),
+                [self.scaling_model],
+                self.prior,
+                self.likelihood,
+            )
+            
 
     def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
         if self.merger is None:
@@ -334,6 +343,19 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         from careless.models.likelihoods.laue import StudentTLikelihood
         self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
 
+    def add_normal_quad_likelihood(self):
+        from careless.models.likelihoods.quadrature.laue import NormalLikelihood
+        self._add_likelihood(NormalLikelihood)
+
+    def add_laplace_quad_likelihood(self):
+        from careless.models.likelihoods.quadrature.laue import LaplaceLikelihood
+        self._add_likelihood(LaplaceLikelihood)
+
+    def add_studentt_quad_likelihood(self, dof):
+        from careless.models.likelihoods.quadrature.laue import StudentTLikelihood
+        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
+
+
 class MonoMerger(BaseMerger):
     def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
         """
@@ -385,3 +407,16 @@ class MonoMerger(BaseMerger):
     def add_studentt_likelihood(self, dof):
         from careless.models.likelihoods.mono import StudentTLikelihood
         self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof))
+
+    def add_normal_quad_likelihood(self):
+        from careless.models.likelihoods.quadrature.mono import NormalLikelihood
+        self._add_likelihood(NormalLikelihood)
+
+    def add_laplace_quad_likelihood(self):
+        from careless.models.likelihoods.quadrature.mono import LaplaceLikelihood
+        self._add_likelihood(LaplaceLikelihood)
+
+    def add_studentt_quad_likelihood(self, dof):
+        from careless.models.likelihoods.quadrature.mono import StudentTLikelihood
+        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof))
+

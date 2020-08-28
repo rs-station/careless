@@ -62,7 +62,7 @@ if parser.positive:
 
 
 #output['W'] = ((1 + output.SigDeltaF/output.SigDeltaF.mean())**-1.).astype('W')
-output['W'] = (output.SigDeltaF**-2.).astype('W')
+#output['W'] = (output.SigDeltaF**-2.).astype('W')
 
 output.cell = ds.cell
 output.spacegroup = ds.spacegroup

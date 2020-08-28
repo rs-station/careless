@@ -39,6 +39,11 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         scale = tf.math.softplus(scale)
         return scale
 
+    def loc_and_scale(self):
+        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        scale = tf.math.softplus(scale)
+        return loc, scale
+
     def __call__(self):
         loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
         scale = tf.math.softplus(scale)
