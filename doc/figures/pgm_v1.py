@@ -20,7 +20,7 @@ for i in range(layers):
                 p.add_edge(f'{i-1}_{k}', f'{i}_{j}', directed=nn_arrows)
 
 for i in range(d):
-    p.add_node(f'm_{i}', f'$m_{i}$', x=-1., y=i, observed=True)
+    p.add_node(f'm_{i}', f'$m_{d-i}$', x=-1., y=i, observed=True)
     p.add_edge(f"m_{i}", f"{0}_{i}", directed=nn_arrows)
 
 
