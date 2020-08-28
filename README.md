@@ -9,7 +9,7 @@ Merging crystallography data without much physics.
     pip install -U pip
     git clone git@github.com:Hekstra-Lab/careless
     cd careless
-    pip -e install .
+    pip install -e .
 
 ## Dependencies
 Pip will handle installation of all dependencies. 
