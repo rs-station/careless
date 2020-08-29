@@ -10,6 +10,7 @@ ccplot <half1_dataset_filename> <half2_dataset_filename>
 """
 import reciprocalspaceship as rs
 import numpy as np
+from careless.merge.merge import get_first_key_of_type
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from sys import argv
@@ -24,16 +25,35 @@ half2_filename = argv[2]
 half1 = rs.read_mtz(half1_filename).compute_dHKL().dropna()
 half2 = rs.read_mtz(half2_filename).compute_dHKL().dropna()
 
+
+if (half1.dtypes == 'K').any() or (half1.dtypes == 'G').any():
+    half1 = half1.stack_anomalous()
+if (half2.dtypes == 'K').any() or (half2.dtypes == 'G').any():
+    half2 = half2.stack_anomalous()
+
+
 ikey = None
-ikey_preferences = ['E', 'F', 'I']
+    
+ikey_preferences = ['I', 'F', 'E']
 for key in ikey_preferences:
-    if key in half1 and key in half2:
-        ikey = key
+    try:
+        ikey = get_first_key_of_type(half1, key)
+    except:
+        pass
 
 if ikey is None:
     raise KeyError("No compatible keys found")
 
-sigkey = f"Sig{ikey}"
+sigkey = None
+if f"Sig{ikey}" in half1:
+    sigkey = f"Sig{ikey}"
+elif f"SIG{ikey}" in half1:
+    sigkey = f"SIG{ikey}"
+if sigkey is None:
+    raise KeyError("No compatible keys found")
+
+print(f"Using data key: {ikey}")
+print(f"Using sigma key: {sigkey}")
 
 nbins = 20
 
@@ -45,7 +65,6 @@ half2 = half2.loc[idx]
 bins = np.percentile(half1.dHKL, np.linspace(100, 0, nbins + 1))
 bins = np.vstack((bins[:-1], bins[1:]))
 colors = np.zeros(len(half1))
-
 
 cc = []
 ticks = []
