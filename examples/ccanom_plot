@@ -50,10 +50,10 @@ elif f"SIG{ikey}(+)" in half1:
 nbins = 20
 
 half1['ANOM'] = half1[ikey + "(+)"] - half1[ikey + "(-)"]
-half1['SIGANOM'] = np.sqrt(half1[sigkey + "(+)"]**2. + half1[ikey + "(-)"]**2.)
+half1['SIGANOM'] = np.sqrt(half1[sigkey + "(+)"]**2. + half1[sigkey + "(-)"]**2.)
 
 half2['ANOM'] = half2[ikey + "(+)"] - half2[ikey + "(-)"]
-half2['SIGANOM'] = np.sqrt(half2[sigkey + "(+)"]**2. + half2[ikey + "(-)"]**2.)
+half2['SIGANOM'] = np.sqrt(half2[sigkey + "(+)"]**2. + half2[sigkey + "(-)"]**2.)
 
 ikey,sigkey = 'ANOM','SIGANOM'
 
