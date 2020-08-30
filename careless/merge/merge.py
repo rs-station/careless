@@ -25,7 +25,8 @@ def group_z_score(groupby, z_score_key, df):
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
     if idx.sum() < 1:
-        raise KeyError(f"No key matching typestring {typestring}")
+        #raise KeyError(f"No key matching typestring {typestring}")
+        return None
     else:
         return ds.dtypes[idx].keys()[0]
         
