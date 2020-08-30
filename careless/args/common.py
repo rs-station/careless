@@ -58,12 +58,6 @@ args_and_kwargs = (
         "default":None,
     }),
 
-    (("--use-quadrature",), { 
-        "help":f"If this flag is supplied, quadrature rather than black box likelihoods will be used.", 
-        "action":'store_true', 
-        "default":False,
-    }),
-
     (("--anomalous",), { 
         "help":f"If this flag is supplied, Friedel mates will be kept separate.", 
         "action":'store_true', 
