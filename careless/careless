@@ -65,6 +65,10 @@ def main(merger, parser):
         if parser.anomalous:
             df.merged = True
             df = df.unstack_anomalous()[["F(+)", "SigF(+)", "F(-)", "SigF(-)", "N(+)", "N(-)"]]
+            centrics = df.label_centrics().CENTRIC
+            df.loc[centrics, 'F(-)'] = df.loc[centrics, 'F(+)']
+            df.loc[centrics, 'SigF(-)'] = df.loc[centrics, 'SigF(+)']
+            df.loc[centrics, 'N(-)'] = df.loc[centrics, 'N(+)']
         df.fillna(0., inplace=True)
         df = df.reset_index().infer_mtz_dtypes().set_index(['H', 'K', 'L'])
         df.write_mtz(f"{parser.output_base}_{file_id}.mtz")
