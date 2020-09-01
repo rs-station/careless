@@ -31,29 +31,31 @@ if (half1.dtypes == 'K').any() or (half1.dtypes == 'G').any():
 if (half2.dtypes == 'K').any() or (half2.dtypes == 'G').any():
     half2 = half2.stack_anomalous()
 
+def get_isigi_keys(ds, dtype_preferences=None):
+    ikey = None
+    if dtype_preferences is None:
+        dtype_preferences = ['J', 'F']
+    for dtype in dtype_preferences:
+        ikey = get_first_key_of_type(ds, dtype)
+        if ikey is not None:
+            break
 
-ikey = None
-    
-ikey_preferences = ['I', 'F', 'E']
-for key in ikey_preferences:
-    try:
-        ikey = get_first_key_of_type(half1, key)
-    except:
-        pass
+    if ikey is None:
+        raise KeyError("No compatible keys found")
 
-if ikey is None:
-    raise KeyError("No compatible keys found")
+    print(f"choosing intensity key {ikey} ...")
 
-sigkey = None
-if f"Sig{ikey}" in half1:
-    sigkey = f"Sig{ikey}"
-elif f"SIG{ikey}" in half1:
-    sigkey = f"SIG{ikey}"
-if sigkey is None:
-    raise KeyError("No compatible keys found")
+    if f"Sig{ikey}" in ds:
+        sigkey = f"Sig{ikey}"
+    elif f"SIG{ikey}" in ds:
+        sigkey = f"SIG{ikey}"
+    else:
+        raise KeyError(f"No matching std deviation key for intensity key {ikey}")
 
-print(f"Using data key: {ikey}")
-print(f"Using sigma key: {sigkey}")
+    return ikey, sigkey
+
+ikey1,sigkey1 = get_isigi_keys(half1)
+ikey2,sigkey2 = get_isigi_keys(half2)
 
 nbins = 20
 
@@ -72,7 +74,7 @@ from tqdm import tqdm
 for binnumber, (i,j) in tqdm(enumerate(zip(*bins))):
     idx = (half1.dHKL >= j) & (half1.dHKL <= i)
     colors[idx] = binnumber / nbins
-    cc.append(np.corrcoef(half1[idx][ikey], half2[idx][ikey])[0,1])
+    cc.append(np.corrcoef(half1[idx][ikey1], half2[idx][ikey2])[0,1])
     ticks.append(f'{i:0.2f}-{j:0.2f}')
 plt.ylim(0., 1.)
 
@@ -90,16 +92,16 @@ plt.tight_layout()
 plt.figure()
 cmap = plt.get_cmap()
 plt.errorbar(
-    half1[ikey],
-    half2[ikey],
-    xerr=half1[sigkey],
-    yerr=half2[sigkey],
+    half1[ikey1],
+    half2[ikey2],
+    xerr=half1[sigkey1],
+    yerr=half2[sigkey2],
     color=cmap(colors),
     ls='none',
     alpha=0.2,
 )
-plt.xlabel(f"$|{ikey}_1|$")
-plt.ylabel(f"$|{ikey}_2|$")
+plt.xlabel(f"$|{ikey1}_1|$")
+plt.ylabel(f"$|{ikey2}_2|$")
 
 from IPython import embed
 embed(colors='Linux')
