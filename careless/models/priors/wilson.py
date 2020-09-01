@@ -35,16 +35,7 @@ def Acentric(**kw):
     dist : tfp.distributions.TransformedDistribution
         Centric normalized structure factor distribution
     """
-
-    dist = tfd.TransformedDistribution(
-        distribution=tfd.Chi(2),
-        bijector=tfb.Scale(2**-0.5),
-        **kw
-    )
-
-    #TODO: This is not the correct way to implement. I should make both Centric and Acentric proper classses
-    dist.mean = lambda : 0.5*np.sqrt(np.pi)
-    dist.stddev =  lambda : np.sqrt(1. - 0.25*np.pi)
+    dist = tfd.Weibull(2., 1., **kw)
     return dist
 
 class WilsonPrior(Prior):
