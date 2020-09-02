@@ -61,7 +61,7 @@ class WilsonPrior(Prior):
         x : tf.Tensor
             Array of structure factor values with the same shape epsilon and centric.
         """
-        x = x / self.epsilon
+        x = x / np.sqrt(self.epsilon)
         return self.centric*self.p_centric.log_prob(x) + (1. - self.centric)*self.p_acentric.log_prob(x)
 
     def prob(self, x):
@@ -71,12 +71,12 @@ class WilsonPrior(Prior):
         x : tf.Tensor
             Array of structure factor values with the same shape epsilon and centric.
         """
-        x = x / self.epsilon
+        x = x / np.sqrt(self.epsilon)
         return self.centric*self.p_centric.prob(x) + (1. - self.centric)*self.p_acentric.prob(x)
 
     def mean(self):
-        return self.epsilon*(self.centric*self.p_centric.mean() + (1. - self.centric)*self.p_acentric.mean())
+        return np.sqrt(self.epsilon)*(self.centric*self.p_centric.mean() + (1. - self.centric)*self.p_acentric.mean())
 
     def stddev(self):
-        return self.epsilon*(self.centric*self.p_centric.stddev() + (1. - self.centric)*self.p_acentric.stddev())
+        return np.sqrt(self.epsilon)*(self.centric*self.p_centric.stddev() + (1. - self.centric)*self.p_acentric.stddev())
 
