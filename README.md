@@ -26,7 +26,7 @@ Pip will handle installation of all dependencies.
 
 ## Core Model
 
-![pgm](doc/figures/pgm_v1.svg#1)
+![pgm](doc/figures/pgm_v1.svg)
 
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
 The model which is implemented in `careless` tries to scale individual reflection observations such that they become consistent with a set of prior beliefs.
