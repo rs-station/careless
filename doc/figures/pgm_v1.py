@@ -41,11 +41,12 @@ p.add_edge("Sigma", "I")
 p.add_node(f"F", "$F_{h}$", x = layers + 3, y = (d-1)/2.)
 p.add_edge("F", "I")
 
-p.add_node(f"W", "W", x = layers + 4, y = (d-1)/2.)
-p.add_edge("W", "F")
+#p.add_node(f"W", "W", x = layers + 4, y = (d-1)/2.)
+#p.add_edge("W", "F")
 
-p.add_plate([layers+1.35, 0.3, 2.2, 2], 'miller index $h$')
+p.add_plate([layers+1.35, 0.3, 2.0, 2], 'miller index $h$')
 p.add_plate([layers+1.5, 0.90, 1, 1], 'image $i$')
 
 p.render()
+plt.savefig('pgm_v1.svg')
 plt.show()
