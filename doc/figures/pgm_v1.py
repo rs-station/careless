@@ -21,7 +21,7 @@ for i in range(layers):
 
 for i in range(d):
     p.add_node(f'm_{i}', f'$m_{d-i}$', x=-1., y=i, observed=True)
-    p.add_edge(f"m_{i}", f"{0}_{i}", directed=nn_arrows)
+    p.add_edge(f"m_{i}", f"{0}_{i}", directed=True)
 
 
 p.add_node(f'{layers}_0', '$\mu$', x=layers, y=d/2, fixed=True, scale=2.*nn_scale, label_params={'color': 'w'}, offset=(0., -6.))
