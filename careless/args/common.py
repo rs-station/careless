@@ -45,11 +45,12 @@ args_and_kwargs = (
         "default":None,
     }),
 
-    (("-s", "--space-group"), {
-        "help":f"Spacegroup number or symbol to merge in. By default use the Mtz spacegroup.", 
-        "type":str, 
-        "default":None,
-    }),
+# This is not supported yet
+#    (("-s", "--space-group"), {
+#        "help":f"Spacegroup number or symbol to merge in. By default use the Mtz spacegroup.", 
+#        "type":str, 
+#        "default":None,
+#    }),
 
     (("-d", "--dmin"), {
         "help":f"Maximum resolution in Ångstroms. If this is not supplied," 
