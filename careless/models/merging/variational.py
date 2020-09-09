@@ -91,18 +91,12 @@ class VariationalMergingModel(PerGroupModel):
         sample or (sample, kl_term) : tf.Tensor
             Either a sample of the predicted reflections intensities or a sample and corresponding kl_div.
         """
-        F1 = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
+        F = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
         kl_div = 0.
         if return_kl_term:
-            q_F = self.surrogate_posterior.prob(F1)
-            p_F = self.prior.prob(F1)
-            kl_div += 0.5*tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
-
-        F2 = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
-        if return_kl_term:
-            q_F = self.surrogate_posterior.prob(F2)
-            p_F = self.prior.prob(F2)
-            kl_div += 0.5*tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
+            q_F = self.surrogate_posterior.prob(F)
+            p_F = self.prior.prob(F)
+            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
 
         scale = 1.
         for model in self.scaling_models:
@@ -114,7 +108,7 @@ class VariationalMergingModel(PerGroupModel):
 
             scale = scale*sample
 
-        I = self.expand(F1*F2) * scale
+        I = self.expand(F**2.) * scale
 
         if return_kl_term:
             return I,kl_div
