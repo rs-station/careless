@@ -1,6 +1,6 @@
 from careless.models.likelihoods.laue import *
 
-from careless.utils.tensorflow import disable_gpu
+from careless.utils.tf import disable_gpu
 status = disable_gpu()
 assert status
 
