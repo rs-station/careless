@@ -8,7 +8,7 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
     """
     Neural network based scaler with simple dense layers.
     """
-    def __init__(self, metadata, layers=5):
+    def __init__(self, metadata, layers=5, prior=None):
         """
         Parameters
         ----------
@@ -17,16 +17,18 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         """
         super().__init__()
 
+        self.prior = prior
+
         self.metadata = np.array(metadata, dtype=np.float32)
         n,d = metadata.shape
 
         self.add(tf.keras.Input(shape=d))
         for i in range(layers):
-            self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True))
+            self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
             #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
 
         #self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True))
-        self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True))
+        self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
 
     @property
     def loc(self):
@@ -55,8 +57,13 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         dist = tfd.Normal(loc, scale)
         sample = dist.sample(sample_shape, seed, name, **kwargs)
         if return_kl_term:
+            eps = 1e-12
             q = dist.prob(sample)
-            kl_div = q * tf.math.log(q)
+            if self.prior is None:
+                p = 1.
+            else:
+                p = self.prior.prob(sample)
+            kl_div = q * (tf.math.log(q + eps) - tf.math.log(p + eps))
             return sample, tf.reduce_sum(kl_div, axis=-1)
         else:
             return sample
