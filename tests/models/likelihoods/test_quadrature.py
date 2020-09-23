@@ -3,6 +3,9 @@ from careless.models.likelihoods.quadrature import laue
 import numpy as np
 import pytest
 
+from careless.utils.tf import disable_gpu
+status = disable_gpu()
+assert status
 
 @pytest.mark.parametrize('likelihood', [mono.NormalLikelihood, mono.LaplaceLikelihood, mono.StudentTLikelihood])
 def test_mono(likelihood):
