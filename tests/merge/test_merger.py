@@ -3,7 +3,7 @@ from careless.merge.merge import *
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname,exists
 
-from careless.utils.tf import disable_gpu
+from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
