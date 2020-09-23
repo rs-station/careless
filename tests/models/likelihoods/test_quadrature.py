@@ -3,7 +3,7 @@ from careless.models.likelihoods.quadrature import laue
 import numpy as np
 import pytest
 
-from careless.utils.tf import disable_gpu
+from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
