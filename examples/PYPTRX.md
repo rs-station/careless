@@ -101,8 +101,8 @@ There will be three files for each input mtz.
  - pyp_half2_0.mtz - merged data from the first mtz and second half data set
  - pyp_half2_1.mtz - merged data from the second mtz and second half data set
  - pyp_losses.npy  - loss function values for the full data set
- - pyp_half1_losses.mtz - loss function balues for the first half data set
- - pyp_half2_losses.mtz - loss function balues for the second half data set
+ - pyp_half1_losses.mtz - loss function values for the first half data set
+ - pyp_half2_losses.mtz - loss function values for the second half data set
 
 To make a difference map from these data, we first need to refine the dark data. 
 
