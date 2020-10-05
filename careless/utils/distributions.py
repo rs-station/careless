@@ -180,3 +180,69 @@ class Stacy(Amoroso):
 
         return kl
 
+
+class Rice(tfd.Distribution):
+    def __init__(self,
+		   nu,
+		   sigma,
+		   validate_args=False,
+		   allow_nan_stats=True,
+		   name='Rice'):
+
+        parameters = dict(locals())
+        with tf.name_scope(name) as name:
+            self._nu = tensor_util.convert_nonref_to_tensor(nu)
+            self._sigma = tensor_util.convert_nonref_to_tensor(sigma)
+            self._base_normal = tfd.Normal(0., self._sigma)
+
+    @property
+    def nu(self):
+        return self._nu
+
+    @property
+    def sigma(self):
+        return self._sigma
+
+    def sample(self, sample_shape=(), seed=None, name='sample', **kwargs):
+        s1 = self._base_normal.sample(sample_shape=sample_shape, seed=seed, name=name, **kwargs)
+        s2 = self._base_normal.sample(sample_shape=sample_shape, seed=seed, name=name, **kwargs)
+        return tf.math.sqrt(
+                    s1**2. +
+                   (s2 + self.nu)**2.
+               )
+
+    def _log_bessel_i0(self, x):
+        return tf.math.log(tf.math.bessel_i0e(x)) + tf.math.abs(x)
+
+    def _log_bessel_i1(self, x):
+        return tf.math.log(tf.math.bessel_i1e(x)) + tf.math.abs(x)
+
+    def _bessel_i0(self, x):
+        return tf.math.exp(self._log_bessel_i0(x))
+
+    def _bessel_i1(self, x):
+        return tf.math.exp(self._log_bessel_i1(x))
+
+    def _laguerre_half(self, x):
+        return (1. - x) * tf.math.exp(x / 2. + self._log_bessel_i0(-0.5 * x)) - x * tf.math.exp(x / 2.  + self._log_bessel_i1(-0.5 * x) )
+
+    def prob(self, X):
+        sigma = self.sigma
+        nu = self.nu
+        p = (X * sigma**-2.) * tf.math.exp(-(X**2. + nu**2.) / (2 * sigma**2.) +  self._log_bessel_i0(X * nu * sigma**-2.))
+        return tf.where(nu/sigma > 40., tfd.Normal(nu, sigma).prob(X), p)
+
+    def mean(self):
+        sigma = self.sigma
+        nu = self.nu
+        mean = sigma * tf.math.sqrt(np.pi / 2.) * self._laguerre_half(-0.5*(nu/sigma)**2)
+        return tf.where(nu/sigma > 40.,  nu, mean)
+
+    def variance(self):
+        sigma = self.sigma
+        nu = self.nu
+        variance = 2*sigma**2. + nu**2. - 0.5*np.pi * sigma**2. * self._laguerre_half(-0.5*(nu/sigma)**2)**2.
+        return tf.where(nu/sigma > 40.,  sigma**2., variance)
+
+    def stddev(self):
+        return tf.math.sqrt(self.variance())
