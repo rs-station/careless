@@ -167,8 +167,8 @@ class BaseMerger():
     def get_results(self):
         df = self.data.reset_index()
         results = rs.DataSet(cell = self.data.cell, spacegroup = self.data.spacegroup)
-        results['F'] = self.merger.surrogate_posterior.mean()
-        results['SigF'] = self.merger.surrogate_posterior.stddev()
+        results['F'] = self.merger.surrogate_posterior.mean().numpy()
+        results['SigF'] = self.merger.surrogate_posterior.stddev().numpy()
         results['N'] = df.groupby('miller_id').size()
         results['H'] = df.groupby('miller_id')['H'].first()  
         results['K'] = df.groupby('miller_id')['K'].first()  
