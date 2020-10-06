@@ -190,6 +190,8 @@ class Rice(tfd.Distribution):
 		   name='Rice'):
 
         parameters = dict(locals())
+        #Value of nu/sigma for which, above with the pdf and moments will be swapped with a normal distribution
+        self._normal_crossover = 40. 
         with tf.name_scope(name) as name:
             self._nu = tensor_util.convert_nonref_to_tensor(nu)
             self._sigma = tensor_util.convert_nonref_to_tensor(sigma)
@@ -230,19 +232,19 @@ class Rice(tfd.Distribution):
         sigma = self.sigma
         nu = self.nu
         p = (X * sigma**-2.) * tf.math.exp(-(X**2. + nu**2.) / (2 * sigma**2.) +  self._log_bessel_i0(X * nu * sigma**-2.))
-        return tf.where(nu/sigma > 40., tfd.Normal(nu, sigma).prob(X), p)
+        return tf.where(nu/sigma > self._normal_crossover, tfd.Normal(nu, sigma).prob(X), p)
 
     def mean(self):
         sigma = self.sigma
         nu = self.nu
         mean = sigma * tf.math.sqrt(np.pi / 2.) * self._laguerre_half(-0.5*(nu/sigma)**2)
-        return tf.where(nu/sigma > 40.,  nu, mean)
+        return tf.where(nu/sigma > self._normal_crossover,  nu, mean)
 
     def variance(self):
         sigma = self.sigma
         nu = self.nu
         variance = 2*sigma**2. + nu**2. - 0.5*np.pi * sigma**2. * self._laguerre_half(-0.5*(nu/sigma)**2)**2.
-        return tf.where(nu/sigma > 40.,  sigma**2., variance)
+        return tf.where(nu/sigma > self._normal_crossover,  sigma**2., variance)
 
     def stddev(self):
         return tf.math.sqrt(self.variance())
