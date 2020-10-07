@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow_probability.python.internal import special_math
 from tensorflow_probability import distributions as tfd
 import tensorflow_probability as tfp
 from tensorflow_probability import bijectors as tfb
@@ -248,3 +249,55 @@ class Rice(tfd.Distribution):
 
     def stddev(self):
         return tf.math.sqrt(self.variance())
+
+class FoldedNormal(tfd.TransformedDistribution):
+    def __init__(self,
+		   loc,
+		   scale,
+		   validate_args=False,
+		   allow_nan_stats=True,
+		   name='FoldedNormal'):
+
+        parameters = dict(locals())
+        with tf.name_scope(name) as name:
+            self._loc   = tensor_util.convert_nonref_to_tensor(loc)
+            self._scale = tensor_util.convert_nonref_to_tensor(scale)
+            normal = tfd.Normal(self._loc, self._scale)
+            bijector = tfb.AbsoluteValue()
+
+            super().__init__(
+                    distribution=normal, 
+                    bijector=bijector, 
+                    validate_args=validate_args,
+                    parameters=parameters,
+                    name=name)
+
+    @property
+    def loc(self):
+        return self._loc
+
+    @property
+    def scale(self):
+        return self._scale
+
+    def prob(self,  value, name='prob', **kwargs):
+        p = super().prob(value, name, **kwargs)
+        return tf.where(value < 0, tf.zeros_like(p), p)
+
+    def log_prob(self,  value, name='prob', **kwargs):
+        p = super().log_prob(value, name, **kwargs)
+        return tf.where(value < 0, tf.zeros_like(p), p)
+
+    def mean(self, name='mean', **kwargs):
+        u = self.loc
+        s = self.scale
+        return s * np.sqrt(2/np.pi) * tf.math.exp(-0.5 * (u/s)**2.) + u * (1. - 2. * special_math.ndtr(-u/s))
+
+    def variance(self, name='variance', **kwargs):
+        u = self.loc
+        s = self.scale
+        return u**2. + s**2. - self.mean()**2.
+
+    def stddev(self, name='stddev', **kwargs):
+        return tf.math.sqrt(self.variance())
+
