@@ -56,6 +56,7 @@ class BaseMerger():
     intensity_key = None
     sigma_intensity_key = None
     anomalous = False
+    surrogate_posterior = None
 
     def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None):
         self.data = dataset.copy() #chaos ensues otherwise
@@ -198,6 +199,7 @@ class BaseMerger():
                 [self.scaling_model],
                 self.prior,
                 self.likelihood,
+                self.surrogate_posterior,
             )
             
 
@@ -214,6 +216,21 @@ class BaseMerger():
         f = self.data.groupby('miller_id').first()[reference_f_key].to_numpy().astype(np.float32)
         sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
         self.prior = priorfun(f, sigf)
+
+    def add_rice_woolfson_posterior(self):
+        """
+        Use a mixed rice and woolfson (folded normal) distribution for the surrogate posterior. 
+        This must be called after a prior has been added. 
+        """
+        if self.prior is None:
+            raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
+        from careless.models.merging.surrogate_posteriors import RiceWoolfson
+        centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
+        self.surrogate_posterior = RiceWoolfson(self.prior.mean(), self.prior.stddev(), centric)
+
+    def add_rice_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
+        from careless.models.priors.empirical import RiceReferencePrior
+        self._add_reference_prior(RiceReferencePrior)
 
     def add_laplace_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
         from careless.models.priors.empirical import LaplaceReferencePrior

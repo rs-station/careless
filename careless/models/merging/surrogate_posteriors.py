@@ -35,8 +35,8 @@ class RiceWoolfson(tfd.Distribution):
     def stddev(self):
         return tf.where(self._centric, self._woolfson.stddev(), self._rice.stddev())
 
-    def sample(self):
-        return tf.where(self._centric, self._woolfson.sample(), self._rice.sample())
+    def sample(self, sample_shape=(), seed=None, name='sample', **kwargs):
+        return tf.where(self._centric, self._woolfson.sample(sample_shape, seed, name, **kwargs), self._rice.sample(sample_shape, seed, name, **kwargs))
 
     def log_prob(self, x):
         return tf.where(self._centric, self._woolfson.log_prob(x), self._rice.log_prob(x))

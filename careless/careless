@@ -20,12 +20,17 @@ def main(merger, parser):
 # Now populate merger.prior
     if parser.normal_prior:
         merger.add_normal_prior()
+    elif parser.rice_prior:
+        merger.add_rice_prior()
     elif parser.laplace_prior:
         merger.add_laplace_prior()
     elif parser.studentt_prior_dof:
         merger.add_studentt_prior(parser.studentt_prior_dof)
     else:
         merger.add_wilson_prior()
+
+    if parser.rice_woolfson_surrogate:
+        merger.add_rice_woolfson_posterior()
 
 #Now populate merger.likelihood
     if parser.quadrature_points is not None:

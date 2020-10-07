@@ -26,6 +26,12 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--rice-woolfson-surrogate", ), {
+        "help":"Use a hybrid rice/woolfson distribution as the surrogate posterio instead of truncated normal",
+        "action":"store_true",
+        "default":"false",
+    }),
+
     (("mtzinput", ), { 
         "metavar":"file.mtz", 
         "help":"Mtz filename(s).", 
