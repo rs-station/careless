@@ -1,6 +1,7 @@
 from careless.models.priors.base import Prior
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
+import tensorflow as tf
 import numpy as np
 
 
@@ -45,14 +46,14 @@ class WilsonPrior(Prior):
         Parameters
         ----------
         centric : array
-            Floating point array with value 1. for centric reflections and 0. for acentric.
+            Floating point or boolean array with value 1/True for centric reflections and 0/False. for acentric.
         epsilon : array
             Floating point array with multiplicity values for each structure factor.
         """
         self.epsilon = np.array(epsilon, dtype=np.float32)
-        self.centric = np.array(centric, dtype=np.float32)
-        self.p_centric = Centric()
-        self.p_acentric = Acentric()
+        self.centric = np.array(centric, dtype=np.bool)
+        self.p_centric = tfd.HalfNormal(np.sqrt(self.epsilon))
+        self.p_acentric = tfd.Weibull(2., np.sqrt(self.epsilon))
 
     def log_prob(self, x):
         """
@@ -61,8 +62,7 @@ class WilsonPrior(Prior):
         x : tf.Tensor
             Array of structure factor values with the same shape epsilon and centric.
         """
-        x = x / np.sqrt(self.epsilon)
-        return self.centric*self.p_centric.log_prob(x) + (1. - self.centric)*self.p_acentric.log_prob(x)
+        return tf.where(self.centric, self.p_centric.log_prob(x), self.p_acentric.log_prob(x))
 
     def prob(self, x):
         """
@@ -71,12 +71,11 @@ class WilsonPrior(Prior):
         x : tf.Tensor
             Array of structure factor values with the same shape epsilon and centric.
         """
-        x = x / np.sqrt(self.epsilon)
-        return self.centric*self.p_centric.prob(x) + (1. - self.centric)*self.p_acentric.prob(x)
+        return tf.where(self.centric, self.p_centric.prob(x), self.p_acentric.prob(x))
 
     def mean(self):
-        return np.sqrt(self.epsilon)*(self.centric*self.p_centric.mean() + (1. - self.centric)*self.p_acentric.mean())
+        return tf.where(self.centric, self.p_centric.mean(), self.p_acentric.mean())
 
     def stddev(self):
-        return np.sqrt(self.epsilon)*(self.centric*self.p_centric.stddev() + (1. - self.centric)*self.p_acentric.stddev())
+        return tf.where(self.centric, self.p_centric.stddev(), self.p_acentric.stddev())
 
