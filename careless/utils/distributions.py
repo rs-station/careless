@@ -235,6 +235,9 @@ class Rice(tfd.Distribution):
         p = (X * sigma**-2.) * tf.math.exp(-(X**2. + nu**2.) / (2 * sigma**2.) +  self._log_bessel_i0(X * nu * sigma**-2.))
         return tf.where(nu/sigma > self._normal_crossover, tfd.Normal(nu, sigma).prob(X), p)
 
+    def log_prob(self, X):
+        return tf.math.log(self.prob(X))
+
     def mean(self):
         sigma = self.sigma
         nu = self.nu
