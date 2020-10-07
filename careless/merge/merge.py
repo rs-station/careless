@@ -225,8 +225,13 @@ class BaseMerger():
         if self.prior is None:
             raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
         from careless.models.merging.surrogate_posteriors import RiceWoolfson
+        import tensorflow_probability as tfp
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
-        self.surrogate_posterior = RiceWoolfson(self.prior.mean(), self.prior.stddev(), centric)
+        self.surrogate_posterior = RiceWoolfson(
+            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            centric
+        )
 
     def add_rice_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
         from careless.models.priors.empirical import RiceReferencePrior
