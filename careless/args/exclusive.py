@@ -1,5 +1,12 @@
 groups = (
     ( 
+        (("--rice-prior",), {
+            "help":"Use empirical reference structure factor apmlitudes " 
+                   "from an Mtz file to parameterize a Rician prior distribution. ",
+            "action":'store_true', 
+            "default":False,
+        }),
+
         (("--laplace-prior",), {
             "help":"Use empirical reference structure factor apmlitudes " 
                    "from an Mtz file to parameterize a Laplacian prior distribution. ",
