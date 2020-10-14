@@ -1,6 +1,8 @@
 from careless.models.likelihoods.base import Likelihood
 from careless.models.base import PerGroupModel
 from tensorflow_probability import distributions as tfd
+from tensorflow_probability import bijectors as tfb
+import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
 
@@ -90,7 +92,7 @@ class StudentTLikelihood(ConvolvedDist, tfd.StudentT, Likelihood):
             Degrees of freedom.
         """
         loc = np.array(iobs, dtype=np.float32)
-        scale = np.array(sigiobs, dtype=np.float32)/np.sqrt(2.)
+        scale = np.array(sigiobs, dtype=np.float32)
         super().__init__(dof, loc, scale)
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
