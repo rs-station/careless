@@ -46,7 +46,7 @@ def main(merger, parser):
         if parser.laplace_likelihood:
             merger.add_laplace_likelihood()
         elif parser.studentt_likelihood_dof:
-            merger.add_studentt_likelihood(parser.studentt_likelihood_dof, parser.studentt_scale)
+            merger.add_studentt_likelihood(parser.studentt_likelihood_dof)
         else:
             merger.add_normal_likelihood()
 
