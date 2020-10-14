@@ -46,7 +46,7 @@ def main(merger, parser):
         if parser.laplace_likelihood:
             merger.add_laplace_likelihood()
         elif parser.studentt_likelihood_dof:
-            merger.add_studentt_likelihood(parser.studentt_likelihood_dof)
+            merger.add_studentt_likelihood(parser.studentt_likelihood_dof, parser.studentt_scale)
         else:
             merger.add_normal_likelihood()
 
@@ -138,10 +138,11 @@ else:
 
 merger = main(merger, parser)
 output_base = parser.output_base
-parser.output_base = output_base + '_half1'
-half1  = main(half1, parser)
-parser.output_base = output_base + '_half2'
-half2  = main(half2, parser)
+if not parser.skip_xval:
+    parser.output_base = output_base + '_half1'
+    half1  = main(half1, parser)
+    parser.output_base = output_base + '_half2'
+    half2  = main(half2, parser)
 
 if parser.embed:
     from matplotlib import pyplot as plt
