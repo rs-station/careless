@@ -12,6 +12,12 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+    (("--skip-xval", ),  {
+        "help":"Bypass merging half data sets.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
     (("--image-id-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",
@@ -29,7 +35,7 @@ args_and_kwargs = (
     (("--rice-woolfson-surrogate", ), {
         "help":"Use a hybrid rice/woolfson distribution as the surrogate posterio instead of truncated normal",
         "action":"store_true",
-        "default":"false",
+        "default": False,
     }),
 
     (("mtzinput", ), { 
@@ -140,6 +146,12 @@ args_and_kwargs = (
         "help": "The number of sequential dense neural network layers in the scaling model.",
         "type":int,
         "default":20,
-    })
+    }),
+
+    (("--studentt-scale",), {
+        "help": "Scale parameter for variational student t likelihood.",
+        "type": float,
+        "default": None,
+    }),
 
 )
