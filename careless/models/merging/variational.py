@@ -94,9 +94,10 @@ class VariationalMergingModel(PerGroupModel):
         F = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
         kl_div = 0.
         if return_kl_term:
-            q_F = self.surrogate_posterior.prob(F)
-            p_F = self.prior.prob(F)
-            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
+            q_F = self.surrogate_posterior.log_prob(F)
+            p_F = self.prior.log_prob(F)
+            #kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
+            kl_div += tf.reduce_sum( q_F - p_F ) 
 
         scale = 1.
         for model in self.scaling_models:
