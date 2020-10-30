@@ -1,6 +1,6 @@
 from careless.models.base import PerGroupModel
 from careless.utils.shame import sanitize_tensor
-from tensorflow_probability import distributions as tfd
+from careless.models.merging.surrogate_posteriors import TruncatedNormal
 from tqdm.autonotebook import tqdm
 import tensorflow_probability as tfp
 import tensorflow as tf
@@ -47,12 +47,15 @@ class VariationalMergingModel(PerGroupModel):
         self.likelihood = likelihood
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
 
+        zero = 1e-30
+        infinity = np.inf
+
         if surrogate_posterior is None:
-            self.surrogate_posterior = tfd.TruncatedNormal(
+            self.surrogate_posterior = TruncatedNormal(
                 tf.Variable(self.prior.mean(), dtype=tf.float32),
                 tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
-                0., 
-                1e10,
+                zero,
+                infinity,
             )
         else:
             self.surrogate_posterior = surrogate_posterior
@@ -147,9 +150,9 @@ class VariationalMergingModel(PerGroupModel):
         #Occasionally, low probability samples will lead to overflows in the gradients. 
         #Since, VI is usually done by coordinate ascent anyway, 
         #it is totally fine to just skip those updates.
-        grads = [sanitize_tensor(g) for g in grads]
-        if clip_value is not None:
-            grads = [tf.clip_by_value(g, -clip_value, clip_value) for g in grads]
+        #grads = [sanitize_tensor(g) for g in grads]
+        #if clip_value is not None:
+        #    grads = [tf.clip_by_value(g, -clip_value, clip_value) for g in grads]
         optimizer.apply_gradients(zip(grads, variables))
         return loss
 

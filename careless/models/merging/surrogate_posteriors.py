@@ -43,3 +43,12 @@ class RiceWoolfson(tfd.Distribution):
 
     def prob(self, x):
         return tf.where(self._centric, self._woolfson.prob(x), self._rice.prob(x))
+
+
+#This is a temporary workaround for tfd.TruncatedNormal which has a bug in sampling
+#2020-10-30: This should be removed if this issue is fixed: https://github.com/tensorflow/probability/issues/1149
+class TruncatedNormal(tfd.TruncatedNormal):
+    def sample(self, *args, **kwargs):
+        samples = super().sample(*args, **kwargs)
+        return tf.maximum(samples, self.low)
+
