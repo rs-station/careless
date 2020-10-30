@@ -180,7 +180,7 @@ class BaseMerger():
         return results
 
     def _remove_sys_absences(self):
-        self.data = = self.data[~self.data.label_absences()['ABSENT']]
+        self.data = self.data[~self.data.label_absences()['ABSENT']]
         return self
 
     def _build_merger(self):
