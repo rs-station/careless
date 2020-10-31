@@ -116,25 +116,27 @@ class Stacy(Amoroso):
                 name,
             )
 
-    def _stacy_params(self, other):
-        if isinstance(other, Stacy):
-            params = (other.theta, other.alpha, other.beta)
-        elif isinstance(other, tfd.Weibull):
+    @staticmethod
+    def _stacy_params(dist):
+        if isinstance(dist, Stacy):
+            params = (dist.theta, dist.alpha, dist.beta)
+        elif isinstance(dist, tfd.Weibull):
             # Weibul(x; k, lambda) = Stacy(x; lambda, 1, k)
-            k = other.concentration
-            lam = other.scale
+            k = dist.concentration
+            lam = dist.scale
             params = (lam, 1., k)
-        elif isinstance(other, tfd.HalfNormal):
+        elif isinstance(dist, tfd.HalfNormal):
             #HalfNormal(x; scale) = Stacy(x; sqrt(2)*scale, 0.5, 2)
-            scale = other.scale
+            scale = dist.scale
             params = (np.sqrt(2.) * scale, 0.5, 2.)
         else:
-            raise TypeError(f"Equivalent Stacy parameters cannot be determined for distribution, {other}. " 
+            raise TypeError(f"Equivalent Stacy parameters cannot be determined for distribution, {dist}. " 
                              "Only tfd.Weibull, tfd.HalfNormal, or Stacy can be converted to Stacy parameterisation")
         return params
 
-    def _bauckhage_params(self, other):
-        theta, alpha, beta = self._stacy_params(other)
+    @staticmethod
+    def _bauckhage_params(dist):
+        theta, alpha, beta = Stacy._stacy_params(dist)
         bauckhage_params = (theta, alpha*beta, beta)
         return bauckhage_params 
 
@@ -259,8 +261,7 @@ class FoldedNormal(tfd.TransformedDistribution):
 		   scale,
 		   validate_args=False,
 		   allow_nan_stats=True,
-		   name='FoldedNormal'):
-
+		   name='FoldedNormal'): 
         parameters = dict(locals())
         with tf.name_scope(name) as name:
             self._loc   = tensor_util.convert_nonref_to_tensor(loc)
@@ -303,4 +304,3 @@ class FoldedNormal(tfd.TransformedDistribution):
 
     def stddev(self, name='stddev', **kwargs):
         return tf.math.sqrt(self.variance())
-
