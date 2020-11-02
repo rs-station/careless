@@ -202,11 +202,12 @@ class BaseMerger():
             )
             
 
-    def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
+    def train_model(self, iterations, mc_samples=1, learning_rate=0.001, beta_1=0.8, beta_2=0.95, clip_value=None):
         if self.merger is None:
             self._build_merger()
 
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=beta_1, beta_2=beta_2)
+        #optimizer = tf.keras.optimizers.Nadam(learning_rate, beta_1=beta_1, beta_2=beta_2)
         losses = self.merger.fit(optimizer, iterations, s=mc_samples, clip_value=clip_value)
         self.results = self.get_results()
         return losses
@@ -215,6 +216,25 @@ class BaseMerger():
         f = self.data.groupby('miller_id').first()[reference_f_key].to_numpy().astype(np.float32)
         sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
         self.prior = priorfun(f, sigf)
+
+    def add_truncated_normal_posterior(self):
+        """
+        Use a truncated normal for the surrogate posterior (variational distribution).
+        This must be called after a prior has been added. 
+        """
+        if self.prior is None:
+            raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
+        from careless.models.merging.surrogate_posteriors import TruncatedNormal
+        import tensorflow_probability as tfp
+        centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
+        low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
+        high = 1e30
+        self.surrogate_posterior = TruncatedNormal(
+            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            low,
+            high,
+        )
 
     def add_rice_woolfson_posterior(self):
         """

@@ -56,6 +56,20 @@ class Amoroso(tfd.TransformedDistribution):
     def beta(self):
         return self._beta
 
+    def custom_log_prob(self, X):
+        a = self.a
+        theta = self.theta
+        alpha = self.alpha
+        beta  = self.beta
+
+        inflation = 1e10
+        x = tf.math.log(tf.abs(beta)) - tf.math.log(tf.abs(theta)) - tf.math.lgamma(a) 
+        y = (alpha*beta - 1.)*(tf.math.log(inflation*X - inflation*a) - tf.math.log(theta) - tf.math.log(inflation)) 
+        z = - tf.math.pow(X - a, beta) * tf.math.exp(- beta * tf.math.log(theta))
+        print(x,y,z)
+
+        return x + y + z
+
     def mean(self):
         """
         The mean of of the Amoroso distribution exists for `alpha + 1/beta >= 0`.
