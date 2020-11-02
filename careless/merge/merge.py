@@ -180,7 +180,8 @@ class BaseMerger():
         return results
 
     def _remove_sys_absences(self):
-        self.data = self.data[~self.data.label_absences()['ABSENT']]
+        #self.data = self.data[~self.data.label_absences()['ABSENT']]
+        self.data = self.data[~rs.utils.hkl_is_absent(self.data.get_hkls(), self.data.spacegroup)]
         return self
 
     def _build_merger(self):
