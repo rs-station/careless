@@ -47,12 +47,13 @@ class VariationalMergingModel(PerGroupModel):
         self.likelihood = likelihood
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
 
-        zero = 1e-30
-        infinity = np.inf
 
         if surrogate_posterior is None:
+            zero = 0.
+            infinity = 1e30
+            from careless.utils.distributions import FoldedNormal
             self.surrogate_posterior = TruncatedNormal(
-                tf.Variable(self.prior.mean(), dtype=tf.float32),
+                tf.Variable(self.prior.mean()),
                 tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
                 zero,
                 infinity,
@@ -112,7 +113,7 @@ class VariationalMergingModel(PerGroupModel):
 
             scale = scale*sample
 
-        I = self.expand(F**2.) * scale
+        I = self.expand(tf.square(F)) * scale
 
         if return_kl_term:
             return I,kl_div
@@ -150,9 +151,11 @@ class VariationalMergingModel(PerGroupModel):
         #Occasionally, low probability samples will lead to overflows in the gradients. 
         #Since, VI is usually done by coordinate ascent anyway, 
         #it is totally fine to just skip those updates.
-        #grads = [sanitize_tensor(g) for g in grads]
-        #if clip_value is not None:
-        #    grads = [tf.clip_by_value(g, -clip_value, clip_value) for g in grads]
+        nans = tf.reduce_any([tf.reduce_any(tf.math.is_nan(g)) for g in grads])
+        if nans:
+            tf.print("Warning: Nans in grads. This is expected to happen occasionally. Sanitizing...")
+            grads = tf.nest.map_structure(sanitize_tensor, grads)
+
         optimizer.apply_gradients(zip(grads, variables))
         return loss
 
@@ -223,8 +226,8 @@ class VariationalMergingModel(PerGroupModel):
             loss = self.train_step(optimizer, s=s, clip_value=clip_value)
             losses.append(float(loss))
             if not tf.math.is_finite(loss):
-                self.rescue_variational_distributions()
-                print(f"WARNING! Resetting stuck variational distributions!")
+                #self.rescue_variational_distributions()
+                #print(f"WARNING! Resetting stuck variational distributions!")
                 nancount += 1
             else:
                 nancount = 0

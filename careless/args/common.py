@@ -98,13 +98,13 @@ args_and_kwargs = (
     (("--beta-1",), {
         "help":"Adam beta_1 param.", 
         "type":float, 
-        "default":0.5,
+        "default":0.9,
     }),
 
     (("--beta-2",), {
         "help":"Adam beta_2 param.", 
         "type":float, 
-        "default":0.9,
+        "default":0.99,
     }),
 
     (("--separate-files",), {

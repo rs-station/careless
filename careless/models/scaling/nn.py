@@ -68,3 +68,63 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         else:
             return sample
 
+class LowRankScaler(tf.keras.models.Sequential, Scaler):
+#class SequentialScaler(tf.keras.models.Sequential, Scaler):
+    """
+    Neural network based scaler with simple dense layers.
+    """
+    def __init__(self, metadata, layers=20,  prior=None):
+        """
+        Parameters
+        ----------
+        metadata : array 
+            m x d array of reflection metadata.
+        """
+        rank = 5
+        super().__init__()
+
+        self.prior = prior
+
+        self.metadata = np.array(metadata, dtype=np.float32)
+        n,d = metadata.shape
+
+        self.add(tf.keras.Input(shape=d))
+        for i in range(layers):
+            self.add(tf.keras.layers.Dense(rank + 2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+            #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
+
+        #self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True))
+        self.add(tf.keras.layers.Dense(rank + 2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+
+    @property
+    def loc(self):
+        parts = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc,scale_diag,scale_perturb_factor = parts[0],parts[1],tf.stack(parts[2:], axis=1)
+        return loc
+
+    @property
+    def scale_diag(self):
+        parts = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc,scale_diag,scale_perturb_factor = parts[0],parts[1],tf.stack(parts[2:], axis=1)
+        scale_diag = tf.math.softplus(scale_diag)
+        return scale
+
+    @property
+    def scale_perturb_factor(self):
+        parts = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc,scale_diag,scale_perturb_factor = parts[0],parts[1],tf.stack(parts[2:], axis=1)
+        return scale_perturb_factor
+
+    @property
+    def multivariate_normal(self):
+        parts = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc,scale_diag,scale_perturb_factor = parts[0],parts[1],tf.stack(parts[2:], axis=1)
+        scale_diag = tf.math.softplus(scale_diag)
+        return tfd.MultivariateNormalDiagPlusLowRank(loc, scale_diag, scale_perturb_factor)
+
+    def __call__(self):
+        return self.multivariate_normal.sample()
+
+    def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
+        return self.multivariate_normal.sample(), 0.
+

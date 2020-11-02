@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import reciprocalspaceship as rs
+from reciprocalspaceship.algorithms.scale_merged_intensities import mean_intensity_by_resolution
 from argparse import ArgumentParser
 from os import environ
 
@@ -46,12 +47,16 @@ output = rs.DataSet({
     'Fon' : on['F'],
     'SigFon' : on['SigF'],
     'PhiFoff' : ds[phase_key],
+    'F-model' : ds['F-model'],
 })
 
+output.cell = ds.cell
+output.spacegroup = ds.spacegroup
 
 
 output['DeltaF'] = (output['Fon'] - output['Foff']).astype('F')
 output['SigDeltaF'] = np.sqrt(output['SigFon']**2. + output['SigFoff']**2.).astype('Q')
+
 
 if parser.positive:
     cmplx = rs.utils.to_structurefactor(output.DeltaF, output.PhiFoff)
@@ -61,11 +66,26 @@ if parser.positive:
     output['PhiDeltaF'] = output.DeltaF.astype('P')
 
 
-#output['W'] = ((1 + output.SigDeltaF/output.SigDeltaF.mean())**-1.).astype('W')
-#output['W'] = (output.SigDeltaF**-2.).astype('W')
+output['W'] = ((1 + output.SigDeltaF**2./np.mean(output.SigDeltaF**2.))**-1.).astype('W')
+output['DH'] = ((1 + output.SigDeltaF**2./np.mean(output.SigDeltaF**2.) + 0.05*output.DeltaF**2./np.mean(output.DeltaF**2.))**-1.).astype('W')
+output['ML'] = (output.SigDeltaF**-2.).astype('W')
 
-output.cell = ds.cell
-output.spacegroup = ds.spacegroup
+from scipy.stats import gaussian_kde
+
+#X = output[['DeltaF', 'SigDeltaF']].to_numpy(np.float).T
+#X = (X - X.mean(1)[:,None]) / X.std(1)[:,None]
+#k = gaussian_kde(X)
+#output['KDE'] = rs.DataSeries(k(X), dtype='W', index=output.index)
+#output['LOGKDE'] = rs.DataSeries(k.logpdf(X), dtype='W', index=output.index)
+
+#X = output.compute_dHKL()[['Foff', 'SigFoff', 'Fon', 'SigFon', 'dHKL']].to_numpy(np.float).T
+X = output.compute_dHKL()[['Foff', 'Fon', 'dHKL']].to_numpy(np.float).T
+#X = output.compute_dHKL()[['SigFoff', 'SigFon', 'dHKL']].to_numpy(np.float).T
+X = (X - X.mean(1)[:,None]) / X.std(1)[:,None]
+k = gaussian_kde(X)
+output['KDE'] = rs.DataSeries(k(X), dtype='W', index=output.index)
+
+output['ScaledDeltaF'] = output['DeltaF'] * mean_intensity_by_resolution(output['F-model'], output.compute_dHKL().dHKL) / mean_intensity_by_resolution(output['Foff'], output.compute_dHKL().dHKL)
 
 output.write_mtz(outFN)
 

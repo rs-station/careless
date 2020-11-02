@@ -31,6 +31,8 @@ def main(merger, parser):
 
     if parser.rice_woolfson_surrogate:
         merger.add_rice_woolfson_posterior()
+    else:
+        merger.add_truncated_normal_posterior()
 
 #Now populate merger.likelihood
     if parser.quadrature_points is not None:
