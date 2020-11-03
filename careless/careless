@@ -31,6 +31,8 @@ def main(merger, parser):
 
     if parser.rice_woolfson_surrogate:
         merger.add_rice_woolfson_posterior()
+    elif parser.folded_normal_surrogate:
+        merger.add_folded_normal_posterior()
     else:
         merger.add_truncated_normal_posterior()
 

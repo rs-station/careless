@@ -8,7 +8,7 @@
 #SBATCH --constraint=v100
 
 
-out=custom_tnorm_test
+out=test
 basename=hewl
 
 mkdir -p $out
@@ -19,6 +19,7 @@ careless mono \
     --sequential-layers=20 \
     --anomalous \
     --iterations=10000 \
+    --folded-normal-surrogate \
     --studentt-likelihood-dof=12. \
     "BATCH,dHKL,Hobs,Kobs,Lobs,XDET,YDET,BG,SIGBG,LP,QE,FRACTIONCALC" \
     integrated_pass1.mtz \

@@ -1,6 +1,7 @@
 from careless.utils.distributions import Rice,FoldedNormal
 from tensorflow_probability.python.internal.special_math import ndtr
 from tensorflow_probability import distributions as tfd
+from tensorflow_probability import bijectors as tfb
 from tensorflow_probability.python.internal import tensor_util
 import tensorflow as tf
 import numpy as np
@@ -59,6 +60,13 @@ class TruncatedNormal(tfd.TruncatedNormal):
         self._crossover = 10.
         self._normal = tfd.Normal(loc, scale)
 
+    def log_prob(self, X, *args, **kwargs):
+        loc,scale,low,high = self._loc_scale_low_high()
+        alpha = (low - loc)  / scale
+        beta  = (high - loc) / scale
+        use_normal = (alpha < -self._crossover) & (beta > self._crossover)
+        return tf.where(use_normal, self._normal.log_prob(X, *args, **kwargs), tf.where(use_normal, 0., super().log_prob(X, *args, **kwargs)))
+
     def sample(self, *args, **kwargs):
         loc,scale,low,high = self._loc_scale_low_high()
 
@@ -68,11 +76,28 @@ class TruncatedNormal(tfd.TruncatedNormal):
 
         uniform_samples = ndtr((normal_samples - loc)/scale)
         transformed_samples = tf.math.ndtri(ndtr(alpha) + uniform_samples * (ndtr(beta) - ndtr(alpha))) * scale + loc
-        return tf.where((alpha < -self._crossover) & (beta > self._crossover), normal_samples, transformed_samples)
+        use_normal = (alpha < -self._crossover) & (beta > self._crossover)
+        return tf.where(use_normal, normal_samples, tf.where(use_normal, 0., transformed_samples))
 
 
+class ShiftedFoldedNormal(tfd.TransformedDistribution):
+    def __init__(self, loc, scale, low, *args, **kwargs):
+        self._low = tensor_util.convert_nonref_to_tensor(low)
+        parent = FoldedNormal(loc, scale)
+        bijector = tfb.Shift(self._low)
+        super().__init__(
+            parent,
+            bijector,
+            *args,
+            **kwargs,
+        )
 
-        
+    @property
+    def low(self):
+        return self._loc
+
+    def stddev(self):
+        return self.distribution.stddev()
 
 #class TruncatedNormal(tfd.Uniform):
 #    def __init__(self,
