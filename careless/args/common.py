@@ -32,6 +32,12 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--folded-normal-surrogate", ), {
+        "help":"Use a folded normal (woolfson) distribution as the surrogate posterio instead of truncated normal",
+        "action":"store_true",
+        "default": False,
+    }),
+
     (("--rice-woolfson-surrogate", ), {
         "help":"Use a hybrid rice/woolfson distribution as the surrogate posterio instead of truncated normal",
         "action":"store_true",

@@ -304,7 +304,7 @@ class FoldedNormal(tfd.TransformedDistribution):
 
     def log_prob(self,  value, name='prob', **kwargs):
         p = super().log_prob(value, name, **kwargs)
-        return tf.where(value < 0, tf.zeros_like(p), p)
+        return tf.where(value < 0, np.nan, p)
 
     def mean(self, name='mean', **kwargs):
         u = self.loc

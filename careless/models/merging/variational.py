@@ -47,7 +47,6 @@ class VariationalMergingModel(PerGroupModel):
         self.likelihood = likelihood
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
 
-
         if surrogate_posterior is None:
             zero = 0.
             infinity = 1e30

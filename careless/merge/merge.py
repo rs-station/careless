@@ -218,6 +218,24 @@ class BaseMerger():
         sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
         self.prior = priorfun(f, sigf)
 
+    def add_folded_normal_posterior(self):
+        """
+        Use a folded normal for the surrogate posterior (variational distribution).
+        This must be called after a prior has been added. 
+        """
+        if self.prior is None:
+            raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
+        from careless.models.merging.surrogate_posteriors import ShiftedFoldedNormal
+        import tensorflow_probability as tfp
+        centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
+        low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
+        high = 1e30
+        self.surrogate_posterior = ShiftedFoldedNormal(
+            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
+            low,
+        )
+
     def add_truncated_normal_posterior(self):
         """
         Use a truncated normal for the surrogate posterior (variational distribution).
@@ -232,7 +250,7 @@ class BaseMerger():
         high = 1e30
         self.surrogate_posterior = TruncatedNormal(
             tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
-            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
             low,
             high,
         )
@@ -249,7 +267,7 @@ class BaseMerger():
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         self.surrogate_posterior = RiceWoolfson(
             tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
-            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
             centric
         )
 
