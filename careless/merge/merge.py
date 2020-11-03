@@ -232,7 +232,7 @@ class BaseMerger():
         high = 1e30
         self.surrogate_posterior = ShiftedFoldedNormal(
             tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
-            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             low,
         )
 
@@ -251,7 +251,7 @@ class BaseMerger():
         high = 1e30
         self.surrogate_posterior = TruncatedNormal(
             tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
-            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             low,
             high,
         )
@@ -268,7 +268,7 @@ class BaseMerger():
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         self.surrogate_posterior = RiceWoolfson(
             tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
-            tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             centric
         )
 
