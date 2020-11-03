@@ -53,8 +53,15 @@ class RiceWoolfson(tfd.Distribution):
 #
 #2020-11-01: On second thought, this may not be fixed unless they git rid of the current rejection sampler based 
 # implementation. See https://github.com/tensorflow/probability/issues/518, for additional issues.
-from tensorflow_probability.python.internal import tensor_util
+
 class TruncatedNormal(tfd.TruncatedNormal):
+    def sample(self, *args, **kwargs):
+        s = super().sample(*args, **kwargs)
+        low = self.low
+        return tf.maximum(self.low, s)
+
+from tensorflow_probability.python.internal import tensor_util
+class HybridTruncatedNormal(tfd.TruncatedNormal):
     def __init__(self, loc, scale, low, high, *args, **kwargs):
         super().__init__(loc, scale, low, high, *args, **kwargs)
         self._crossover = 10.

@@ -245,6 +245,7 @@ class BaseMerger():
             raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
         from careless.models.merging.surrogate_posteriors import TruncatedNormal
         import tensorflow_probability as tfp
+
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
         high = 1e30
