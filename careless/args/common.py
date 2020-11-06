@@ -12,6 +12,12 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+    (("--use-weights", ),  {
+        "help":"Use a weighted likelihood function.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
     (("--mc-samples",), {
         "help":"This is the number of samples to take per gradient step with default 1. " 
         "This option is incompatible with quadrature.", 
