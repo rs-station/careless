@@ -201,7 +201,6 @@ class BaseMerger():
                 self.likelihood,
                 self.surrogate_posterior,
             )
-            
 
     def train_model(self, iterations, mc_samples=1, learning_rate=0.001, beta_1=0.8, beta_2=0.95, clip_value=None):
         if self.merger is None:
@@ -388,23 +387,29 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         self.data = df
         return self
 
-    def _add_likelihood(self, likelihood_func):
+    def _add_likelihood(self, likelihood_func, use_weights=False):
         iobs    = self.data.groupby('observation_id').first()[self.intensity_key].to_numpy().astype(np.float32)
         sigiobs = self.data.groupby('observation_id').first()[self.sigma_intensity_key].to_numpy().astype(np.float32)
         harmonic_id = self.data.observation_id.to_numpy().astype(np.int32)
-        self.likelihood = likelihood_func(iobs, sigiobs, harmonic_id)
 
-    def add_normal_likelihood(self):
+        if use_weights:
+            weights = (iobs/sigiobs)**2. / np.mean((iobs/sigiobs)**2.)
+        else:
+            weights = None
+
+        self.likelihood = likelihood_func(iobs, sigiobs, harmonic_id, weights)
+
+    def add_normal_likelihood(self, use_weights=False):
         from careless.models.likelihoods.laue import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
+        self._add_likelihood(NormalLikelihood, use_weights)
 
-    def add_laplace_likelihood(self):
+    def add_laplace_likelihood(self, use_weights=False):
         from careless.models.likelihoods.laue import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
+        self._add_likelihood(LaplaceLikelihood, use_weights)
 
-    def add_studentt_likelihood(self, dof):
+    def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.laue import StudentTLikelihood
-        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
+        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof), use_weights)
 
     def add_normal_quad_likelihood(self):
         from careless.models.likelihoods.quadrature.laue import NormalLikelihood
@@ -417,7 +422,6 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
     def add_studentt_quad_likelihood(self, dof):
         from careless.models.likelihoods.quadrature.laue import StudentTLikelihood
         self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
-
 
 class MonoMerger(BaseMerger):
     def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
@@ -454,22 +458,28 @@ class MonoMerger(BaseMerger):
         self.data = df
         return self
 
-    def _add_likelihood(self, likelihood_func):
+    def _add_likelihood(self, likelihood_func, use_weights=False):
         iobs = self.data[self.intensity_key].to_numpy().astype(np.float32)
         sigiobs = self.data[self.sigma_intensity_key].to_numpy().astype(np.float32)
-        self.likelihood = likelihood_func(iobs, sigiobs)
 
-    def add_normal_likelihood(self):
+        if use_weights:
+            weights = (iobs/sigiobs)**2. / np.mean((iobs/sigiobs)**2.)
+        else:
+            weights = None
+
+        self.likelihood = likelihood_func(iobs, sigiobs, weights)
+
+    def add_normal_likelihood(self, use_weights=False):
         from careless.models.likelihoods.mono import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
+        self._add_likelihood(NormalLikelihood, use_weights)
 
-    def add_laplace_likelihood(self):
+    def add_laplace_likelihood(self, use_weights=False):
         from careless.models.likelihoods.mono import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
+        self._add_likelihood(LaplaceLikelihood, use_weights)
 
-    def add_studentt_likelihood(self, dof):
+    def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.mono import StudentTLikelihood
-        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof))
+        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof), use_weights)
 
     def add_normal_quad_likelihood(self):
         from careless.models.likelihoods.quadrature.mono import NormalLikelihood
