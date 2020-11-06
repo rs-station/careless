@@ -65,7 +65,7 @@ We will choose to use the following metadata in our `careless` model
 
 Now that we have identified the metadata keys we want to use, we can create an output directory and run `careless`.
 
-	mkir merge
+	mkdir merge
     careless poly \
       --separate-files \
       --iterations=30000 \
