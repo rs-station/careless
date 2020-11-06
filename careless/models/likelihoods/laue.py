@@ -41,8 +41,18 @@ class ConvolvedDist():
             ))
         return convolved
 
+class LaueBase(ConvolvedDist):
+    weights = None
+
+    def log_prob(self, value, name='log_prob', **kwargs):
+        log_probs = super().log_prob(value, name, **kwargs)
+        if self.weights is None:
+            return log_probs
+        else:
+            return self.weights * log_probs
+
 class NormalLikelihood(ConvolvedDist, tfd.Normal, Likelihood):
-    def __init__(self, iobs, sigiobs, harmonic_id):
+    def __init__(self, iobs, sigiobs, harmonic_id, weights=None):
         """
         Parameters
         ----------
@@ -59,8 +69,11 @@ class NormalLikelihood(ConvolvedDist, tfd.Normal, Likelihood):
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
+        if weights is not None:
+            self.weights = np.array(weights, dtype=np.float32)
+
 class LaplaceLikelihood(ConvolvedDist, tfd.Laplace, Likelihood):
-    def __init__(self, iobs, sigiobs, harmonic_id):
+    def __init__(self, iobs, sigiobs, harmonic_id, weights=None):
         """
         Parameters
         ----------
@@ -77,8 +90,11 @@ class LaplaceLikelihood(ConvolvedDist, tfd.Laplace, Likelihood):
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
+        if weights is not None:
+            self.weights = np.array(weights, dtype=np.float32)
+
 class StudentTLikelihood(ConvolvedDist, tfd.StudentT, Likelihood):
-    def __init__(self, iobs, sigiobs, harmonic_id, dof):
+    def __init__(self, iobs, sigiobs, harmonic_id, dof, weights=None):
         """
         Parameters
         ----------
@@ -96,4 +112,7 @@ class StudentTLikelihood(ConvolvedDist, tfd.StudentT, Likelihood):
         super().__init__(dof, loc, scale)
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
         self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
+
+        if weights is not None:
+            self.weights = np.array(weights, dtype=np.float32)
 
