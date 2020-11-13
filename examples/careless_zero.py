@@ -25,7 +25,7 @@ n_samples=3
 n_layers = 20
 
 mtz = rs.read_mtz(inFN).compute_dHKL().reset_index()
-MTZ = mtz[~mtz.label_absences()['ABSENT']]
+mtz = mtz[~mtz.label_absences()['ABSENT']]
 mtz['Hasu'],mtz['Kasu'],mtz['Lasu'] = mtz.hkl_to_asu()[['H', 'K', 'L']].to_numpy().T
 mtz['miller_id'] = mtz.groupby(['Hasu', 'Kasu', 'Lasu']).ngroup()
 
