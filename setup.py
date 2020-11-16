@@ -10,7 +10,7 @@ setup(
     install_requires=[
         "numpy<1.19.0,>=1.16.0",
         "scipy==1.4.1",
-        "reciprocalspaceship",
+        "reciprocalspaceship<=0.8.9",
         "tqdm",
         "h5py",
         "tables",
