@@ -393,7 +393,8 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         harmonic_id = self.data.observation_id.to_numpy().astype(np.int32)
 
         if use_weights:
-            weights = (iobs/sigiobs)**2. / np.mean((iobs/sigiobs)**2.)
+            weights = 1. / sigiobs
+            weights = weights/np.mean(weights)
         else:
             weights = None
 
@@ -409,7 +410,7 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
 
     def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.laue import StudentTLikelihood
-        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof), use_weights)
+        self._add_likelihood(lambda x,y,z,w : StudentTLikelihood(x, y, z, dof, w), use_weights)
 
     def add_normal_quad_likelihood(self):
         from careless.models.likelihoods.quadrature.laue import NormalLikelihood
@@ -463,7 +464,8 @@ class MonoMerger(BaseMerger):
         sigiobs = self.data[self.sigma_intensity_key].to_numpy().astype(np.float32)
 
         if use_weights:
-            weights = (iobs/sigiobs)**2. / np.mean((iobs/sigiobs)**2.)
+            weights = 1./sigiobs
+            weights = weights/np.mean(weights)
         else:
             weights = None
 
@@ -479,7 +481,7 @@ class MonoMerger(BaseMerger):
 
     def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.mono import StudentTLikelihood
-        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof), use_weights)
+        self._add_likelihood(lambda x,y,w : StudentTLikelihood(x, y, dof, w), use_weights)
 
     def add_normal_quad_likelihood(self):
         from careless.models.likelihoods.quadrature.mono import NormalLikelihood
