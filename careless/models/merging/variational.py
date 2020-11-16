@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 
 
-class VariationalMergingModel(PerGroupModel):
+class VariationalMergingModel(PerGroupModel, tf.Module):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
@@ -62,15 +62,6 @@ class VariationalMergingModel(PerGroupModel):
 
         # Cache the initial values of the surrogate posterior in case they must be rescued later
         self._surrogate_posterior_init = [x.value() for x in self.surrogate_posterior.trainable_variables]
-
-        # Put the trainable_variables at the top level
-        self.trainable_variables  = self.surrogate_posterior.trainable_variables 
-        for i,model in enumerate(self.scaling_models):
-            if isinstance(model.trainable_variables, (tuple, list)):
-                self.trainable_variables += tuple(model.trainable_variables )
-            else:
-                typename = type(model.trainable_variables)
-                raise TypeError(f"scaling_models[{i}].trainable_variables has type {typename} but only tuple or list allowed")
 
     def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
         """
@@ -132,7 +123,8 @@ class VariationalMergingModel(PerGroupModel):
             The scalar value of the Evidence Lower BOund.
         """
         I,kl_div = self.sample(return_kl_term=True, sample_shape=sample_shape)
-        log_likelihood = tf.reduce_sum(self.likelihood.log_prob(I))
+        log_prob = self.likelihood.log_prob(I)
+        log_likelihood = tf.reduce_sum(log_prob)
         loss = -log_likelihood + kl_div
         return loss
 
