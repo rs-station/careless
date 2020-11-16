@@ -58,12 +58,12 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         sample = dist.sample(sample_shape, seed, name, **kwargs)
         if return_kl_term:
             eps = 1e-12
-            q = dist.prob(sample)
+            log_q = dist.log_prob(sample)
             if self.prior is None:
-                p = 1.
+                log_p = 0.
             else:
                 p = self.prior.prob(sample)
-            kl_div = q * (tf.math.log(q + eps) - tf.math.log(p + eps))
+            kl_div =  log_q - log_p 
             return sample, tf.reduce_sum(kl_div, axis=-1)
         else:
             return sample
