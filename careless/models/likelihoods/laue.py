@@ -116,39 +116,3 @@ class StudentTLikelihood(LaueBase, tfd.StudentT, Likelihood):
         if weights is not None:
             self.weights = np.array(weights, dtype=np.float32)
 
-class SdfacLikelihood(ConvolvedDist, tfd.Normal, Likelihood):
-    def __init__(self, iobs, sigiobs, harmonic_id, weights=None):
-        """
-        Parameters
-        ----------
-        iobs : array or tensor
-            Numpy array or tf.Tensor of observed reflection intensities.
-        iobs : array or tensor
-            Numpy array or tf.Tensor of reflection intensity error estimates.
-        harmonic_index : array(int)
-            Integer ids dictating which predictions will be convolved.
-        """
-        self.iobs = tf.convert_to_tensor(np.array(iobs, dtype=np.float32))
-        self.sigiobs = tf.convert_to_tensor(np.array(sigiobs, dtype=np.float32))
-
-        smol = 1e-5
-        self.Sdfac = tfp.util.TransformedVariable(1., tfb.Softplus())
-        self.SdB   = tfp.util.TransformedVariable(smol, tfb.Softplus())
-        self.SdAdd = tfp.util.TransformedVariable(smol, tfb.Softplus())
-        sigprime = self.Sdfac * tf.sqrt(self.sigiobs**2. + self.SdB*self.iobs + (self.SdAdd * self.iobs)**2.)
-        super().__init__(self.iobs, self.sigiobs)
-
-        self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
-        self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
-
-        if weights is not None:
-            self.weights = np.array(weights, dtype=np.float32)
-
-
-    @property
-    def loc(self):
-        return self.iobs
-
-    @property
-    def scale(self):
-        return self.Sdfac * tf.sqrt(self.sigiobs**2. + self.SdB*self.iobs + (self.SdAdd * self.iobs)**2.)
