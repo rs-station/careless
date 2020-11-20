@@ -90,9 +90,6 @@ if parser.type == 'mono':
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-    merger.append_z_score_metadata(separate_files=parser.separate_files)
-    half1.append_z_score_metadata(separate_files=parser.separate_files)
-    half2.append_z_score_metadata(separate_files=parser.separate_files)
 elif parser.type == 'poly':
     merger = PolyMerger.from_isomorphous_mtzs(
         *parser.mtzinput, 
@@ -108,10 +105,6 @@ elif parser.type == 'poly':
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-
-    merger.append_z_score_metadata(separate_files=parser.separate_files)
-    half1.append_z_score_metadata(separate_files=parser.separate_files)
-    half2.append_z_score_metadata(separate_files=parser.separate_files)
 
     merger.expand_harmonics(
         dmin=parser.dmin, 
