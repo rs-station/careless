@@ -3,24 +3,8 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import reciprocalspaceship as rs
-from careless.models.merging.variational import VariationalMergingModel,QuadratureMergingModel
+from careless.models.merging.variational import VariationalMergingModel
 
-
-def group_z_score(groupby, z_score_key, df):
-    if isinstance(groupby, str):
-        groupby = [groupby]
-    else:
-        groupby = list(groupby)
-
-    df = df[groupby + [z_score_key]].copy()
-    #2020-08-05 -- this to_numpy call can be removed after the next rs pypi release
-    df[z_score_key] = df[z_score_key].to_numpy()
-
-    std  = df[groupby + [z_score_key]].groupby(groupby).transform(np.std, ddof=0)[z_score_key]
-    std[std==0.] = 1.
-    mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
-    df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
-    return df['Z-' + z_score_key]
 
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
@@ -65,15 +49,7 @@ class BaseMerger():
             self.data.reset_index(inplace=True)
         self.data[['Hobs', 'Kobs', 'Lobs']] = self.data.loc[:,['H', 'K', 'L']]
 
-        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
-        # The next line can be removed after the next release.
-        self.data.set_index(['H', 'K', 'L'], inplace=True) 
-
         self.data.hkl_to_asu(inplace=True)
-
-        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
-        # The next line can be removed after the next release.
-        self.data.reset_index(inplace=True) #Return to numerical indices
 
         if anomalous:
             self.anomalous = True
@@ -180,34 +156,24 @@ class BaseMerger():
         return results
 
     def _remove_sys_absences(self):
-        idx = rs.utils.hkl_is_absent(self.data.get_hkls(), self.data.spacegroup)
-        self.data = self.data[~idx]
+        self.data = self.data[~self.data.label_absences()['ABSENT']]
         return self
 
     def _build_merger(self):
-        from careless.models.likelihoods.quadrature.base import QuadratureBase
-        if isinstance(self.likelihood, QuadratureBase):
-            self.merger = QuadratureMergingModel(
-                self.data['miller_id'].to_numpy().astype(np.int32),
-                [self.scaling_model],
-                self.prior,
-                self.likelihood,
-            )
-        else:
-            self.merger = VariationalMergingModel(
-                self.data['miller_id'].to_numpy().astype(np.int32),
-                [self.scaling_model],
-                self.prior,
-                self.likelihood,
-                self.surrogate_posterior,
-            )
-            
+        self.merger = VariationalMergingModel(
+            self.data['miller_id'].to_numpy().astype(np.int32),
+            [self.scaling_model],
+            self.prior,
+            self.likelihood,
+            self.surrogate_posterior,
+        )
 
-    def train_model(self, iterations, mc_samples=1, learning_rate=0.01, beta_1=0.5, beta_2=0.9, clip_value=None):
+    def train_model(self, iterations, mc_samples=1, learning_rate=0.001, beta_1=0.8, beta_2=0.95, clip_value=None):
         if self.merger is None:
             self._build_merger()
 
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=beta_1, beta_2=beta_2)
+        #optimizer = tf.keras.optimizers.Nadam(learning_rate, beta_1=beta_1, beta_2=beta_2)
         losses = self.merger.fit(optimizer, iterations, s=mc_samples, clip_value=clip_value)
         self.results = self.get_results()
         return losses
@@ -216,6 +182,44 @@ class BaseMerger():
         f = self.data.groupby('miller_id').first()[reference_f_key].to_numpy().astype(np.float32)
         sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
         self.prior = priorfun(f, sigf)
+
+    def add_folded_normal_posterior(self):
+        """
+        Use a folded normal for the surrogate posterior (variational distribution).
+        This must be called after a prior has been added. 
+        """
+        if self.prior is None:
+            raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
+        from careless.models.merging.surrogate_posteriors import ShiftedFoldedNormal
+        import tensorflow_probability as tfp
+        centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
+        low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
+        high = 1e30
+        self.surrogate_posterior = ShiftedFoldedNormal(
+            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            low,
+        )
+
+    def add_truncated_normal_posterior(self):
+        """
+        Use a truncated normal for the surrogate posterior (variational distribution).
+        This must be called after a prior has been added. 
+        """
+        if self.prior is None:
+            raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
+        from careless.models.merging.surrogate_posteriors import TruncatedNormal
+        import tensorflow_probability as tfp
+
+        centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
+        low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
+        high = 1e30
+        self.surrogate_posterior = TruncatedNormal(
+            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
+            low,
+            high,
+        )
 
     def add_rice_woolfson_posterior(self):
         """
@@ -233,9 +237,12 @@ class BaseMerger():
             centric
         )
 
-    def add_rice_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
-        from careless.models.priors.empirical import RiceReferencePrior
-        self._add_reference_prior(RiceReferencePrior)
+    def add_rice_woolfson_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
+        from careless.models.priors.empirical import RiceWoolfsonReferencePrior
+        f = self.data.groupby('miller_id').first()[reference_f_key].to_numpy().astype(np.float32)
+        sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
+        centric = self.data.groupby('miller_id').first()['CENTRIC'].to_numpy()
+        self.prior = RiceWoolfsonReferencePrior(f, sigf, centric)
 
     def add_laplace_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
         from careless.models.priors.empirical import LaplaceReferencePrior
@@ -274,20 +281,6 @@ class BaseMerger():
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
         self.scaling_model = SequentialScaler(metadata, layers)
-
-    def append_z_score_metadata(self, separate_files=False, keys=None):
-        if separate_files:
-            groupby = ['H', 'K', 'L', 'file_id']
-        else:
-            groupby = ['H', 'K', 'L']
-
-        if keys is None:
-            self.data['ISigI'] = self.data[self.intensity_key]/self.data[self.sigma_intensity_key]
-            keys = [self.intensity_key, self.sigma_intensity_key, 'ISigI']
-
-        for key in keys:
-            self.data['Z-' + key] = group_z_score(groupby, key, self.data)
-
 
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):
@@ -349,36 +342,30 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         self.data = df
         return self
 
-    def _add_likelihood(self, likelihood_func):
+    def _add_likelihood(self, likelihood_func, use_weights=False):
         iobs    = self.data.groupby('observation_id').first()[self.intensity_key].to_numpy().astype(np.float32)
         sigiobs = self.data.groupby('observation_id').first()[self.sigma_intensity_key].to_numpy().astype(np.float32)
         harmonic_id = self.data.observation_id.to_numpy().astype(np.int32)
-        self.likelihood = likelihood_func(iobs, sigiobs, harmonic_id)
 
-    def add_normal_likelihood(self):
+        if use_weights:
+            weights = 1. / sigiobs
+            weights = weights/np.mean(weights)
+        else:
+            weights = None
+
+        self.likelihood = likelihood_func(iobs, sigiobs, harmonic_id, weights)
+
+    def add_normal_likelihood(self, use_weights=False):
         from careless.models.likelihoods.laue import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
+        self._add_likelihood(NormalLikelihood, use_weights)
 
-    def add_laplace_likelihood(self):
+    def add_laplace_likelihood(self, use_weights=False):
         from careless.models.likelihoods.laue import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
+        self._add_likelihood(LaplaceLikelihood, use_weights)
 
-    def add_studentt_likelihood(self, dof):
+    def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.laue import StudentTLikelihood
-        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
-
-    def add_normal_quad_likelihood(self):
-        from careless.models.likelihoods.quadrature.laue import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
-
-    def add_laplace_quad_likelihood(self):
-        from careless.models.likelihoods.quadrature.laue import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
-
-    def add_studentt_quad_likelihood(self, dof):
-        from careless.models.likelihoods.quadrature.laue import StudentTLikelihood
-        self._add_likelihood(lambda x,y,z : StudentTLikelihood(x, y, z, dof))
-
+        self._add_likelihood(lambda x,y,z,w : StudentTLikelihood(x, y, z, dof, w), use_weights)
 
 class MonoMerger(BaseMerger):
     def prep_indices(self, separate_files=False, image_id_key=None, experiment_id_key='file_id'):
@@ -415,32 +402,27 @@ class MonoMerger(BaseMerger):
         self.data = df
         return self
 
-    def _add_likelihood(self, likelihood_func):
+    def _add_likelihood(self, likelihood_func, use_weights=False):
         iobs = self.data[self.intensity_key].to_numpy().astype(np.float32)
         sigiobs = self.data[self.sigma_intensity_key].to_numpy().astype(np.float32)
-        self.likelihood = likelihood_func(iobs, sigiobs)
 
-    def add_normal_likelihood(self):
+        if use_weights:
+            weights = 1./sigiobs
+            weights = weights/np.mean(weights)
+        else:
+            weights = None
+
+        self.likelihood = likelihood_func(iobs, sigiobs, weights)
+
+    def add_normal_likelihood(self, use_weights=False):
         from careless.models.likelihoods.mono import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
+        self._add_likelihood(NormalLikelihood, use_weights)
 
-    def add_laplace_likelihood(self):
+    def add_laplace_likelihood(self, use_weights=False):
         from careless.models.likelihoods.mono import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
+        self._add_likelihood(LaplaceLikelihood, use_weights)
 
-    def add_studentt_likelihood(self, dof):
+    def add_studentt_likelihood(self, dof, use_weights=False):
         from careless.models.likelihoods.mono import StudentTLikelihood
-        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof))
-
-    def add_normal_quad_likelihood(self):
-        from careless.models.likelihoods.quadrature.mono import NormalLikelihood
-        self._add_likelihood(NormalLikelihood)
-
-    def add_laplace_quad_likelihood(self):
-        from careless.models.likelihoods.quadrature.mono import LaplaceLikelihood
-        self._add_likelihood(LaplaceLikelihood)
-
-    def add_studentt_quad_likelihood(self, dof):
-        from careless.models.likelihoods.quadrature.mono import StudentTLikelihood
-        self._add_likelihood(lambda x,y : StudentTLikelihood(x, y, dof))
+        self._add_likelihood(lambda x,y,w : StudentTLikelihood(x, y, dof, w), use_weights)
 

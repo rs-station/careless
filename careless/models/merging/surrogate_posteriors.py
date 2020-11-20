@@ -1,5 +1,7 @@
 from careless.utils.distributions import Rice,FoldedNormal
+from tensorflow_probability.python.internal.special_math import ndtr
 from tensorflow_probability import distributions as tfd
+from tensorflow_probability import bijectors as tfb
 from tensorflow_probability.python.internal import tensor_util
 import tensorflow as tf
 import numpy as np
@@ -25,6 +27,7 @@ class RiceWoolfson(tfd.Distribution):
         self._centric = np.array(centric, dtype=np.bool)
         self._woolfson = FoldedNormal(self._loc, self._scale)
         self._rice = Rice(self._loc, self._scale)
+        self.eps = np.finfo(np.float32).eps
 
     def mean(self):
         return tf.where(self._centric, self._woolfson.mean(), self._rice.mean())
@@ -36,10 +39,23 @@ class RiceWoolfson(tfd.Distribution):
         return tf.where(self._centric, self._woolfson.stddev(), self._rice.stddev())
 
     def sample(self, sample_shape=(), seed=None, name='sample', **kwargs):
-        return tf.where(self._centric, self._woolfson.sample(sample_shape, seed, name, **kwargs), self._rice.sample(sample_shape, seed, name, **kwargs))
+        return tf.where(self._centric, self._woolfson.sample(sample_shape, seed, name, **kwargs)+self.eps, self._rice.sample(sample_shape, seed, name, **kwargs))
 
     def log_prob(self, x):
         return tf.where(self._centric, self._woolfson.log_prob(x), self._rice.log_prob(x))
 
     def prob(self, x):
         return tf.where(self._centric, self._woolfson.prob(x), self._rice.prob(x))
+
+
+#This is a temporary workaround for tfd.TruncatedNormal which has a bug in sampling
+#2020-10-30: This should be removed if this issue is fixed: https://github.com/tensorflow/probability/issues/1149
+#
+#2020-11-01: On second thought, this may not be fixed unless they git rid of the current rejection sampler based 
+# implementation. See https://github.com/tensorflow/probability/issues/518, for additional issues.
+class TruncatedNormal(tfd.TruncatedNormal):
+    def sample(self, *args, **kwargs):
+        s = super().sample(*args, **kwargs)
+        low = self.low
+        return tf.maximum(self.low, s)
+

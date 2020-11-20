@@ -1,8 +1,9 @@
 groups = (
     ( 
-        (("--rice-prior",), {
+        (("--rice-woolfson-prior",), {
             "help":"Use empirical reference structure factor apmlitudes " 
-                   "from an Mtz file to parameterize a Rician prior distribution. ",
+                   "from an Mtz file to parameterize a Rician prior distribution for acentrics and. "
+                   "a folded normal distribution for centrics. ",
             "action":'store_true', 
             "default":False,
         }),
@@ -45,21 +46,4 @@ groups = (
         }),
     ),
 
-    (
-        (("--mc-samples",), {
-            "help":"This is the number of samples to take per gradient step with default 1. " 
-            "This option is incompatible with quadrature.", 
-            "type": int, 
-            "default" : 1,
-        }),
-
-        (("--quadrature-points",), {
-                "help":"Use quadrature at this many points to estimate the expected log "
-                       "likelihood. For normally distributed likelihoods, 3 is sufficient. "
-                       "For all other likelihoods 10 points is recommended. "
-                       "This option is incompatible with --mc-samples",
-                "type": int, 
-            "default" : None,
-        }),
-    ),
 )

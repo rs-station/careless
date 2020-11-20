@@ -1,6 +1,7 @@
 from tensorflow_probability import distributions as tfd
 import numpy as np
 from careless.models.priors.base import Prior
+from careless.models.merging.surrogate_posteriors import RiceWoolfson
 
 
 class LaplaceReferencePrior(tfd.Laplace, Prior):
@@ -58,3 +59,7 @@ class StudentTReferencePrior(tfd.StudentT, Prior):
         scale = np.array(SigFobs, dtype=np.float32)
         super().__init__(dof, loc, scale)
 
+class RiceWoolfsonReferencePrior(RiceWoolfson, Prior):
+    """
+    Just an alias to the Rice Woolfson surrogate posterior.
+    """

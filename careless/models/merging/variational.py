@@ -1,13 +1,13 @@
 from careless.models.base import PerGroupModel
 from careless.utils.shame import sanitize_tensor
-from tensorflow_probability import distributions as tfd
+from careless.models.merging.surrogate_posteriors import TruncatedNormal
 from tqdm.autonotebook import tqdm
 import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
 
 
-class VariationalMergingModel(PerGroupModel):
+class VariationalMergingModel(PerGroupModel, tf.Module):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
@@ -48,26 +48,20 @@ class VariationalMergingModel(PerGroupModel):
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
 
         if surrogate_posterior is None:
-            self.surrogate_posterior = tfd.TruncatedNormal(
-                tf.Variable(self.prior.mean(), dtype=tf.float32),
+            zero = 0.
+            infinity = 1e30
+            from careless.utils.distributions import FoldedNormal
+            self.surrogate_posterior = TruncatedNormal(
+                tf.Variable(self.prior.mean()),
                 tfp.util.TransformedVariable(self.prior.stddev(), tfp.bijectors.Softplus()),
-                0., 
-                1e10,
+                zero,
+                infinity,
             )
         else:
             self.surrogate_posterior = surrogate_posterior
 
         # Cache the initial values of the surrogate posterior in case they must be rescued later
         self._surrogate_posterior_init = [x.value() for x in self.surrogate_posterior.trainable_variables]
-
-        # Put the trainable_variables at the top level
-        self.trainable_variables  = self.surrogate_posterior.trainable_variables 
-        for i,model in enumerate(self.scaling_models):
-            if isinstance(model.trainable_variables, (tuple, list)):
-                self.trainable_variables += tuple(model.trainable_variables )
-            else:
-                typename = type(model.trainable_variables)
-                raise TypeError(f"scaling_models[{i}].trainable_variables has type {typename} but only tuple or list allowed")
 
     def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
         """
@@ -94,9 +88,10 @@ class VariationalMergingModel(PerGroupModel):
         F = self.surrogate_posterior.sample(sample_shape, seed, name, **kwargs)
         kl_div = 0.
         if return_kl_term:
-            q_F = self.surrogate_posterior.prob(F)
-            p_F = self.prior.prob(F)
-            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
+            q_F = self.surrogate_posterior.log_prob(F)
+            p_F = self.prior.log_prob(F)
+            #kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
+            kl_div += tf.reduce_sum( q_F - p_F ) 
 
         scale = 1.
         for model in self.scaling_models:
@@ -108,7 +103,7 @@ class VariationalMergingModel(PerGroupModel):
 
             scale = scale*sample
 
-        I = self.expand(F**2.) * scale
+        I = self.expand(tf.square(F)) * scale
 
         if return_kl_term:
             return I,kl_div
@@ -128,7 +123,8 @@ class VariationalMergingModel(PerGroupModel):
             The scalar value of the Evidence Lower BOund.
         """
         I,kl_div = self.sample(return_kl_term=True, sample_shape=sample_shape)
-        log_likelihood = tf.reduce_sum(self.likelihood.log_prob(I))
+        log_prob = self.likelihood.log_prob(I)
+        log_likelihood = tf.reduce_sum(log_prob)
         loss = -log_likelihood + kl_div
         return loss
 
@@ -146,9 +142,11 @@ class VariationalMergingModel(PerGroupModel):
         #Occasionally, low probability samples will lead to overflows in the gradients. 
         #Since, VI is usually done by coordinate ascent anyway, 
         #it is totally fine to just skip those updates.
-        grads = [sanitize_tensor(g) for g in grads]
-        if clip_value is not None:
-            grads = [tf.clip_by_value(g, -clip_value, clip_value) for g in grads]
+        nans = tf.reduce_any([tf.reduce_any(tf.math.is_nan(g)) for g in grads])
+        if nans:
+            tf.print("Warning: Nans in grads. This is expected to happen occasionally. Sanitizing...")
+            grads = tf.nest.map_structure(sanitize_tensor, grads)
+
         optimizer.apply_gradients(zip(grads, variables))
         return loss
 
@@ -219,8 +217,8 @@ class VariationalMergingModel(PerGroupModel):
             loss = self.train_step(optimizer, s=s, clip_value=clip_value)
             losses.append(float(loss))
             if not tf.math.is_finite(loss):
-                self.rescue_variational_distributions()
-                print(f"WARNING! Resetting stuck variational distributions!")
+                #self.rescue_variational_distributions()
+                #print(f"WARNING! Resetting stuck variational distributions!")
                 nancount += 1
             else:
                 nancount = 0
@@ -232,53 +230,3 @@ class VariationalMergingModel(PerGroupModel):
 
         return np.array(losses)
 
-class QuadratureMergingModel(VariationalMergingModel):
-    def __call__(self, return_kl_term=False, sample_shape=10, seed=None, name='sample', **kwargs):
-        """
-        Randomly sample predicted reflection observations.
-
-        Parameters
-        ----------
-        return_kl_term : bool
-            if `True` this function returns a tuple of `tf.Tensor` instances, `(sample, kl_term)`, wherein `kl_term` 
-            is the Kullback-Leibler divergence between the variational distribution and its prior plus the 
-            divergence between the scales and any priors that may be placed on them.
-        sample_shape : int
-            In this context, this means the number of quadrature points to be used in the likelihood.
-        seed : int
-            Defaults to None.
-        name : str
-            Defaults to 'sample'
-
-        Returns
-        -------
-        sample or (sample, kl_term) : tf.Tensor
-            Either a sample of the predicted reflections intensities or a sample and corresponding kl_div.
-        """
-        #for consistency with the black box merger
-        if sample_shape == ():
-            sample_shape = 10
-
-        F = self.surrogate_posterior.sample((), seed, name, **kwargs)
-
-        kl_div = 0.
-        if return_kl_term:
-            q_F = self.surrogate_posterior.prob(F)
-            p_F = self.prior.prob(F)
-            kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
-
-        model = self.scaling_models[0]
-        loc, scale = model.loc_and_scale()
-
-        I = self.expand(F**2.) 
-        Iloc, Iscale = I * loc, I * scale
-
-        log_likelihood = tf.reduce_sum(self.likelihood.expected_log_likelihood(Iloc, Iscale, sample_shape))
-        loss = -log_likelihood + kl_div
-        return loss
-
-    def loss_and_grads(self, variables, s=1):
-        with tf.GradientTape() as tape:
-            loss = self(sample_shape=s)
-        grads = tape.gradient(loss, variables)
-        return loss, grads

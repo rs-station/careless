@@ -10,17 +10,18 @@ assert status
 def test_Centric():
     E = np.linspace(0.1, 3., 100)
     p = (2./np.pi)**0.5 *np.exp(-0.5*E**2.)
-    centric = Centric()
+    centric = Centric(1.)
     centric.mean()
     centric.stddev()
     assert np.all(np.isclose(p, centric.prob(E)))
     assert np.all(np.isclose(np.log(p), centric.log_prob(E)))
 
-
 def test_Acentric():
-    acentric = Acentric()
+    acentric = Acentric(1.)
     E = np.linspace(0.1, 3., 100)
     p = 2.*E*np.exp(-E**2.)
+    acentric.mean()
+    acentric.stddev()
     assert np.all(np.isclose(p, acentric.prob(E)))
     assert np.all(np.isclose(np.log(p), acentric.log_prob(E)))
 

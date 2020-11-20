@@ -71,7 +71,6 @@ During configuration some new metadata keys will be populated that are useful in
  - <b>file_id</b> : An integer ID unique to each input Mtz. 
  - <b>image_id</b> : An integer ID unique to each image across all input Mtzs. 
  - <b>{H,K,L}obs</b> : Internally, `careless` refers to the original miller indices from indexing as `Hobs`, `Kobs`, and `Lobs`. Supplying these three keys is the typical method to enable anisotropic scaling. 
- - <b>Z-{intensity key,sigma key}</b> : Careless supplies a Z-score of the intensity and sigma intensity for each reflection observation calculated amongst the set of redundant symmetry equivalents being merged. These inherit the name of the intensity/sigma intensity keys being used for merging prefixed by `'Z-'`. One might consider supplying these equivalent to using a sort of weighted likelihood function. 
 
 
 ### Considerations when choosing metadata. 
