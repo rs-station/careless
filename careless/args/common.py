@@ -20,7 +20,6 @@ args_and_kwargs = (
 
     (("--mc-samples",), {
         "help":"This is the number of samples to take per gradient step with default 1. " 
-        "This option is incompatible with quadrature.", 
         "type": int, 
         "default" : 1,
     }),
