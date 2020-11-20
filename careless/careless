@@ -20,8 +20,8 @@ def main(merger, parser):
 # Now populate merger.prior
     if parser.normal_prior:
         merger.add_normal_prior()
-    elif parser.rice_prior:
-        merger.add_rice_prior()
+    elif parser.rice_woolfson_prior:
+        merger.add_rice_woolfson_prior()
     elif parser.laplace_prior:
         merger.add_laplace_prior()
     elif parser.studentt_prior_dof:
@@ -31,24 +31,19 @@ def main(merger, parser):
 
     if parser.rice_woolfson_surrogate:
         merger.add_rice_woolfson_posterior()
+    elif parser.folded_normal_surrogate:
+        merger.add_folded_normal_posterior()
+    else:
+        merger.add_truncated_normal_posterior()
 
 #Now populate merger.likelihood
-    if parser.quadrature_points is not None:
-        s = parser.quadrature_points
-        if parser.laplace_likelihood:
-            merger.add_laplace_quad_likelihood()
-        elif parser.studentt_likelihood_dof:
-            merger.add_studentt_quad_likelihood(parser.studentt_likelihood_dof)
-        else:
-            merger.add_normal_quad_likelihood()
+    s = parser.mc_samples
+    if parser.laplace_likelihood:
+        merger.add_laplace_likelihood(parser.use_weights)
+    elif parser.studentt_likelihood_dof:
+        merger.add_studentt_likelihood(parser.studentt_likelihood_dof, parser.use_weights)
     else:
-        s = parser.mc_samples
-        if parser.laplace_likelihood:
-            merger.add_laplace_likelihood()
-        elif parser.studentt_likelihood_dof:
-            merger.add_studentt_likelihood(parser.studentt_likelihood_dof)
-        else:
-            merger.add_normal_likelihood()
+        merger.add_normal_likelihood(parser.use_weights)
 
     metadata_keys = parser.metadata_keys.split(',')
     merger.add_scaling_model(parser.sequential_layers, metadata_keys)
@@ -64,7 +59,6 @@ def main(merger, parser):
     np.save(f"{parser.output_base}_losses.npy", losses)
 
     for file_id,df in merger.results.groupby("experiment_id"):
-        #df = df.dropna() #This will not be necessary after i fix "rescue_variational_distributions"
         df.cell,df.spacegroup = merger.results.cell,merger.results.spacegroup
         del(df['experiment_id'])
         if parser.anomalous:
@@ -95,9 +89,6 @@ if parser.type == 'mono':
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-    merger.append_z_score_metadata(separate_files=parser.separate_files)
-    half1.append_z_score_metadata(separate_files=parser.separate_files)
-    half2.append_z_score_metadata(separate_files=parser.separate_files)
 elif parser.type == 'poly':
     merger = PolyMerger.from_isomorphous_mtzs(
         *parser.mtzinput, 
@@ -113,10 +104,6 @@ elif parser.type == 'poly':
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-
-    merger.append_z_score_metadata(separate_files=parser.separate_files)
-    half1.append_z_score_metadata(separate_files=parser.separate_files)
-    half2.append_z_score_metadata(separate_files=parser.separate_files)
 
     merger.expand_harmonics(
         dmin=parser.dmin, 

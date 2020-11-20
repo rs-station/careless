@@ -56,6 +56,20 @@ class Amoroso(tfd.TransformedDistribution):
     def beta(self):
         return self._beta
 
+    def custom_log_prob(self, X):
+        a = self.a
+        theta = self.theta
+        alpha = self.alpha
+        beta  = self.beta
+
+        inflation = 1e10
+        x = tf.math.log(tf.abs(beta)) - tf.math.log(tf.abs(theta)) - tf.math.lgamma(a) 
+        y = (alpha*beta - 1.)*(tf.math.log(inflation*X - inflation*a) - tf.math.log(theta) - tf.math.log(inflation)) 
+        z = - tf.math.pow(X - a, beta) * tf.math.exp(- beta * tf.math.log(theta))
+        print(x,y,z)
+
+        return x + y + z
+
     def mean(self):
         """
         The mean of of the Amoroso distribution exists for `alpha + 1/beta >= 0`.
@@ -116,25 +130,27 @@ class Stacy(Amoroso):
                 name,
             )
 
-    def _stacy_params(self, other):
-        if isinstance(other, Stacy):
-            params = (other.theta, other.alpha, other.beta)
-        elif isinstance(other, tfd.Weibull):
+    @staticmethod
+    def _stacy_params(dist):
+        if isinstance(dist, Stacy):
+            params = (dist.theta, dist.alpha, dist.beta)
+        elif isinstance(dist, tfd.Weibull):
             # Weibul(x; k, lambda) = Stacy(x; lambda, 1, k)
-            k = other.concentration
-            lam = other.scale
+            k = dist.concentration
+            lam = dist.scale
             params = (lam, 1., k)
-        elif isinstance(other, tfd.HalfNormal):
+        elif isinstance(dist, tfd.HalfNormal):
             #HalfNormal(x; scale) = Stacy(x; sqrt(2)*scale, 0.5, 2)
-            scale = other.scale
+            scale = dist.scale
             params = (np.sqrt(2.) * scale, 0.5, 2.)
         else:
-            raise TypeError(f"Equivalent Stacy parameters cannot be determined for distribution, {other}. " 
+            raise TypeError(f"Equivalent Stacy parameters cannot be determined for distribution, {dist}. " 
                              "Only tfd.Weibull, tfd.HalfNormal, or Stacy can be converted to Stacy parameterisation")
         return params
 
-    def _bauckhage_params(self, other):
-        theta, alpha, beta = self._stacy_params(other)
+    @staticmethod
+    def _bauckhage_params(dist):
+        theta, alpha, beta = Stacy._stacy_params(dist)
         bauckhage_params = (theta, alpha*beta, beta)
         return bauckhage_params 
 
@@ -230,13 +246,14 @@ class Rice(tfd.Distribution):
         return (1. - x) * tf.math.exp(x / 2. + self._log_bessel_i0(-0.5 * x)) - x * tf.math.exp(x / 2.  + self._log_bessel_i1(-0.5 * x) )
 
     def prob(self, X):
-        sigma = self.sigma
-        nu = self.nu
-        p = (X * sigma**-2.) * tf.math.exp(-(X**2. + nu**2.) / (2 * sigma**2.) +  self._log_bessel_i0(X * nu * sigma**-2.))
-        return tf.where(nu/sigma > self._normal_crossover, tfd.Normal(nu, sigma).prob(X), p)
+        return tf.math.exp(self.log_prob(X))
 
     def log_prob(self, X):
-        return tf.math.log(self.prob(X))
+        sigma = self.sigma
+        nu = self.nu
+        log_p = tf.math.log(X) - 2.*tf.math.log(sigma) - (X**2. + nu**2.)/(2*sigma**2.) + \
+                    self._log_bessel_i0(X * nu/sigma**2.)
+        return log_p
 
     def mean(self):
         sigma = self.sigma
@@ -259,8 +276,7 @@ class FoldedNormal(tfd.TransformedDistribution):
 		   scale,
 		   validate_args=False,
 		   allow_nan_stats=True,
-		   name='FoldedNormal'):
-
+		   name='FoldedNormal'): 
         parameters = dict(locals())
         with tf.name_scope(name) as name:
             self._loc   = tensor_util.convert_nonref_to_tensor(loc)
@@ -289,7 +305,7 @@ class FoldedNormal(tfd.TransformedDistribution):
 
     def log_prob(self,  value, name='prob', **kwargs):
         p = super().log_prob(value, name, **kwargs)
-        return tf.where(value < 0, tf.zeros_like(p), p)
+        return tf.where(value < 0, np.nan, p)
 
     def mean(self, name='mean', **kwargs):
         u = self.loc
@@ -303,4 +319,3 @@ class FoldedNormal(tfd.TransformedDistribution):
 
     def stddev(self, name='stddev', **kwargs):
         return tf.math.sqrt(self.variance())
-

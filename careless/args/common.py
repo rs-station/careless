@@ -12,6 +12,18 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+    (("--use-weights", ),  {
+        "help":"Use a weighted likelihood function.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
+    (("--mc-samples",), {
+        "help":"This is the number of samples to take per gradient step with default 1. " ,
+        "type": int, 
+        "default" : 1,
+    }),
+
     (("--skip-xval", ),  {
         "help":"Bypass merging half data sets.",
         "action" : "store_true",
@@ -30,6 +42,12 @@ args_and_kwargs = (
                "If no key is given, careless will use the first key with the intensity dtype.",
         "type":str, 
         "default" : None,
+    }),
+
+    (("--folded-normal-surrogate", ), {
+        "help":"Use a folded normal (woolfson) distribution as the surrogate posterio instead of truncated normal",
+        "action":"store_true",
+        "default": False,
     }),
 
     (("--rice-woolfson-surrogate", ), {
@@ -98,13 +116,13 @@ args_and_kwargs = (
     (("--beta-1",), {
         "help":"Adam beta_1 param.", 
         "type":float, 
-        "default":0.5,
+        "default":0.9,
     }),
 
     (("--beta-2",), {
         "help":"Adam beta_2 param.", 
         "type":float, 
-        "default":0.9,
+        "default":0.99,
     }),
 
     (("--separate-files",), {
