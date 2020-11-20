@@ -49,10 +49,6 @@ class BaseMerger():
             self.data.reset_index(inplace=True)
         self.data[['Hobs', 'Kobs', 'Lobs']] = self.data.loc[:,['H', 'K', 'L']]
 
-        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
-        # The next line can be removed after the next release.
-        self.data.set_index(['H', 'K', 'L'], inplace=True) 
-
         self.data.hkl_to_asu(inplace=True)
 
         if anomalous:
