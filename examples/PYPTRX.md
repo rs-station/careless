@@ -68,7 +68,7 @@ Now that we have identified the metadata keys we want to use, we can create an o
 	mkdir merge
     careless poly \
       --separate-files \
-      --iterations=30000 \
+      --iterations=10000 \
       --learning-rate=0.001 \
       --isigi-cutoff=1. \
       --wavelength-key='Wavelength' \
