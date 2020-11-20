@@ -6,22 +6,6 @@ import reciprocalspaceship as rs
 from careless.models.merging.variational import VariationalMergingModel,QuadratureMergingModel
 
 
-def group_z_score(groupby, z_score_key, df):
-    if isinstance(groupby, str):
-        groupby = [groupby]
-    else:
-        groupby = list(groupby)
-
-    df = df[groupby + [z_score_key]].copy()
-    #2020-08-05 -- this to_numpy call can be removed after the next rs pypi release
-    df[z_score_key] = df[z_score_key].to_numpy()
-
-    std  = df[groupby + [z_score_key]].groupby(groupby).transform(np.std, ddof=0)[z_score_key]
-    std[std==0.] = 1.
-    mean = df[groupby + [z_score_key]].groupby(groupby).transform('mean')[z_score_key]
-    df['Z-' + z_score_key] = (df[z_score_key] - mean)/std
-    return df['Z-' + z_score_key]
-
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
     if idx.sum() < 1:
@@ -70,10 +54,6 @@ class BaseMerger():
         self.data.set_index(['H', 'K', 'L'], inplace=True) 
 
         self.data.hkl_to_asu(inplace=True)
-
-        # 2020-07-30 The current pypi DataSet version cannot handle hkl_to_asu unless the index is ['H', 'K', 'L']
-        # The next line can be removed after the next release.
-        self.data.reset_index(inplace=True) #Return to numerical indices
 
         if anomalous:
             self.anomalous = True
@@ -312,20 +292,6 @@ class BaseMerger():
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
         self.scaling_model = SequentialScaler(metadata, layers)
-
-    def append_z_score_metadata(self, separate_files=False, keys=None):
-        if separate_files:
-            groupby = ['H', 'K', 'L', 'file_id']
-        else:
-            groupby = ['H', 'K', 'L']
-
-        if keys is None:
-            self.data['ISigI'] = self.data[self.intensity_key]/self.data[self.sigma_intensity_key]
-            keys = [self.intensity_key, self.sigma_intensity_key, 'ISigI']
-
-        for key in keys:
-            self.data['Z-' + key] = group_z_score(groupby, key, self.data)
-
 
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):
