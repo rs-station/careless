@@ -68,7 +68,6 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
             return sample
 
 class LowRankScaler(tf.keras.models.Sequential, Scaler):
-#class SequentialScaler(tf.keras.models.Sequential, Scaler):
     """
     Neural network based scaler with simple dense layers.
     """
