@@ -59,7 +59,6 @@ def main(merger, parser):
     np.save(f"{parser.output_base}_losses.npy", losses)
 
     for file_id,df in merger.results.groupby("experiment_id"):
-        #df = df.dropna() #This will not be necessary after i fix "rescue_variational_distributions"
         df.cell,df.spacegroup = merger.results.cell,merger.results.spacegroup
         del(df['experiment_id'])
         if parser.anomalous:
