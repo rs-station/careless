@@ -1,8 +1,9 @@
 groups = (
     ( 
-        (("--rice-prior",), {
+        (("--rice-woolfson-prior",), {
             "help":"Use empirical reference structure factor apmlitudes " 
-                   "from an Mtz file to parameterize a Rician prior distribution. ",
+                   "from an Mtz file to parameterize a Rician prior distribution for acentrics and. "
+                   "a folded normal distribution for centrics. ",
             "action":'store_true', 
             "default":False,
         }),

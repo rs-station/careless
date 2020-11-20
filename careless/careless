@@ -20,8 +20,8 @@ def main(merger, parser):
 # Now populate merger.prior
     if parser.normal_prior:
         merger.add_normal_prior()
-    elif parser.rice_prior:
-        merger.add_rice_prior()
+    elif parser.rice_woolfson_prior:
+        merger.add_rice_woolfson_prior()
     elif parser.laplace_prior:
         merger.add_laplace_prior()
     elif parser.studentt_prior_dof:
