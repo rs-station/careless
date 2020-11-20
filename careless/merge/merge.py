@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import reciprocalspaceship as rs
-from careless.models.merging.variational import VariationalMergingModel,QuadratureMergingModel
+from careless.models.merging.variational import VariationalMergingModel
 
 
 def get_first_key_of_type(ds, typestring):
@@ -237,9 +237,12 @@ class BaseMerger():
             centric
         )
 
-    def add_rice_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
-        from careless.models.priors.empirical import RiceReferencePrior
-        self._add_reference_prior(RiceReferencePrior)
+    def add_rice_woolfson_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
+        from careless.models.priors.empirical import RiceWoolfsonReferencePrior
+        f = self.data.groupby('miller_id').first()[reference_f_key].to_numpy().astype(np.float32)
+        sigf = self.data.groupby('miller_id').first()[reference_sigf_key].to_numpy().astype(np.float32)
+        centric = self.data.groupby('miller_id').first()['CENTRIC'].to_numpy()
+        self.prior = RiceWoolfsonReferencePrior(f, sigf, centric)
 
     def add_laplace_prior(self, reference_f_key='REF', reference_sigf_key='SIGREF'):
         from careless.models.priors.empirical import LaplaceReferencePrior
