@@ -18,9 +18,9 @@ cat $0
 careless mono \
     --sequential-layers=20 \
     --anomalous \
-    --iterations=10000 \
-    --folded-normal-surrogate \
-    --studentt-likelihood-dof=12. \
+    --iterations=100 \
+    --learning-rate=0.001 \
+    --image-scale-key="image_id" \
     "BATCH,dHKL,Hobs,Kobs,Lobs,XDET,YDET,BG,SIGBG,LP,QE,FRACTIONCALC" \
     integrated_pass1.mtz \
     $out/$basename 

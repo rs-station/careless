@@ -162,7 +162,7 @@ class BaseMerger():
     def _build_merger(self):
         self.merger = VariationalMergingModel(
             self.data['miller_id'].to_numpy().astype(np.int32),
-            [self.scaling_model],
+            self.scaling_model,
             self.prior,
             self.likelihood,
             self.surrogate_posterior,
@@ -262,6 +262,19 @@ class BaseMerger():
         epsilon = self.data.groupby('miller_id').first().EPSILON.to_numpy().astype(np.float32)
         self.prior = WilsonPrior(centric, epsilon)
 
+    def add_image_scaler(self, image_id_key='image_id'):
+        """
+        Paramters
+        ---------
+        image_id_key : str (optional)
+            Key to use as the image identifier. 
+        """
+        from careless.models.scaling.image import ImageScaler
+        if self.scaling_model is None:
+            self.scaling_model = [ImageScaler(self.data[image_id_key].to_numpy().astype(np.int64))]
+        else:
+            self.scaling_model.append(ImageScaler(self.data[image_id_key].to_numpy().astype(np.int64)))
+
     def add_scaling_model(self, layers=20, metadata_keys=None):
         """
         Parameters
@@ -280,7 +293,10 @@ class BaseMerger():
         metadata = self.data[metadata_keys].to_numpy().astype(np.float32)
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
-        self.scaling_model = SequentialScaler(metadata, layers)
+        if self.scaling_model is None:
+            self.scaling_model = [SequentialScaler(metadata, layers)]
+        else:
+            self.scaling_model.append(SequentialScaler(metadata, layers))
 
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):
