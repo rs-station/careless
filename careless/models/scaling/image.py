@@ -16,7 +16,6 @@ class ImageScaler(PerGroupModel, Scaler, tf.Module):
         image_number : array 
             array of zero indexed image ids. One for each reflection observation.
         """
-        image_number = tf.convert_to_tensor(image_number, dtype=tf.int64)
         super().__init__(image_number)
 
         self._scales = tf.Variable(tf.ones(self.num_groups - 1))
@@ -67,6 +66,8 @@ class VariationalImageScaler(ImageScaler):
         else:
             self.surrogate_posterior = surrogate_posterior
 
+        self._use_gather = True
+
     def sample(self, return_kl_term=False, *args, **kwargs):
         """ 
         This will return a sample of the variational image weights. 
@@ -77,7 +78,7 @@ class VariationalImageScaler(ImageScaler):
         if return_kl_term:
             log_q = self.surrogate_posterior.log_prob(z)
             log_p = self.prior.log_prob(z)
-            return self.gather(z, self.group_ids),tf.reduce_sum(log_q - log_p)
+            return self.expand(z),tf.reduce_sum(log_q - log_p)
         else:
-            return self.gather(z, self.group_ids)
+            return self.expand(z)
 
