@@ -146,6 +146,12 @@ args_and_kwargs = (
         "default":False,
     }),
 
+    (("--disable-memory-growth",), {
+        "help":"Disable the experimental dynamic memory allocation.", 
+        "action":'store_true', 
+        "default":False,
+    }),
+
     (("--tf-log-level",), {
         "help": "Change the TensorFlow log verbosity by setting the "
                 "TF_CPP_MIN_LOG_LEVEL environment variable. "
