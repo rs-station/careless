@@ -5,6 +5,8 @@ import pandas as pd
 import reciprocalspaceship as rs
 from careless.models.merging.variational import VariationalMergingModel
 
+#pd.options.mode.chained_assignment = 'raise'
+
 
 def get_first_key_of_type(ds, typestring):
     idx = ds.dtypes==typestring
@@ -33,7 +35,8 @@ class BaseMerger():
     results = None
     merger = None
     data = None
-    spacegroup = None
+    spacegroups = None
+    cells = None
     prior = None
     likelihood = None
     scaling_model = None
@@ -42,21 +45,45 @@ class BaseMerger():
     anomalous = False
     surrogate_posterior = None
 
-    def __init__(self, dataset, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None):
-        self.data = dataset.copy() #chaos ensues otherwise
+    def __init__(self, datasets, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None):
+        """
+        Parameters
+        ----------
+        datasets : iterable
+            An iterable containing rs.DataSet object(s).
+        anomalous : bool
+            True => don't merge friedel mates
+        dmin : float
+            Max resolution.
+        isigi_cutoff : float
+            Minimum I/Sigma to keep. 
+        intensity_key : str
+            The name of the column containing  the intensities to be merged. There must be a corresponding 
+            standard deviation key with name 'Sig' + intensity_key or 'SIG' + intensity_key
+        """
+        self.data = None
+        self.cells = []
+        self.spacegroups = []
+        for i,ds in enumerate(datasets):
+            ds = ds.copy() #Out of an abundance of caution
+            ds.reset_index(inplace=True)
 
-        if self.data.index.names != [None]: #If you have a non-numeric index
-            self.data.reset_index(inplace=True)
-        self.data[['Hobs', 'Kobs', 'Lobs']] = self.data.loc[:,['H', 'K', 'L']]
+            ds[['Hobs', 'Kobs', 'Lobs']] = ds.loc[:,['H', 'K', 'L']]
+            ds.hkl_to_asu(inplace=True)
 
-        self.data.hkl_to_asu(inplace=True)
+            if anomalous:
+                self.anomalous = True
+                friedel_sign = 2 * (ds['M/ISYM'] %2 - 0.5).to_numpy()
+                friedel_sign[ds.label_centrics().CENTRIC] = 1.
+                ds.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * ds.loc[:,['H', 'K', 'L']]
+                ds['FRIEDEL'] = friedel_sign
 
-        if anomalous:
-            self.anomalous = True
-            friedel_sign = 2 * (self.data['M/ISYM'] %2 - 0.5).to_numpy()
-            friedel_sign[self.data.label_centrics().CENTRIC] = 1.
-            self.data.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * self.data.loc[:,['H', 'K', 'L']]
-            self.data['FRIEDEL'] = friedel_sign
+            self.spacegroups.append(ds.spacegroup)
+            self.cells.append(ds.cell)
+            ds['file_id'] = i
+            self.data = ds.append(self.data, check_isomorphous=False)
+
+        self.data.cell = self.data.spacegroup = None
 
         # Try to guess sensible default keys. 
         # The user can change after the constructor is finished
@@ -84,31 +111,60 @@ class BaseMerger():
             isigi = self.data[self.intensity_key] / self.data[self.sigma_intensity_key]
             self.data = self.data[isigi >= isigi_cutoff]
 
-    @classmethod
-    def from_isomorphous_mtzs(cls, *filenames, **kwargs):
-        from careless.utils.io import load_isomorphous_mtzs
-        return cls(load_isomorphous_mtzs(*filenames), **kwargs)
 
     @classmethod
-    def half_datasets_from_isomorphous_mtzs(cls, *filenames, **kwargs):
-        from careless.utils.io import load_isomorphous_mtzs
-        data = load_isomorphous_mtzs(*filenames)
-        image_id_key = get_first_key_of_type(data, 'B')
-        data['image_id'] = data.groupby([image_id_key, 'file_id']).ngroup()
-        data['half'] = (np.random.random(data['image_id'].max() + 1) > 0.5)[data['image_id']] 
-        del(data['image_id'])
-        half1,half2 = data[data.half],data[~data.half]
-        del(half1['half'], half2['half'])
-        return cls(half1, **kwargs), cls(half2, **kwargs)
+    def from_mtzs(cls, *filenames, anomalous=False, **kwargs):
+        def loader():
+            for inFN in filenames:
+                yield rs.read_mtz(inFN)
+        return cls(loader(), anomalous, **kwargs)
 
-    def append_anomalous_data(self, mtz_filename):
-        raise NotImplementedError("This module does not support priors with anomalous differences yet")
+    @classmethod
+    def half_datasets_from_mtzs(cls, *filenames, seed=1234, anomalous=False, **kwargs):
+        def half_loader(first=True):
+            for inFN in filenames:
+                ds = rs.read_mtz(inFN)
+                np.random.seed(seed)
+                if first:
+                    yield ds[np.random.random(len(ds)) > 0.5]
+                else:
+                    yield ds[np.random.random(len(ds)) <= 0.5]
+        return cls(half_loader(True), anomalous, **kwargs), cls(half_loader(False), anomalous, **kwargs)
+
+    def label_multiplicity(self):
+        self.data['EPSILON'] = 1.
+        for i,sg in enumerate(self.spacegroups):
+            idx = self.data['file_id'] == i
+            self.data.loc[idx, 'EPSILON'] = rs.utils.compute_structurefactor_multiplicity(self.data[idx].get_hkls(), sg)
+        return self
+
+    def label_centrics(self):
+        H = self.data.get_hkls()
+        self.data['CENTRIC'] = False
+        for i,sg in enumerate(self.spacegroups):
+            idx = self.data['file_id'] == i
+            self.data.loc[idx, 'CENTRIC'] = rs.utils.is_centric(self.data[idx].get_hkls(), sg)
+        return self
+
+    def compute_dHKL(self):
+        self.data['dHKL'] = 0.
+        for i,cell in enumerate(self.cells):
+            idx = self.data['file_id'] == i
+            self.data.loc[idx, 'dHKL'] = rs.utils.compute_dHKL(self.data[idx].get_hkls(), cell)
+        return self
+
+    def remove_sys_absences(self):
+        H = self.data.get_hkls()
+        self.data.loc[:,'ABSENT'] = False
+        for i,sg in enumerate(self.spacegroups):
+            idx = self.data['file_id'] == i
+            self.data.loc[idx, 'ABSENT'] = rs.utils.is_absent(self.data[idx].get_hkls(), sg)
+        self.data = self.data[~self.data.ABSENT]
+        assert not self.data.ABSENT.max()
+        return self
 
     def append_reference_data(self, data):
         """Append reference data from an rs.DataSet or an Mtz filename."""
-        #For now we don't support having different amplitudes for friedel mates
-        #But we must make sure to copy amplitudes to their friedel mate before we append the reference
-        #in case the data being merged is anomalous
         if isinstance(data, str):
             ds = rs.read_mtz(data)
         elif isinstance(data, rs.DataSet):
@@ -117,33 +173,19 @@ class BaseMerger():
                 ds.reset_index().set_index(['H', 'K', 'L'])
         else:
             raise TypeError(f"append_reference_data expected string or rs.DataSet, but received {type(ds)}")
-
-        cell,sg = self.data.cell,self.data.spacegroup
-        ds = ds.hkl_to_asu() 
-        ds = pd.concat((ds, ds.apply_symop(gemmi.Op("-x, -y, -z"))))
-        self.data = self.data.join(ds.loc[:,ds.dtypes=='F'].iloc[:,0].rename("REF"), on=['H', 'K', 'L'])
-        self.data = self.data.join(ds.loc[:,ds.dtypes=='Q'].iloc[:,0].rename("SIGREF"), on=['H', 'K', 'L'])
-        self.data.cell,self.data.spacegroup = cell,sg
-        return self
-
-    def set_merging_spacegroup(sg):
-        """
-        Parameters
-        ----------
-        sg : gemmi.SpaceGroup or str or int
-        """
-        if isinstance(sg, str):
-            self.spacegroup = gemmi.SpaceGroup(sg)
-        elif isinstance(sg, int):
-            self.spacegroup = gemmi.SpaceGroup(sg)
-        elif isinstance(sg, gemmi.SpaceGroup):
-            self.spacegroup = sg
+        if self.anomalous:
+            ds = ds.stack_anomalous().expand_to_p1()
         else:
-            raise ValueError(f"Set_merging_spacegroup received unexpected argument type {type(sg)}")
+            ds = ds.expand_anomalous().expand_to_p1()
 
+        self.data = self.data.join(ds.loc[:,ds.dtypes=='F'].iloc[:,0].rename("REF"), on=['Hobs', 'Kobs', 'Lobs'])
+        self.data = self.data.join(ds.loc[:,ds.dtypes=='Q'].iloc[:,0].rename("SIGREF"), on=['Hobs', 'Kobs', 'Lobs'])
+        return self
+ 
     def get_results(self):
+        """ returns an iterator over results for each experiment id """
         df = self.data.reset_index()
-        results = rs.DataSet(cell = self.data.cell, spacegroup = self.data.spacegroup)
+        results = rs.DataSet()
         results['F'] = self.merger.surrogate_posterior.mean().numpy()
         results['SigF'] = self.merger.surrogate_posterior.stddev().numpy()
         results['N'] = df.groupby('miller_id').size()
@@ -153,11 +195,16 @@ class BaseMerger():
         results['experiment_id'] = df.groupby('miller_id')['experiment_id'].first()  
         results.infer_mtz_dtypes(inplace=True)
         results.set_index(['H', 'K', 'L'], inplace=True)
-        return results
-
-    def _remove_sys_absences(self):
-        self.data = self.data[~self.data.label_absences()['ABSENT']]
-        return self
+        for i in range(results.experiment_id.max() + 1):
+            result = results[results.experiment_id == i]
+            del result['experiment_id']
+            result.merged=True
+            result.spacegroup = self.spacegroups[i]
+            result.cell = self.cells[i]
+            if self.anomalous:
+                result = result.unstack_anomalous()[['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'N(+)', 'N(-)']]
+                result.fillna(0., inplace=True)
+            yield result
 
     def _build_merger(self):
         self.merger = VariationalMergingModel(
@@ -175,7 +222,6 @@ class BaseMerger():
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=beta_1, beta_2=beta_2)
         #optimizer = tf.keras.optimizers.Nadam(learning_rate, beta_1=beta_1, beta_2=beta_2)
         losses = self.merger.fit(optimizer, iterations, s=mc_samples, clip_value=clip_value)
-        self.results = self.get_results()
         return losses
 
     def _add_reference_prior(self, priorfun, reference_f_key="REF", reference_sigf_key="SIGREF"):
@@ -301,15 +347,17 @@ class BaseMerger():
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):
         from careless.utils.laue import expand_harmonics
-        expanded = self.data.compute_dHKL() #add 'dHKL' if missing. do not trust if present
+        self.compute_dHKL() #Make sure this is up to date
+
         if wavelength_range is None:
-            lambda_min = expanded[wavelength_key].min()
-            lambda_max = expanded[wavelength_key].max()
+            lambda_min = self.data[wavelength_key].min()
+            lambda_max = self.data[wavelength_key].max()
         else:
             lambda_min, lambda_max = wavelength_range
 
-        expanded = expand_harmonics(expanded, dmin=dmin, wavelength_key='Wavelength', anomalous=self.anomalous)
-        self.data = expanded[(expanded[wavelength_key] >= lambda_min) & (expanded[wavelength_key] <= lambda_max)]
+        self.data = expand_harmonics(self.data, dmin=dmin, wavelength_key='Wavelength')
+        self.data = self.data[(self.data[wavelength_key] >= lambda_min) & (self.data[wavelength_key] <= lambda_max)]
+        self.remove_sys_absences()
         return self
 
 class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
@@ -325,37 +373,35 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
-        self._remove_sys_absences()
-
         if image_id_key is None:
             image_id_key = get_first_key_of_type(self.data, 'B')
 
         #This is for merging equivalent millers accross mtzs
-        df = self.data.copy() #There will be nans if reference data were added
-        df['null'] = df.isnull().any(axis=1)
+        self.data['null'] = self.data.isnull().any(axis=1)
 
         # Any observation that contains a constituent harmonic missing reference data must be removed en bloc
         # This is a quick way of doing that without invoking groupby.filter with a lambda (very slow)
         obs_group_keys = ['H_0', 'K_0', 'L_0', image_id_key, experiment_id_key]
-        idx = df[obs_group_keys + ['null']].groupby(obs_group_keys).transform('any').to_numpy()
-        df = df[~idx]
-        del(df['null'])
+        idx = self.data[obs_group_keys + ['null']].groupby(obs_group_keys).transform('any').to_numpy()
+        self.data = self.data[~idx]
+        del(self.data['null'])
 
         if separate_files:
-            df['miller_id'] = df.groupby(['H', 'K', 'L', experiment_id_key]).ngroup() 
-            df['experiment_id'] = df[experiment_id_key]
+            self.data['miller_id'] = self.data.groupby(['H', 'K', 'L', experiment_id_key]).ngroup() 
+            self.data['experiment_id'] = self.data[experiment_id_key]
         else:
-            df['miller_id'] = df.groupby(['H', 'K', 'L']).ngroup() 
-            df['experiment_id'] = 0
+            self.data['miller_id'] = self.data.groupby(['H', 'K', 'L']).ngroup() 
+            self.data['experiment_id'] = 0
 
-        df['image_id'] = df.groupby([image_id_key, 'experiment_id']).ngroup()
-        df['ray_id'] = df.groupby(['H_0','K_0', 'L_0']).ngroup()
-        df['observation_id'] = df.groupby(['ray_id', 'image_id']).ngroup()
-        df.label_centrics(inplace=True)
-        df['EPSILON'] = rs.utils.compute_structurefactor_multiplicity(df.get_hkls(), df.spacegroup)
-        df.compute_dHKL(inplace=True)
-        df['dHKL'] = df.dHKL**-2.
-        self.data = df
+        self.data['image_id'] = self.data.groupby([image_id_key, 'experiment_id']).ngroup()
+        self.data['ray_id'] = self.data.groupby(['H_0','K_0', 'L_0']).ngroup()
+        self.data['observation_id'] = self.data.groupby(['ray_id', 'image_id']).ngroup()
+
+        self.data = self.data
+        self.label_centrics()
+        self.label_multiplicity()
+        self.compute_dHKL()
+        self.data['dHKL'] = self.data.dHKL**-2.
         return self
 
     def _add_likelihood(self, likelihood_func, use_weights=False):
@@ -396,26 +442,24 @@ class MonoMerger(BaseMerger):
             Key used to identify which image an observation originated from. 
             Default is 'file_id' which is populated by the MergerBase.from_isomorphous_mtzs constructor. 
         """
-        self._remove_sys_absences()
-
         if image_id_key is None:
             image_id_key = get_first_key_of_type(self.data, 'B')
 
         #This is for merging equivalent millers accross mtzs
-        df = self.data.copy().dropna() #There will be nans if reference data were added
+        self.data.dropna(inplace=True) #There will be nans if reference data were added
+        self.remove_sys_absences()
         if separate_files:
-            df['miller_id'] = df.groupby(['H', 'K', 'L', experiment_id_key]).ngroup() 
-            df['experiment_id'] = df[experiment_id_key]
+            self.data['miller_id'] = self.data.groupby(['H', 'K', 'L', experiment_id_key]).ngroup() 
+            self.data['experiment_id'] = self.data[experiment_id_key]
         else:
-            df['miller_id'] = df.groupby(['H', 'K', 'L']).ngroup() 
-            df['experiment_id'] = 0
-        df['image_id'] = df.groupby([image_id_key, experiment_id_key]).ngroup()
-        df['observation_id'] = df.groupby(['miller_id', 'image_id']).ngroup()
-        df.label_centrics(inplace=True)
-        df['EPSILON'] = rs.utils.compute_structurefactor_multiplicity(df.get_hkls(), df.spacegroup)
-        df.compute_dHKL(inplace=True)
-        df['dHKL'] = df.dHKL**-2.
-        self.data = df
+            self.data['miller_id'] = self.data.groupby(['H', 'K', 'L']).ngroup() 
+            self.data['experiment_id'] = 0
+        self.data['image_id'] = self.data.groupby([image_id_key, experiment_id_key]).ngroup()
+        self.data['observation_id'] = self.data.groupby(['miller_id', 'image_id']).ngroup()
+        self.label_centrics()
+        self.label_multiplicity()
+        self.compute_dHKL()
+        self.data['dHKL'] = self.data.dHKL**-2.
         return self
 
     def _add_likelihood(self, likelihood_func, use_weights=False):

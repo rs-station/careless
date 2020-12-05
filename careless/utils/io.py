@@ -9,8 +9,12 @@ def load_isomorphous_mtzs(*filenames):
     data = []
     print("Loading Mtz files...")
     a,b,c,alpha,beta,gamma=0.,0.,0.,0.,0.,0.
+    spacegroup = None
     for i,inFN in enumerate(filenames):
         ds = rs.read_mtz(inFN)
+        if spacegroup is not None:
+            if ds.spacegroup != spacegroup:
+                raise ValueError(f"Filename: {inFN} has space group {ds.spacegroup}, but {spacegroup} is expected.  Cannot load non-isomorphous MTZs.")
         spacegroup = ds.spacegroup
         ds['file_id'] = i
         a += ds.cell.a/len(filenames)
