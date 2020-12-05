@@ -28,8 +28,10 @@ half2 = rs.read_mtz(half2_filename).compute_dHKL().dropna()
 
 if (half1.dtypes == 'K').any() or (half1.dtypes == 'G').any():
     half1 = half1.stack_anomalous()
+    half1 = half1[half1.N > 0]
 if (half2.dtypes == 'K').any() or (half2.dtypes == 'G').any():
     half2 = half2.stack_anomalous()
+    half2 = half2[half2.N > 0]
 
 overrides = [
     'DeltaF', 
