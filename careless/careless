@@ -26,6 +26,8 @@ def main(merger, parser):
         merger.add_laplace_prior()
     elif parser.studentt_prior_dof:
         merger.add_studentt_prior(parser.studentt_prior_dof)
+    elif parser.wilson_prior_b:
+        merger.add_wilson_prior(b=parser.wilson_prior_b)
     else:
         merger.add_wilson_prior()
 

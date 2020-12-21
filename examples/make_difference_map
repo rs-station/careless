@@ -85,6 +85,19 @@ from scipy.stats import gaussian_kde
 #k = gaussian_kde(X)
 #output['KDE'] = rs.DataSeries(k(X), dtype='W', index=output.index)
 #output['LOGKDE'] = rs.DataSeries(k.logpdf(X), dtype='W', index=output.index)
+from reciprocalspaceship.algorithms.scale_merged_intensities import mean_intensity_by_resolution
+from scipy.stats import norm
+
+d = output.compute_dHKL().dHKL.to_numpy()
+mean = mean_intensity_by_resolution(output.Foff, d)
+std  = np.sqrt(mean_intensity_by_resolution((output.Foff - mean)**2., d))
+poff = norm(mean, std).pdf(output.Foff)
+
+mean = mean_intensity_by_resolution(output.Fon, d)
+std  = np.sqrt(mean_intensity_by_resolution((output.Fon - mean)**2., d))
+pon  = norm(mean, std).pdf(output.Fon)
+
+output['RNORM'] = rs.DataSeries(pon*poff, dtype='W', index=output.index)
 
 #X = output.compute_dHKL()[['Foff', 'SigFoff', 'Fon', 'SigFon', 'dHKL']].to_numpy(np.float).T
 X = output.compute_dHKL()[['Foff', 'Fon', 'dHKL']].to_numpy(np.float).T

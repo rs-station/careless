@@ -102,9 +102,9 @@ class BaseMerger():
         if self.data.file_id.max() > 0:
             self.metadata_keys += ['file_id']
         self.metadata_keys += ['dHKL']
+        self.compute_dHKL()
 
         if dmin is not None:
-            self.data.compute_dHKL(inplace=True)
             self.data = self.data[self.data.dHKL >= dmin]
 
         if isigi_cutoff is not None:
@@ -302,11 +302,23 @@ class BaseMerger():
         from careless.models.priors.empirical import StudentTReferencePrior
         self._add_reference_prior(lambda x,y : StudentTReferencePrior(x, y, dof))
 
-    def add_wilson_prior(self):
+    def add_wilson_prior(self, b=None):
         from careless.models.priors.wilson import WilsonPrior
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.float32)
         epsilon = self.data.groupby('miller_id').first().EPSILON.to_numpy().astype(np.float32)
-        self.prior = WilsonPrior(centric, epsilon)
+        if b is not None:
+            """ 
+            Wherein we compute the resolution dependent scale factors with an arbitrary user
+            supplied b-factor. This is to make our output look like traditionally scaled
+            x-ray data. 
+
+            Σ = exp(-0.25 * b * dHKL**-2.)
+            """
+            dHKL = self.data.groupby('miller_id').first().dHKL.to_numpy().astype(np.float32)
+            sigma = np.exp(-0.25 * b * dHKL**-2.)
+        else:
+            sigma = 1.
+        self.prior = WilsonPrior(centric, epsilon, sigma)
 
     def add_image_scaler(self, image_id_key='image_id'):
         """
@@ -321,7 +333,7 @@ class BaseMerger():
         else:
             self.scaling_model.append(ImageScaler(self.data[image_id_key].to_numpy().astype(np.int64)))
 
-    def add_scaling_model(self, layers=20, metadata_keys=None):
+    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True):
         """
         Parameters
         ----------
@@ -329,6 +341,9 @@ class BaseMerger():
             Sequential dense leaky relu layers. The default is 20.
         metadata_keys : list
             List of keys to use for generating the metadata. If None, self.metadata_keys will be used.
+        invert_dHKL : bool (optional)
+            Optionally transform any metadata keys named 'dHKL' by raising them to the negative 2 power.
+            The default is True. 
         """
         if metadata_keys is None:
             metadata_keys = self.metadata_keys
@@ -337,6 +352,9 @@ class BaseMerger():
         else:
             raise TypeError("metadata_keys has type None but list expected.")
         metadata = self.data[metadata_keys].to_numpy().astype(np.float32)
+        if inverse_square_dHKL and 'dHKL' in metadata_keys:
+            idx = np.where(np.array(metadata_keys) == 'dHKL')
+            metadata[:,idx] = metadata[:,idx]**-2.
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
         if self.scaling_model is None:
@@ -401,7 +419,7 @@ class PolyMerger(BaseMerger, HarmonicDeconvolutionMixin):
         self.label_centrics()
         self.label_multiplicity()
         self.compute_dHKL()
-        self.data['dHKL'] = self.data.dHKL**-2.
+        #self.data['dHKL'] = self.data.dHKL**-2.
         return self
 
     def _add_likelihood(self, likelihood_func, use_weights=False):
@@ -459,7 +477,7 @@ class MonoMerger(BaseMerger):
         self.label_centrics()
         self.label_multiplicity()
         self.compute_dHKL()
-        self.data['dHKL'] = self.data.dHKL**-2.
+        #self.data['dHKL'] = self.data.dHKL**-2.
         return self
 
     def _add_likelihood(self, likelihood_func, use_weights=False):
