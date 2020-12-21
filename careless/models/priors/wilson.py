@@ -7,22 +7,24 @@ import numpy as np
 
 
 class Centric(tfd.HalfNormal, Prior):
-    def __init__(self, epsilon):
+    def __init__(self, epsilon, sigma=1.):
         self.epsilon = tf.convert_to_tensor(epsilon)
-        super().__init__(tf.math.sqrt(epsilon))
+        self.sigma = tf.convert_to_tensor(sigma)
+        super().__init__(tf.math.sqrt(epsilon * self.sigma))
 
 
 class Acentric(tfd.Weibull, Prior):
-    def __init__(self, epsilon):
+    def __init__(self, epsilon, sigma=1.):
         self.epsilon = tf.convert_to_tensor(epsilon)
+        self.sigma = tf.convert_to_tensor(sigma)
         super().__init__(
             2., 
-            tf.math.sqrt(self.epsilon),
+            tf.math.sqrt(self.epsilon * self.sigma),
         )
 
 class WilsonPrior(Prior):
     """Wilson's priors on structure factor amplitudes."""
-    def __init__(self, centric, epsilon):
+    def __init__(self, centric, epsilon, sigma=1.):
         """
         Parameters
         ----------
@@ -30,11 +32,15 @@ class WilsonPrior(Prior):
             Floating point or boolean array with value 1/True for centric reflections and 0/False. for acentric.
         epsilon : array
             Floating point array with multiplicity values for each structure factor.
+        sigma : float or array
+            The Σ value for the wilson distribution. The represents the average intensity stratified by a measure
+            like resolution. 
         """
         self.epsilon = np.array(epsilon, dtype=np.float32)
         self.centric = np.array(centric, dtype=np.bool)
-        self.p_centric = Centric(self.epsilon)
-        self.p_acentric = Acentric(self.epsilon)
+        self.sigma = np.array(sigma, dtype=np.float32)
+        self.p_centric = Centric(self.epsilon, self.sigma)
+        self.p_acentric = Acentric(self.epsilon, self.sigma)
 
     def log_prob(self, x):
         """
@@ -59,4 +65,12 @@ class WilsonPrior(Prior):
 
     def stddev(self):
         return tf.where(self.centric, self.p_centric.stddev(), self.p_acentric.stddev())
+
+    def sample(self, *args, **kwargs):
+        #### BLEERRRGG #####
+        return tf.where(
+            self.centric, 
+            self.p_centric.sample(*args, **kwargs),
+            self.p_acentric.sample(*args, **kwargs),
+        )
 
