@@ -236,13 +236,13 @@ class BaseMerger():
         """
         if self.prior is None:
             raise(ValueError("self.prior is None, but a prior is needed to intialize the surrogate."))
-        from careless.models.merging.surrogate_posteriors import ShiftedFoldedNormal
+        from careless.models.merging.surrogate_posteriors import FoldedNormal
         import tensorflow_probability as tfp
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
         high = 1e30
         self.surrogate_posterior = ShiftedFoldedNormal(
-            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tf.Variable(self.prior.mean()),
             tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             low,
         )
@@ -261,7 +261,7 @@ class BaseMerger():
         low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
         high = 1e30
         self.surrogate_posterior = TruncatedNormal(
-            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tf.Variable(self.prior.mean()),
             tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             low,
             high,
@@ -278,7 +278,7 @@ class BaseMerger():
         import tensorflow_probability as tfp
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         self.surrogate_posterior = RiceWoolfson(
-            tfp.util.TransformedVariable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tf.Variable(self.prior.mean(), tfp.bijectors.Softplus()),
             tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             centric
         )
