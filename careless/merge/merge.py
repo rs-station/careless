@@ -241,7 +241,7 @@ class BaseMerger():
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         low = tf.zeros(len(centric), dtype=tf.float32) + (1. - centric) * tf.math.nextafter(0., 1.)
         high = 1e30
-        self.surrogate_posterior = ShiftedFoldedNormal(
+        self.surrogate_posterior = FoldedNormal(
             tf.Variable(self.prior.mean()),
             tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             low,
@@ -278,7 +278,7 @@ class BaseMerger():
         import tensorflow_probability as tfp
         centric = self.data.groupby('miller_id').first().CENTRIC.to_numpy().astype(np.bool)
         self.surrogate_posterior = RiceWoolfson(
-            tf.Variable(self.prior.mean(), tfp.bijectors.Softplus()),
+            tf.Variable(self.prior.mean()),
             tfp.util.TransformedVariable(self.prior.stddev()/10., tfp.bijectors.Softplus()),
             centric
         )
