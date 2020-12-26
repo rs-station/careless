@@ -40,7 +40,7 @@ The `VariationalMergingModel` is central object which houses the estimates of th
 In `careless` merged structure factors are represented by truncated normal distributions which have support on [0, ∞).
 According to French and Wilson<sup>[2](#frenchwilson)</sup> this is the appropriate parameterization for acentric reflections which are by far the majority in most space groups.
 These distributions are stored in the `VariationalMergingModel.surrogate_posterior` attribute. 
-They serve as a parametric approximation of the ture posterior which cannot easily be calculated. 
+They serve as a parametric approximation of the true posterior which cannot easily be calculated. 
 It has utility methods for training the model.
 It contains an instance of each of the other objects. 
 During optimization, the loss function is constructed by sampling values for the merged structure factors and scales these are combined with the prior and likelihood to compute the `Evidence Lower BOund` or (`ELBO`)
