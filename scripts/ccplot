@@ -102,6 +102,7 @@ plt.errorbar(
 )
 plt.xlabel(f"$|{ikey1}_1|$")
 plt.ylabel(f"$|{ikey2}_2|$")
+plt.show()
 
-from IPython import embed
-embed(colors='Linux')
+#from IPython import embed
+#embed(colors='Linux')
