@@ -1,0 +1,73 @@
+refinement {
+  crystal_symmetry {
+    unit_cell = 66.9 66.9 40.9549 90 90 120
+    space_group = P 63
+  }
+  input {
+    pdb {
+      file_name = "reference_data/off.pdb"
+    }
+    xray_data {
+      file_name = merge/pyp_0.mtz
+      labels = F,SigF
+      outliers_rejection = True
+      french_wilson_scale = False
+      r_free_flags.generate = True
+    }
+    monomers {
+      file_name = "reference_data/ligands.cif"
+    }
+  }
+  output {
+    prefix = """phenix/PYP_refine"""
+    serial = 1
+    serial_format = "%d"
+    write_def_file = False
+  }
+  electron_density_maps {
+    map_coefficients {
+      map_type = 2mFo-DFc
+      mtz_label_amplitudes = 2FOFCWT
+      mtz_label_phases = PH2FOFCWT
+      fill_missing_f_obs = True
+    }
+    map_coefficients {
+      map_type = 2mFo-DFc
+      mtz_label_amplitudes = 2FOFCWT_no_fill
+      mtz_label_phases = PH2FOFCWT_no_fill
+    }
+    map_coefficients {
+      map_type = mFo-DFc
+      mtz_label_amplitudes = FOFCWT
+      mtz_label_phases = PHFOFCWT
+    }
+    map_coefficients {
+      map_type = anomalous
+      mtz_label_amplitudes = ANOM
+      mtz_label_phases = PHANOM
+    }
+  }
+  refine {
+    strategy = individual_sites individual_sites_real_space *rigid_body \
+               *individual_adp group_adp tls occupancies group_anomalous
+  }
+  main {
+    number_of_macro_cycles = 8
+    max_number_of_resolution_bins = 100
+  }
+  modify_start_model {
+    modify {
+      adp {
+        atom_selection = """All"""
+        set_b_iso = 10.0
+        convert_to_isotropic = True
+      }
+    }
+  }
+  bulk_solvent_and_scale {
+    mode = *slow fast
+    number_of_macro_cycles = 5
+    max_iterations = 250
+    min_iterations = 100
+  }
+}
