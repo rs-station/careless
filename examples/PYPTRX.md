@@ -124,17 +124,3 @@ coot phenix/PYP_refine_1.mtz \
     reference_data/2ms.pdb 
 ```
 
-You can quickly find the chromophore by pressing `ctrl-l`.
-
-![2fo-fc map](images/pyp-2fo-fc.gif)
-
-Making a difference map using `make_difference_map`. Run the following
-
-```bash
-make_difference_map merge/pyp_0.mtz merge/pyp_1.mtz phenix/PYP_refine_1.mtz
-```
-
-which will generate `difference.mtz`. 
-
-![load-differences](images/pyp-load-differences.gif)
-
