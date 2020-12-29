@@ -116,15 +116,22 @@ mkdir phenix
 phenix.refine refine.eff
 ```
 
-We can now use coot to have a look at the electron density map by calling `coot PYP_refine_1.mtz PYP_refine_1.pdb`
+We can now use coot to have a look at the electron density map by calling 
+
+```bash
+coot phenix/PYP_refine_1.mtz \
+    reference_data/off.pdb \
+    reference_data/2ms.pdb 
+```
+
 You can quickly find the chromophore by pressing `ctrl-l`.
 
 ![2fo-fc map](images/pyp-2fo-fc.gif)
 
-Making a difference map using `careless/examples/make_difference_map`. Run the following
+Making a difference map using `make_difference_map`. Run the following
 
 ```bash
-make_difference_map merge/pyp_0.mtz merge/pyp_2.mtz phenix/PYP_refine_1.mtz
+make_difference_map merge/pyp_0.mtz merge/pyp_1.mtz phenix/PYP_refine_1.mtz
 ```
 
 which will generate `difference.mtz`. 
