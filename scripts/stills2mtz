@@ -1,0 +1,121 @@
+#!/usr/bin/env cctbx.python
+
+from dials.array_family import flex
+from cctbx import sgtbx
+from dxtbx.model.experiment_list import ExperimentListFactory 
+from glob import glob
+from os.path import exists,abspath
+import numpy as np
+import argparse
+import reciprocalspaceship as rs
+import pandas as pd
+import gemmi
+import re
+
+
+doc = """
+Convert dials stills integration to an mtz with some geometric metadata.
+"""
+
+parser = argparse.ArgumentParser(doc)
+
+parser.add_argument("experiment_file", help="DIALS experiment file (.expt or .json).", type=str)
+parser.add_argument("reflection_file", help="DIALS reflection table (.refl or .pickle).", type=str)
+parser.add_argument("-o", type=str, help='output mtz filename. If none is specified, it will be generated from the experiment filename.', default=None)
+parser = parser.parse_args()
+
+exptFN = parser.experiment_file
+reflFN = parser.reflection_file
+
+
+if parser.o is None:
+    outFN = exptFN[:-4] + 'mtz'
+else:
+    outFN = parser.o
+
+
+table = flex.reflection_table().from_file(reflFN)
+elist = ExperimentListFactory.from_json_file(exptFN, check_format=False)
+
+
+idx = flex.size_t(np.array(table['id']))
+
+#This makes some heavy assumptions about file name formats. You might want to remove this block to 
+#suit your own use case
+images = [e.imageset.get_image_identifier(0) for e in elist]
+
+table["A_matrix"] = flex.mat3_double( [C.get_A() for C in elist.crystals()] ).select(idx)
+table["Ainv_matrix"] = flex.mat3_double( [C.get_A_inverse_as_sqr() for C in elist.crystals()] ).select(idx)
+table["B_matrix"] = flex.mat3_double( [C.get_B() for C in elist.crystals()] ).select(idx)
+table["s0_vec"] = flex.vec3_double( [e.beam.get_s0() for e in elist] ).select(idx)
+table["wavelength"] = flex.double( [e.beam.get_wavelength() for e in elist] ).select(idx)
+h = table["miller_index"].as_vec3_double()
+x = table["A_matrix"] * h
+Svec = x + table["s0_vec"]
+table["Rh"] = Svec.norms() - (1./table["wavelength"])
+table["miller_index_obs"] = table['Ainv_matrix'] * (table['s1'] - table['s0_vec'])
+table["cartesian_fixed_obs"] = table['B_matrix'] * table['miller_index_obs']
+table["cartesian_fixed"] = table['B_matrix'] * h
+table.compute_miller_indices_in_asu(elist)
+
+
+#Get a gemmi cell
+cell = np.zeros(6)
+for crystal in elist.crystals():
+    cell += np.array(crystal.get_unit_cell().parameters())/len(elist.crystals())
+cell = gemmi.UnitCell(*cell)
+
+sginfo = elist.crystals()[0].get_space_group().info()
+symbol = sgtbx.space_group_symbols(sginfo.symbol_and_number().split('(')[0]) #<--- this cannot be the 'correct' way to do this
+spacegroup = gemmi.SpaceGroup(symbol.universal_hermann_mauguin())
+
+df = pd.DataFrame({
+  'H' : h.as_numpy_array()[:,0].astype(np.int32), 
+  'K' : h.as_numpy_array()[:,1].astype(np.int32), 
+  'L' : h.as_numpy_array()[:,2].astype(np.int32), 
+  'BATCH' : table['id'].as_numpy_array(),
+  'cartesian_fixed_obs_x' : table['cartesian_fixed_obs'].as_numpy_array()[:,0],
+  'cartesian_fixed_obs_y' : table['cartesian_fixed_obs'].as_numpy_array()[:,1],
+  'cartesian_fixed_obs_z' : table['cartesian_fixed_obs'].as_numpy_array()[:,2],
+  'cartesian_fixed_x'     : table['cartesian_fixed'].as_numpy_array()[:,0],
+  'cartesian_fixed_y'     : table['cartesian_fixed'].as_numpy_array()[:,1],
+  'cartesian_fixed_z'     : table['cartesian_fixed'].as_numpy_array()[:,2],
+  'ewald_offset' : table['Rh'],
+  'I' : table['intensity.sum.value'].as_numpy_array(),
+  'SigI' : table['intensity.sum.variance'].as_numpy_array()**0.5,
+  'xcal' : table['xyzcal.px'].as_numpy_array()[:,0], 
+  'ycal' : table['xyzcal.px'].as_numpy_array()[:,1], 
+  'xobs' : table['xyzobs.px.value'].as_numpy_array()[:,0], 
+  'yobs' : table['xyzobs.px.value'].as_numpy_array()[:,1], 
+  'sigxobs' : table['xyzobs.px.variance'].as_numpy_array()[:,0]**0.5, 
+  'sigyobs' : table['xyzobs.px.variance'].as_numpy_array()[:,1]**0.5, 
+})
+
+df['cartesian_delta_x'] = df['cartesian_fixed_obs_x'] - df['cartesian_fixed_x']
+df['cartesian_delta_y'] = df['cartesian_fixed_obs_y'] - df['cartesian_fixed_y']
+df['cartesian_delta_z'] = df['cartesian_fixed_obs_z'] - df['cartesian_fixed_z']
+
+
+
+data = rs.DataSet(df, cell=cell, spacegroup=spacegroup)
+typedefs = {
+    'H' : 'H',
+    'K' : 'H',
+    'L' : 'H',
+    'I' : 'J',
+    'SigI' : 'Q',
+    'BATCH' : 'B',
+}
+for k in data:
+    if k in typedefs:
+      data[k] = data[k].astype(typedefs[k])
+    else:
+      data[k] = data[k].astype('R')
+
+data.set_index(['H', 'K', 'L'], inplace=True)
+for k in data:
+    if 'Unnamed' in k:
+        del(data[k])
+
+
+data.write_mtz(outFN, skip_problem_mtztypes=True)
