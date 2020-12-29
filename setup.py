@@ -10,9 +10,9 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.1",
         "tqdm",
-        "tensorflow>=2.4",
+        "tensorflow==2.4",
         "tensorflow-probability",
-        "numpy",
+        "numpy==1.19.2",
     ],
     scripts = [
             'careless/careless',
