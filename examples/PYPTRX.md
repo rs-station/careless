@@ -72,20 +72,20 @@ We will choose to use the following metadata in our `careless` model
 dHKL, Hobs, Kobs, and Lobs are all special metadata keys which are always made avaible to `careless` models. The combination `dHKL,Hobs,Kobs,Lobs` implies anisotropic scaling. 
 Now that we have identified the metadata keys we want to use, we can create an output directory and run `careless`.
 
-```
+```bash
 mkdir merge
 careless poly \
   --separate-files \
   --iterations=10000 \
   --wavelength-key='Wavelength' \
   "X,Y,Wavelength,BATCH,dHKL,Hobs,Kobs,Lobs" \
-  off_varEll.mtz \
-  2ms_varEll.mtz \
+  off.mtz \
+  2ms.mtz \
   merge/pyp
 ```
 
 Here's a breakdown of what each argument means.
-- the `--separate-files` flag tells `careless` we would like to keep the reflection sin `off_varEll.mtz` and `2ms_varEll.mtz` separate during merging. Without this flag, `careless` would output a single `mtz` file containing the average structure factors for the two data sets. 
+- the `--separate-files` flag tells `careless` we would like to keep the reflection sin `off.mtz` and `2ms.mtz` separate during merging. Without this flag, `careless` would output a single `mtz` file containing the average structure factors for the two data sets. 
 - `--iterations` is how many gradient steps to take 
 - when processing polychromatic data, it is necessary to provide a `--wavelength-key`. `careless` will use this information to structure the harmonic deconvolution in the likelihood function. 
 - Immediately after the optional `--` arguments, the user must supply a *comma separated* string of *metadata keys*.
@@ -99,8 +99,8 @@ Once it is completed, the output files will appear in the `merge/` directory.
 The output will begin with the base filename supplied as the last argument to careless. 
 There will be three files for each input mtz. 
 
-- pyp_0.mtz - merged data from the first mtz (off_varEll.mtz)
-- pyp_1.mtz - merged data from the second mtz (2ms_varEll.mtz)
+- pyp_0.mtz - merged data from the first mtz (off.mtz)
+- pyp_1.mtz - merged data from the second mtz (2ms.mtz)
 - pyp_half1_0.mtz - merged data from the first mtz and first half data set
 - pyp_half1_1.mtz - merged data from the second mtz and first half data set
 - pyp_half2_0.mtz - merged data from the first mtz and second half data set
