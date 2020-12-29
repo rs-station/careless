@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+
+"""
+Plot CChalf vs resolution. 
+
+Usage
+-----
+ccplot <half1_dataset_filename> <half2_dataset_filename>
+
+"""
+import reciprocalspaceship as rs
+import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib as mpl
+from sys import argv
+
+
+mpl.rcParams['font.size']=14
+
+half1_filename = argv[1]
+half2_filename = argv[2]
+
+
+half1 = rs.read_mtz(half1_filename).compute_dHKL().dropna()
+half2 = rs.read_mtz(half2_filename).compute_dHKL().dropna()
+
+half1 = half1[(half1['N(+)'] > 0) & (half1['N(-)'] > 0)]
+half2 = half2[(half2['N(+)'] > 0) & (half2['N(-)'] > 0)]
+
+
+from careless.merge.merge import get_first_key_of_type
+
+dtype_preferences = ['G', 'K']
+ikey = None
+for dtype in dtype_preferences:
+    ikey = get_first_key_of_type(half1, dtype)
+    if ikey is not None:
+        break
+
+ikey = ikey[:-3]
+
+if ikey is None:
+    raise KeyError("No compatible keys found")
+
+if f"Sig{ikey}(+)" in half1:
+    sigkey = f"Sig{ikey}"
+elif f"SIG{ikey}(+)" in half1:
+    sigkey = f"SIG{ikey}"
+
+nbins = 20
+
+half1['ANOM'] = half1[ikey + "(+)"] - half1[ikey + "(-)"]
+half1['SIGANOM'] = np.sqrt(half1[sigkey + "(+)"]**2. + half1[sigkey + "(-)"]**2.)
+
+half2['ANOM'] = half2[ikey + "(+)"] - half2[ikey + "(-)"]
+half2['SIGANOM'] = np.sqrt(half2[sigkey + "(+)"]**2. + half2[sigkey + "(-)"]**2.)
+
+ikey,sigkey = 'ANOM','SIGANOM'
+
+idx = half1.index.intersection(half2.index)
+half1 = half1.loc[idx]
+half2 = half2.loc[idx]
+
+
+bins = np.percentile(half1.dHKL, np.linspace(100, 0, nbins + 1))
+bins = np.vstack((bins[:-1], bins[1:]))
+colors = np.zeros(len(half1))
+
+
+cc = []
+ticks = []
+from tqdm import tqdm
+for binnumber, (i,j) in tqdm(enumerate(zip(*bins))):
+    idx = (half1.dHKL >= j) & (half1.dHKL <= i)
+    colors[idx] = binnumber / nbins
+    cc.append(np.corrcoef(half1[idx][ikey], half2[idx][ikey])[0,1])
+    ticks.append(f'{i:0.2f}-{j:0.2f}')
+plt.ylim(0., 1.)
+
+plt.grid(linestyle='-.')
+
+plt.plot(cc, '-k')
+plt.scatter(np.arange(nbins), cc, c=np.linspace(0, 1, nbins), s=100)
+plt.title(r"$|F|$ Pearson Correlation")
+
+plt.xticks(np.arange(nbins), ticks, rotation=45, ha='right')
+plt.xlabel(r"$Resolution\ (\AA)$")
+plt.ylabel(r"$CC$")
+plt.tight_layout()
+
+plt.figure()
+cmap = plt.get_cmap()
+plt.errorbar(
+    half1[ikey],
+    half2[ikey],
+    xerr=half1[sigkey],
+    yerr=half2[sigkey],
+    color=cmap(colors),
+    ls='none',
+    alpha=0.2,
+)
+plt.xlabel(f"$|{ikey}_1|$")
+plt.ylabel(f"$|{ikey}_2|$")
+
+from IPython import embed
+embed(colors='Linux')

@@ -16,6 +16,9 @@ setup(
     ],
     scripts = [
             'careless/careless',
+            'scripts/ccplot',
+            'scripts/ccanom_plot',
+            'scripts/make_difference_map',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
