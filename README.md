@@ -21,7 +21,7 @@ Pip will handle installation of all dependencies.
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 ## Examples
-- [room temp anomalous differences in lysozyme](examples/HEWLSSAD.md)
+- [room temp SAD phasing for lysozyme](examples/HEWLSSAD.md)
 - [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
 
 ## Core Model
