@@ -157,8 +157,9 @@ coot reference_data/RTSAD_HEWL_refine_25.pdb \
 This will load coot with both maps and a reference structure. 
 You can switch between them in the display manager. 
 
-Normal Error Model | T-Distributed Error Model
-:--------------------------:|:--------------------------:
-![](images/hewl_normal.png) | ![](images/hewl_studentt.png) 
+| Normally-Distributed Error Model |  T-Distributed Error Model  |
+| ------------------------- | --------------------------- |
+|![](images/hewl_normal.png)|![](images/hewl_studentt.png)|
+
 
 
