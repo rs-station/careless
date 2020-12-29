@@ -1,0 +1,25 @@
+autosol {
+  seq_file = reference_data/hewl.fa
+  crystal_info {
+    unit_cell = 79.3306 79.3306 37.7968 90 90 90
+    space_group = P 43 21 2
+  }
+  wavelength {
+    wavelength_name = *peak inf high low remote
+    data = "merge/studentt/hewl_0.mtz"
+    labels = F(+) SigF(+) F(-) SigF(-)
+    atom_type = """S"""
+    lambda = 1.89
+    sites = 10
+    sites_file = "reference_data/ha.pdb"
+  }
+  model_building {
+    build = False
+  }
+  general {
+    nproc = 1
+    raise_sorry = True
+    clean_up = True
+    wizard_directory_number = 2
+  }
+}
