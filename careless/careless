@@ -26,6 +26,8 @@ def main(merger, parser):
         merger.add_laplace_prior()
     elif parser.studentt_prior_dof:
         merger.add_studentt_prior(parser.studentt_prior_dof)
+    elif parser.wilson_prior_b:
+        merger.add_wilson_prior(b=parser.wilson_prior_b)
     else:
         merger.add_wilson_prior()
 
@@ -47,6 +49,8 @@ def main(merger, parser):
 
     metadata_keys = parser.metadata_keys.split(',')
     merger.add_scaling_model(parser.sequential_layers, metadata_keys)
+    if parser.image_scale_key is not None:
+        merger.add_image_scaler(parser.image_scale_key)
 
     losses = merger.train_model(
         parser.iterations, 
@@ -58,48 +62,40 @@ def main(merger, parser):
     )
     np.save(f"{parser.output_base}_losses.npy", losses)
 
-    for file_id,df in merger.results.groupby("experiment_id"):
-        df.cell,df.spacegroup = merger.results.cell,merger.results.spacegroup
-        del(df['experiment_id'])
-        if parser.anomalous:
-            df.merged = True
-            df = df.unstack_anomalous()[["F(+)", "SigF(+)", "F(-)", "SigF(-)", "N(+)", "N(-)"]]
-            centrics = df.label_centrics().CENTRIC
-            df.loc[centrics, 'F(-)'] = df.loc[centrics, 'F(+)']
-            df.loc[centrics, 'SigF(-)'] = df.loc[centrics, 'SigF(+)']
-            df.loc[centrics, 'N(-)'] = df.loc[centrics, 'N(+)']
-        df.fillna(0., inplace=True)
-        df = df.reset_index().infer_mtz_dtypes().set_index(['H', 'K', 'L'])
+    for file_id,df in enumerate(merger.get_results()):
         df.write_mtz(f"{parser.output_base}_{file_id}.mtz")
+
     return merger
 
 
 if parser.type == 'mono':
-    merger = MonoMerger.from_isomorphous_mtzs(
+    merger = MonoMerger.from_mtzs(
         *parser.mtzinput, 
         anomalous=parser.anomalous, 
         dmin=parser.dmin, 
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-    half1,half2 = MonoMerger.half_datasets_from_isomorphous_mtzs(
+    half1,half2 = MonoMerger.half_datasets_from_mtzs(
         *parser.mtzinput, 
         anomalous=parser.anomalous, 
+        seed=parser.seed,
         dmin=parser.dmin, 
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
 elif parser.type == 'poly':
-    merger = PolyMerger.from_isomorphous_mtzs(
+    merger = PolyMerger.from_mtzs(
         *parser.mtzinput, 
         anomalous=parser.anomalous, 
         dmin=None, 
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key
     )
-    half1,half2 = PolyMerger.half_datasets_from_isomorphous_mtzs(
+    half1,half2 = PolyMerger.half_datasets_from_mtzs(
         *parser.mtzinput, 
         anomalous=parser.anomalous, 
+        seed=parser.seed,
         dmin=None, 
         isigi_cutoff=parser.isigi_cutoff, 
         intensity_key=parser.intensity_key

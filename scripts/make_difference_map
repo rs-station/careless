@@ -27,11 +27,19 @@ outFN = parser.o
 
 
 ds = rs.read_mtz(phases_filename).dropna()
-if phase_key not in ds:
-    phase_key = ds.dtypes[ds.dtypes=='P'].keys()[0]
 
 off = rs.read_mtz(off_mtz_filename)
 on  = rs.read_mtz(on_mtz_filename)
+
+if (off.dtypes == 'G').sum():
+    off = off.stack_anomalous()
+if (on.dtypes == 'G').sum():
+    on = on.stack_anomalous()
+if (ds.dtypes == 'G').sum():
+    ds = ds.stack_anomalous()
+
+if phase_key not in ds:
+    phase_key = ds.dtypes[ds.dtypes=='P'].keys()[0]
 
 idx = off.index.intersection(on.index).intersection(ds.index)
 
@@ -77,6 +85,19 @@ from scipy.stats import gaussian_kde
 #k = gaussian_kde(X)
 #output['KDE'] = rs.DataSeries(k(X), dtype='W', index=output.index)
 #output['LOGKDE'] = rs.DataSeries(k.logpdf(X), dtype='W', index=output.index)
+from reciprocalspaceship.algorithms.scale_merged_intensities import mean_intensity_by_resolution
+from scipy.stats import norm
+
+d = output.compute_dHKL().dHKL.to_numpy()
+mean = mean_intensity_by_resolution(output.Foff, d)
+std  = np.sqrt(mean_intensity_by_resolution((output.Foff - mean)**2., d))
+poff = norm(mean, std).pdf(output.Foff)
+
+mean = mean_intensity_by_resolution(output.Fon, d)
+std  = np.sqrt(mean_intensity_by_resolution((output.Fon - mean)**2., d))
+pon  = norm(mean, std).pdf(output.Fon)
+
+output['RNORM'] = rs.DataSeries(pon*poff, dtype='W', index=output.index)
 
 #X = output.compute_dHKL()[['Foff', 'SigFoff', 'Fon', 'SigFon', 'dHKL']].to_numpy(np.float).T
 X = output.compute_dHKL()[['Foff', 'Fon', 'dHKL']].to_numpy(np.float).T

@@ -28,8 +28,14 @@ half2 = rs.read_mtz(half2_filename).compute_dHKL().dropna()
 
 if (half1.dtypes == 'K').any() or (half1.dtypes == 'G').any():
     half1 = half1.stack_anomalous()
+    half1 = half1[half1.N > 0]
 if (half2.dtypes == 'K').any() or (half2.dtypes == 'G').any():
     half2 = half2.stack_anomalous()
+    half2 = half2[half2.N > 0]
+
+overrides = [
+    'DeltaF', 
+]
 
 def get_isigi_keys(ds, dtype_preferences=None):
     ikey = None
@@ -39,6 +45,9 @@ def get_isigi_keys(ds, dtype_preferences=None):
         ikey = get_first_key_of_type(ds, dtype)
         if ikey is not None:
             break
+    for k in overrides:
+        if k in ds:
+            ikey = k
 
     if ikey is None:
         raise KeyError("No compatible keys found")
