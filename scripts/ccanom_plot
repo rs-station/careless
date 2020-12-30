@@ -83,7 +83,7 @@ plt.plot(cc, '-k')
 plt.scatter(np.arange(nbins), cc, c=np.linspace(0, 1, nbins), s=100)
 plt.title(r"$|F|$ Pearson Correlation")
 
-plt.xticks(np.arange(nbins), ticks, rotation=45, ha='right')
+plt.xticks(np.arange(nbins), ticks, rotation=45, ha='right', rotation_mode='anchor')
 plt.xlabel(r"$Resolution\ (\AA)$")
 plt.ylabel(r"$CC$")
 plt.tight_layout()
