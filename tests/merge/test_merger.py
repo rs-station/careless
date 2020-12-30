@@ -2,6 +2,7 @@ import pytest
 from careless.merge.merge import *
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname,exists
+import reciprocalspaceship as rs
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
@@ -11,11 +12,14 @@ dmin = 5. #Use less memory and go faster
 
 base_dir = dirname(abspath(__file__))
 mtz_filenames = [
-    base_dir + '/../../examples/data/pyp/off_varEll.mtz',
-    base_dir + '/../../examples/data/pyp/2ms_varEll.mtz',
+    base_dir + '/../../examples/pyp/off.mtz',
+    base_dir + '/../../examples/pyp/2ms.mtz',
 ]
 
-mtz_data = load_isomorphous_mtzs(*mtz_filenames)
+mtz_data = []
+for f in mtz_filenames:
+    m = rs.read_mtz(f)
+    mtz_data.append(m[m.compute_dHKL().dHKL >= dmin])
 
 reference_filename = base_dir + '/pyp_off.mtz'
 
@@ -51,7 +55,7 @@ def test_AppendReference(merger_class, data, anomalous):
 @pytest.mark.parametrize("mc_samples", [2])
 @pytest.mark.parametrize("image_scaler", [True, False])
 def test_Merger_on_reference_data(merger_class, anomalous, prior, likelihood, metadata_keys, mc_samples, image_scaler):
-    merger = merger_class((mtz_data,), anomalous=anomalous)
+    merger = merger_class(mtz_data, anomalous=anomalous)
     if merger_class == PolyMerger:
         merger.expand_harmonics()
 
