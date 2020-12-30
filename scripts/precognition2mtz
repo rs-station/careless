@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+"""
+Convert a single sweep/timepoint from precognition .ii/.inp format to a single MTZ.
+
+\u26A0 WARNING \u26A0 : 
+- This script defaults to using the lexicographic order of input to assign BATCH values, 
+  unless BioCARS log files are given
+"""
+
+import pandas as pd
+import numpy as np
+from tqdm.autonotebook import tqdm
+import reciprocalspaceship as rs
+from reciprocalspaceship.utils.asu import hkl_to_asu
+import argparse
+
+def parse_ii_inp_file_pairs(ii_filenames, inp_filenames, spacegroup=None, log=None):
+    data = None
+    sg_number = None
+    p = []
+    cell = np.zeros(6)
+    for file_number, (iiFN,inpFN) in enumerate(tqdm(list(zip(ii_filenames, inp_filenames)))):
+        df = rs.read_precognition(iiFN)
+        with open(inpFN) as f:
+            for line in f:
+                if "Crystal" in line:
+                    cell +=  np.array(list(map(float, line.split()[1:7])))/len(ii_filenames)
+                    if spacegroup is None:
+                        sg_number  = int(line.split()[7])
+                if "Pixel" in line:
+                    pixel_x = float(line.split()[1])
+                    pixel_y = float(line.split()[2])
+        del(df['Resolution'])
+
+        # If log is given, use it to determine the image number
+        if log is None:
+            df['BATCH'] = file_number
+        else:
+            entry = log.loc[log.file == inpFN[:-4]]
+            assert len(entry) == 1
+            df['BATCH'] = entry.index.values[0]
+
+        #Purge multiples from Precognition processing
+        #These will be recomputed during merging later
+        df = df.reset_index().groupby(['X', 'Y'], as_index=False).first()
+        data = pd.concat((data, df))
+
+    cell = rs.dataset.gemmi.UnitCell(*cell)
+    if sg_number is not None:
+        spacegroup = rs.dataset.gemmi.find_spacegroup_by_number(sg_number)
+    data = rs.DataSet(data, spacegroup=spacegroup, cell=cell) 
+
+    del(data['Multiplicity'])
+    data.set_index(['H', 'K', 'L'], inplace=True)
+    data.infer_mtz_dtypes(inplace=True)
+    return data
+
+def parse_logs(logs):
+    dfs   = []
+    for log in logs:
+        with open(log, "r") as f:
+            lines18 = [ f.readline() for i in range(18) ]
+            dfs.append(pd.read_csv(f, delimiter="\t"))
+
+    # Adjust the DataFrame to remove extra columns
+    df = pd.concat(dfs)
+    if "Gon Single AX" in df.columns:
+        df = df[["#date time", "file", "delay", "Gon Single AX"]]
+    elif "angle" in df.columns:
+        df = df[["#date time", "file", "delay", "angle"]]
+    else:
+        raise ValueError("Could not determine gonio angle field in log -- blame Jack")
+    df.rename(columns={
+        "#date time": "time",
+        "Gon Single AX": "phi",
+        "angle": "phi"
+    }, inplace=True)
+        
+    df.loc[df["delay"] == "-", "delay"] = "off"
+    df.sort_values("time", inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    return df
+
+if __name__=='__main__':
+
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('input_files', nargs='+', help='Input ii and inp filenames.', type=str)
+    parser.add_argument('-o', '--output', help='Output mtz filename', type=str, default='output.mtz')
+    parser.add_argument('-l', '--logs', nargs='*', help='BioCARS logs for looking up timestamps', type=str)
+    args = parser.parse_args()
+
+    # Clean up input filenames
+    files = sorted(args.input_files)
+    input_files = [i for i in files if i[-3:] == 'inp']
+    intensity_files = [i for i in files if i[-3:] == '.ii']
+    intensity_files = [i for i in intensity_files if i[:-3] + '.inp' in input_files]
+    input_files = [i for i in input_files if i[:-4] + '.ii' in intensity_files]
+
+    # Read log file(s)
+    if args.logs is not None:
+        df = parse_logs(args.logs)
+    else:
+        df = None
+
+    # Parse input files and write out MTZ
+    ds = parse_ii_inp_file_pairs(intensity_files, input_files, log=df)
+    ds.write_mtz(args.output)
