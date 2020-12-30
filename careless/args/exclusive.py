@@ -29,6 +29,14 @@ groups = (
             "type": float, 
             "default": None,
         }),
+
+        (("--wilson-prior-b",), {
+            "help":"Experimental Feature: "
+                   "This flag enables learning reflections on a particular Wilson scale. "
+                   "By default, the Wilson prior is flat across resolution bins. ",
+            "type": float, 
+            "default": None,
+        }),
     ),
 
     (

@@ -30,6 +30,13 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+
+    (("--image-scale-key", ),  {
+        "help":"Key to use for per image scaling. ",
+        "type":str, 
+        "default" : None,
+    }),
+
     (("--image-id-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",
@@ -135,6 +142,12 @@ args_and_kwargs = (
 
     (("--disable-gpu",), {
         "help":"Disable GPU for high memory models.", 
+        "action":'store_true', 
+        "default":False,
+    }),
+
+    (("--disable-memory-growth",), {
+        "help":"Disable the experimental dynamic memory allocation.", 
         "action":'store_true', 
         "default":False,
     }),
