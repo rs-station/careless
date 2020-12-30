@@ -1,18 +1,23 @@
 refinement {
   crystal_symmetry {
+    unit_cell = 93.2392 93.2392 130.707 90 90 120
+    space_group = P 61 2 2
   }
   input {
     pdb {
-      file_name = "/home/kmdalton/xtal/careless_paper/cxidb81/reference_data/2tli.pdb"
+      file_name = "reference_data/2tli.pdb"
     }
     xray_data {
-      file_name = "/home/kmdalton/xtal/careless_paper/cxidb81/test_pr/thermolysin_0.mtz"
-      labels = F(+),SigF(+),F(-),SigF(-)
+      file_name = "merge_eov/thermolysin_0.mtz"
+      labels = F(+),SigF(+),F(-),SigF(-),merged
       french_wilson_scale = False
+      r_free_flags {
+        generate = True
+      }
     }
   }
   output {
-    prefix = """thermolysin"""
+    prefix = """phenix/thermolysin"""
     serial = 1
     serial_format = "%d"
     write_def_file = False
@@ -41,16 +46,11 @@ refinement {
     }
   }
   refine {
-    strategy = individual_sites individual_sites_real_space *rigid_body \
+    strategy = *individual_sites individual_sites_real_space *rigid_body \
                *individual_adp group_adp tls occupancies group_anomalous
   }
   main {
     number_of_macro_cycles = 5
-    wavelength = 1.271
-    nproc = 5
-  }
-  gui {
-    base_output_dir = /home/kmdalton/xtal/careless_paper/hewl_ssad/autosol
-    tmp_dir = "/home/kmdalton/xtal/careless_paper/hewl_ssad/autosol/.phenix/tmp"
+    wavelength = 1.27
   }
 }
