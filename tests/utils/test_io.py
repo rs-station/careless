@@ -3,11 +3,11 @@ import gemmi
 from careless.utils.io import load_isomorphous_mtzs
 from os.path import abspath,dirname
 
-path = dirname(abspath(__file__)) + "/../../examples/data/pyp/"
+path = dirname(abspath(__file__)) + "/../../examples/pyp/"
 
 filenames = [
-    "off_varEll.mtz",
-    "2ms_varEll.mtz",
+    "off.mtz",
+    "2ms.mtz",
 ]
 filenames = [path + i for i in filenames]
 
