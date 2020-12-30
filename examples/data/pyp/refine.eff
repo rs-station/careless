@@ -40,11 +40,6 @@ refinement {
       mtz_label_amplitudes = FOFCWT
       mtz_label_phases = PHFOFCWT
     }
-    map_coefficients {
-      map_type = anomalous
-      mtz_label_amplitudes = ANOM
-      mtz_label_phases = PHANOM
-    }
   }
   refine {
     strategy = individual_sites individual_sites_real_space *rigid_body \

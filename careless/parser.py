@@ -21,11 +21,12 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
             tf.config.set_visible_devices([], 'GPU')
 
         physical_devices = tf.config.list_physical_devices('GPU')
-        try:
-            tf.config.experimental.set_memory_growth(physical_devices[0], True)
-        except:
-            # Invalid device or cannot modify virtual devices once initialized.
-            pass
+        if not parser.disable_memory_growth:
+            try:
+                tf.config.experimental.set_memory_growth(physical_devices[0], True)
+            except:
+                # Invalid device or cannot modify virtual devices once initialized.
+                pass
 
         return parser
 
