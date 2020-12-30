@@ -4,7 +4,6 @@ mtz_1=2ms.mtz
 mkdir $out
 
 careless poly \
-  --disable-gpu \
   --separate-files \
   --sequential-layers=20 \
   --iterations=10000 \
