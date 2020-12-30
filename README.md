@@ -23,6 +23,7 @@ Pip will handle installation of all dependencies.
 ## Examples
 - [room temp SAD phasing for lysozyme](examples/HEWLSSAD.md)
 - [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
+- [merging serial crystallography from a free electron laser](examples/XFEL.md)
 
 ## Core Model
 
