@@ -32,7 +32,7 @@ class ImageScaler(PerGroupModel, Scaler, tf.Module):
         else:
             return w / tf.reduce_mean(w) 
 
-class VariationalImageScaler(ImageScaler):
+class VariationalImageScaler(PerGroupModel, Scaler, tf.Module):
     """
     Variational image scaling model with a prior distribution for scales. 
     """
@@ -55,11 +55,10 @@ class VariationalImageScaler(ImageScaler):
         super().__init__(image_number)
 
         self.prior = prior
-        self._scales = tf.Variable(tf.ones(self.num_groups - 1))
         if surrogate_posterior is None:
-            loc = tf.Variable(self.prior.mean()),
+            loc = tf.Variable(self.prior.mean()*tf.ones(self.num_groups))
             scale = tfp.util.TransformedVariable(
-                tf.Variable(self.prior.stddev()),
+                tf.Variable(self.prior.stddev()*tf.ones(self.num_groups)),
                 tfp.bijectors.Softplus(),
             )
             self.surrogate_posterior = tfp.distributions.Normal(loc, scale)
@@ -67,6 +66,10 @@ class VariationalImageScaler(ImageScaler):
             self.surrogate_posterior = surrogate_posterior
 
         self._use_gather = True
+
+    @property
+    def trainable_variables(self):
+        return self.surrogate_posterior.trainable_variables
 
     def sample(self, return_kl_term=False, *args, **kwargs):
         """ 

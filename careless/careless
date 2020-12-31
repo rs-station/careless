@@ -50,7 +50,7 @@ def main(merger, parser):
     metadata_keys = parser.metadata_keys.split(',')
     merger.add_scaling_model(parser.sequential_layers, metadata_keys)
     if parser.image_scale_key is not None:
-        merger.add_image_scaler(parser.image_scale_key)
+        merger.add_image_scaler(parser.image_scale_key, parser.image_scale_prior)
 
     losses = merger.train_model(
         parser.iterations, 

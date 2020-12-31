@@ -320,18 +320,26 @@ class BaseMerger():
             sigma = 1.
         self.prior = WilsonPrior(centric, epsilon, sigma)
 
-    def add_image_scaler(self, image_id_key='image_id'):
+    def add_image_scaler(self, image_id_key='image_id', prior=None):
         """
         Paramters
         ---------
         image_id_key : str (optional)
             Key to use as the image identifier. 
+        prior : float (optional)
+            The fractional width of the normal prior distribution on image scales. 
+            Use this if you want a variational image scaling model.
         """
-        from careless.models.scaling.image import ImageScaler
+        from careless.models.scaling.image import ImageScaler,VariationalImageScaler
         if self.scaling_model is None:
-            self.scaling_model = [ImageScaler(self.data[image_id_key].to_numpy().astype(np.int64))]
-        else:
+            self.scaling_model = []
+
+        if prior is None:
             self.scaling_model.append(ImageScaler(self.data[image_id_key].to_numpy().astype(np.int64)))
+        else:
+            from tensorflow_probability import distributions as tfd
+            prior = tfd.Normal(1., prior)
+            self.scaling_model.append(VariationalImageScaler(self.data[image_id_key].to_numpy().astype(np.int64), prior))
 
     def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True):
         """

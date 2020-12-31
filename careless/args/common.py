@@ -37,6 +37,12 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--image-scale-prior", ),  {
+        "help":"Fractional scale of the prior (normal) distribution on image scales. ",
+        "type":float, 
+        "default" : None,
+    }),
+
     (("--image-id-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",
