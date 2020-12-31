@@ -14,60 +14,52 @@ rs.mtzdump unmerged.mtz
 ```
 The output will look like this:
 ```
-Spacegroup: P6122
-Extended Hermann-Mauguin name: P 61 2 2
-Unit cell dimensions: 93.239 93.239 130.707 90.000 90.000 120.000
-
-mtz.head():
-
-                  I      SigI  ...  cartesian_delta_z  PARTIAL
-H   K  L                       ...                            
--37 -4 18  100.0531 37.407852  ...     -6.3847256e-06    False
--35 -4 25 230.70123  33.55069  ...      -9.921834e-06    False
-    -3 19 254.54163 40.807156  ...      1.8138476e-07    False
-    -2 2  -52.80359  41.45886  ...      4.3450336e-06    False
-       3  -59.73877 46.124752  ...     -2.2314734e-07    False
-
-[5 rows x 10 columns]
-
-mtz.describe():
-
-               I       SigI  ...  cartesian_delta_y  cartesian_delta_z
-count  1.098e+06  1.098e+06  ...          1.098e+06          1.098e+06
-mean   3.954e+03  7.944e+01  ...          1.626e-07         -8.234e-08
-std    9.720e+03  5.429e+01  ...          1.490e-04          1.495e-04
-min   -1.978e+04  3.355e-01  ...         -1.727e-03         -1.991e-03
-25%    1.016e+02  3.794e+01  ...         -5.915e-05         -3.389e-05
-50%    6.338e+02  6.903e+01  ...          6.831e-08          2.921e-08
-75%    2.970e+03  1.081e+02  ...          5.959e-05          3.388e-05
-max    2.081e+05  4.967e+02  ...          1.794e-03          2.004e-03
-
-[8 rows x 9 columns]
-
-mtz.dtypes:
-
-I                    Intensity
-SigI                    Stddev
-BATCH                    Batch
-ewald_offset           MTZReal
-xobs                   MTZReal
-yobs                   MTZReal
-cartesian_delta_x      MTZReal
-cartesian_delta_y      MTZReal
-cartesian_delta_z      MTZReal
-PARTIAL                   bool
-dtype: object
-
+Spacegroup: P6122                                                                 
+Extended Hermann-Mauguin name: P 61 2 2                                           
+Unit cell dimensions: 93.239 93.239 130.707 90.000 90.000 120.000                 
+                                                                                  
+mtz.head():                                                                       
+                                                                                  
+                  I      SigI  BATCH   ewald_offset       xobs      yobs  PARTIAL 
+H   K  L                                                                          
+-37 -4 18  100.0531 37.407852      0  0.00012526145  31.259258 28.768877    False 
+-35 -4 25 230.70123  33.55069      0  0.00011196301   160.9048    95.035    False 
+    -3 19 254.54163 40.807156      0 -3.2544629e-06  106.00912 28.164373    False 
+    -2 2  -52.80359  41.45886      0  0.00012509839  106.53387 56.561504    False 
+       3  -59.73877 46.124752      0 -7.5770618e-06 108.686714 42.542465    False 
+                                                                                  
+mtz.describe():                                                                   
+                                                                                  
+               I       SigI      BATCH  ewald_offset       xobs       yobs        
+count  1.098e+06  1.098e+06  1.098e+06     1.098e+06  1.098e+06  1.098e+06        
+mean   3.954e+03  7.944e+01  1.617e+03    -6.794e-07  9.823e+01  9.252e+01        
+std    9.720e+03  5.429e+01  9.149e+02     2.600e-04  5.418e+01  5.185e+01        
+min   -1.978e+04  3.355e-01  0.000e+00    -2.090e-03  5.000e-01  5.000e-01        
+25%    1.016e+02  3.794e+01  8.060e+02    -1.438e-04  5.175e+01  4.773e+01        
+50%    6.338e+02  6.903e+01  1.664e+03    -6.854e-07  9.881e+01  9.261e+01        
+75%    2.970e+03  1.081e+02  2.404e+03     1.427e-04  1.450e+02  1.373e+02        
+max    2.081e+05  4.967e+02  3.159e+03     2.099e-03  1.935e+02  1.844e+02        
+                                                                                  
+mtz.dtypes:                                                                       
+                                                                                  
+I               Intensity                                                         
+SigI               Stddev                                                         
+BATCH               Batch                                                         
+ewald_offset      MTZReal                                                         
+xobs              MTZReal                                                         
+yobs              MTZReal                                                         
+PARTIAL              bool                                                         
+dtype: object                                                                     
 ```
 
-There are a few columns from the [stills2mtz](../scripts/stills2mtz) script. 
-For merging XFEL data we are most interested in the `cartesian_delta_{x,y,z}` columns. 
-These contain the 3-dimensional ewald offset vector between the observed reflection centroids and their centroids in reciprocal space. 
+This mtz has an extra column from the [stills2mtz](../scripts/stills2mtz) script, `ewald_offset`. 
+This contains the magnitude of the ewald offset vector between the observed reflection centroids and their centroids in reciprocal space. 
 These are in a crystal-fixed cartesian [coordinate system](https://dials.github.io/documentation/conventions.html). 
 Because we're dealing with still images here, each of the reflections have partial intensities which are dictated by how far away from the ideal Bragg contition they fall. 
-The 3D Ewald offset vector is a way of summarizing how disastified Bragg's law is for a particular reflection observation.
-We will achieve the best merging performance with `Careless` if we include these vectors in the metadata supplied to the scaling model. 
-Effectively, this enables the algorithm to learn an anisotropic reciprocal lattice point model. 
+The Ewald offset is a way of summarizing how disastified Bragg's law is for a particular reflection observation.
+![Ewald Offset Vector](images/eov_fig.png)
+We will achieve the best merging performance with `Careless` if we include this column in the metadata supplied to the scaling model. 
+Effectively, this enables the algorithm to learn a reciprocal lattice point model. 
 For the sake of comparison, let's first merge the data without the ewald offset vectors. 
 
 
@@ -99,14 +91,14 @@ We use the `--anomalous` flag to indicate we would like to merge the Friedel mat
 After this is finished running, reapeat the procedure wiht a new base directory and supply the metadata keys for the Ewald offsets `cartesian_delta_{x,y,z}`.
 
 ```bash
-mkdir merge_eov #eov for Ewald offset vector
+mkdir merge_eo #eo for Ewald offset
 careless mono \
   --iterations=10000 \
   --image-scale-key=BATCH \
   --dmin=1.8 \
   --anomalous \
   --learning-rate=0.001 \
-  "dHKL,BATCH,xobs,yobs,cartesian_delta_x,cartesian_delta_y,cartesian_delta_z" \
+  "dHKL,BATCH,xobs,yobs,ewald_offset" \
   unmerged.mtz \
   merge_eov/thermolysin
 ```
@@ -127,7 +119,7 @@ for the second. You will most likely notice that the half data set correlations 
 
 
 
-| Without Ewald Offset Vectors | With Ewald Offset Vectors |
+| Without Ewald Offset | With Ewald Offset |
 |------------------------------|---------------------------|
 |![ccplot](images/xfel_ccplot.png) |![ccplot](images/xfel_eov_ccplot.png)  |
 
