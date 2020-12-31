@@ -52,15 +52,15 @@ PARTIAL              bool
 dtype: object                                                                     
 ```
 
-This mtz has an extra column from the [stills2mtz](../scripts/stills2mtz) script, `ewald_offset`. 
-This contains the magnitude of the ewald offset vector between the observed reflection centroids and their centroids in reciprocal space. 
+This mtz has an extra column from the [stills2mtz](../scripts/stills2mtz) script, `Ewald_offset`. 
+This contains the magnitude of the Ewald offset vector between the observed reflection centroids and their centroids in reciprocal space. 
 These are in a crystal-fixed cartesian [coordinate system](https://dials.github.io/documentation/conventions.html). 
 Because we're dealing with still images here, each of the reflections have partial intensities which are dictated by how far away from the ideal Bragg contition they fall. 
 The Ewald offset is a way of summarizing how disastified Bragg's law is for a particular reflection observation.
 ![Ewald Offset Vector](images/eov_fig.png)
 We will achieve the best merging performance with `Careless` if we include this column in the metadata supplied to the scaling model. 
 Effectively, this enables the algorithm to learn a reciprocal lattice point model. 
-For the sake of comparison, let's first merge the data without the ewald offset vectors. 
+For the sake of comparison, let's first merge the data without the Ewald offsets. 
 
 
 ```bash
@@ -121,7 +121,7 @@ for the second. You will most likely notice that the half data set correlations 
 
 | Without Ewald Offset | With Ewald Offset |
 |------------------------------|---------------------------|
-|![ccplot](images/xfel_ccplot.png) |![ccplot](images/xfel_eov_ccplot.png)  |
+|![ccplot](images/xfel_ccplot.png) |![ccplot](images/xfel_eo_ccplot.png)  |
 
 
 No we can use the reference structure, [2tli](https://www.rcsb.org/structure/2TLI), to make a map with PHENIX.
