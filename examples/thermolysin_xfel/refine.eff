@@ -9,7 +9,7 @@ refinement {
     }
     xray_data {
       file_name = "merge_eov/thermolysin_0.mtz"
-      labels = F(+),SigF(+),F(-),SigF(-),merged
+      labels = F(+),SigF(+),F(-),SigF(-)
       french_wilson_scale = False
       r_free_flags {
         generate = True
