@@ -1,0 +1,61 @@
+refinement {
+  input {
+    pdb {
+      file_name = "reference_data/RTSAD_HEWL_refine_25.pdb"
+    }
+    xray_data {
+      labels = F(+),SigF(+),F(-),SigF(-)
+      french_wilson {
+        max_bins = 200
+      }
+      r_free_flags {
+        generate = True
+      }
+    }
+  }
+  output {
+    prefix = """hewlssad_refine"""
+    serial = 1
+    serial_format = "%d"
+    write_def_file = False
+  }
+  electron_density_maps {
+    map_coefficients {
+      map_type = 2mFo-DFc
+      mtz_label_amplitudes = 2FOFCWT
+      mtz_label_phases = PH2FOFCWT
+      fill_missing_f_obs = True
+    }
+    map_coefficients {
+      map_type = 2mFo-DFc
+      mtz_label_amplitudes = 2FOFCWT_no_fill
+      mtz_label_phases = PH2FOFCWT_no_fill
+    }
+    map_coefficients {
+      map_type = mFo-DFc
+      mtz_label_amplitudes = FOFCWT
+      mtz_label_phases = PHFOFCWT
+    }
+    map_coefficients {
+      map_type = anomalous
+      mtz_label_amplitudes = ANOM
+      mtz_label_phases = PHANOM
+    }
+  }
+  refine {
+    strategy = individual_sites individual_sites_real_space *rigid_body \
+               *individual_adp group_adp tls occupancies group_anomalous
+  }
+  main {
+    number_of_macro_cycles = 5
+    nproc = 4
+  }
+  modify_start_model {
+    modify {
+      adp {
+        atom_selection = """\"All\""""
+        set_b_iso = 10.0
+      }
+    }
+  }
+}
