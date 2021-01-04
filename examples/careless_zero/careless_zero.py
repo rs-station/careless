@@ -6,10 +6,9 @@ import tensorflow as tf
 from tqdm import trange
 import numpy as np
 
-inFN = "data/hewl_sad/pass1.mtz"
+inFN = "../hewl_ssad/unmerged.mtz"
 outFN = "careless_zero_out.mtz"
 
-iters=20000
 
 metadata_keys = [
     'dHKL',
@@ -20,9 +19,6 @@ metadata_keys = [
 
 intensity_key = 'IPR'
 sigma_intensity_key = 'SIGIPR'
-n_samples=3
-
-n_layers = 20
 
 mtz = rs.read_mtz(inFN).compute_dHKL().reset_index()
 mtz = mtz[~mtz.label_absences()['ABSENT']]
@@ -31,61 +27,65 @@ mtz['miller_id'] = mtz.groupby(['Hasu', 'Kasu', 'Lasu']).ngroup()
 
 miller_id = mtz['miller_id'].to_numpy()
 centric = mtz.label_centrics().groupby('miller_id').first()['CENTRIC'].to_numpy()
-epsilon = mtz.compute_multiplicity().groupby('miller_id').first()['EPSILON'].to_numpy(np.float32)
+multiplicity = mtz.compute_multiplicity().groupby('miller_id').first()['EPSILON'].to_numpy(np.float32)
 metadata = mtz[metadata_keys].to_numpy(np.float32)
-n,d = metadata.shape
+intensities = mtz[intensity_key].to_numpy(np.float32)
+uncertainties = mtz[sigma_intensity_key].to_numpy(np.float32)
 
-p_centric = tfd.HalfNormal(np.sqrt(epsilon))
-p_acentric = tfd.Weibull(2., np.sqrt(epsilon))
+###############################################################################
+# Below here is verbatim from the Careless manuscript
+###############################################################################
 
+steps=10000
+n_layers = 20
+mc_samples = 3
+p_centric  = tfd.HalfNormal(np.sqrt(multiplicity))
+p_acentric = tfd.Weibull(2., np.sqrt(multiplicity))
+
+#Construct variational distributions
 loc_init   = tf.where(centric, p_centric.mean(), p_acentric.mean())
 scale_init = tf.where(centric, p_centric.stddev(), p_acentric.stddev())
-
-zero = 0.
-infinity = 1e30
-epsilon = 1e-30
-
 q = tfd.TruncatedNormal(
     loc = tf.Variable(loc_init), 
-    scale = tfp.util.TransformedVariable(scale_init, tfb.Softplus()), 
-    low = zero,
-    high = infinity,
+    scale = tfp.util.TransformedVariable(scale_init, tfp.bijectors.Softplus()), 
+    low = tf.where(centric, 0., 1e-30),
+    high = 1e30,
 )
 
-likelihood = tfd.Normal(
-    mtz[intensity_key].to_numpy(np.float32), 
-    mtz[sigma_intensity_key].to_numpy(np.float32), 
-)
+#Construct error model
+likelihood = tfd.Normal(loc=intensities, scale=uncertainties)
 
+#Construct scale function
+n,d = metadata.shape
 NN = tf.keras.models.Sequential()
 NN.add(tf.keras.Input(d))
 for i in range(n_layers):
     NN.add(tf.keras.layers.Dense(d, kernel_initializer='identity'))
 NN.add(tf.keras.layers.Dense(2, kernel_initializer='identity'))
 
-
-def elbo():
-    z = q.sample(n_samples) 
-    z = tf.maximum(z, epsilon*(1. - centric))
+#Evaluate the elbo
+def minus_elbo():
+    z = q.sample(mc_samples)
     F = tf.gather(z, miller_id, axis=1)
     loc, scale = tf.unstack(NN(metadata), axis=1)
-    Sigma = tfd.Normal(loc, scale).sample(n_samples)
-    log_likelihood = tf.reduce_sum(likelihood.log_prob(F * F * Sigma))/n_samples
-    kl_div = tf.reduce_sum(
-        q.log_prob(z) - \
-        tf.where(centric, p_centric.log_prob(z), p_acentric.log_prob(z))
-    )/n_samples
+    Sigma = tfd.Normal(loc, scale).sample(mc_samples)
+    log_likelihood = tf.reduce_sum(likelihood.log_prob(F * F * Sigma)) 
+    log_p_z = tf.where(centric, p_centric.log_prob(z), p_acentric.log_prob(z))
+    log_q_z = q.log_prob(z)
+    kl_div = tf.reduce_sum(log_q_z - log_p_z)
     return -log_likelihood + kl_div
 
-opt = tf.keras.optimizers.Adam(0.001)
+#Train the model
+optimizer = tf.keras.optimizers.Adam()
+for i in trange(steps):
+    optimizer.minimize(minus_elbo, [q.trainable_variables , NN.trainable_variables])
 
-def train_step():
-    opt.minimize(elbo, list(q.trainable_variables) + list(NN.trainable_variables))
-
-for i in trange(iters):
-    train_step()
-
+#Export the results
 F,SigF = q.mean().numpy(), q.stddev().numpy()
+
+###############################################################################
+# Above here is verbatim from the Careless manuscript
+###############################################################################
 
 output = rs.DataSet({
     'H' : mtz.groupby('miller_id').first()['Hasu'].astype('H'),
@@ -98,6 +98,3 @@ output = rs.DataSet({
     spacegroup=mtz.spacegroup
 ).set_index(['H', 'K', 'L'])
 output.write_mtz(outFN)
-
-from IPython import embed
-embed()
