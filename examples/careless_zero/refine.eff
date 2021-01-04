@@ -15,7 +15,7 @@ refinement {
     }
   }
   output {
-    prefix = """hewlssad_refine"""
+    prefix = """hewl_refine"""
     serial = 1
     serial_format = "%d"
     write_def_file = False
