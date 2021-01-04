@@ -28,9 +28,9 @@ class ImageScaler(PerGroupModel, Scaler, tf.Module):
         """ This is not a real distribution per se. """
         w = self.expand(self.scales)
         if return_kl_term:
-            return w / tf.reduce_mean(w) , 0.
+            return w , 0.
         else:
-            return w / tf.reduce_mean(w) 
+            return w  
 
 class VariationalImageScaler(PerGroupModel, Scaler, tf.Module):
     """
