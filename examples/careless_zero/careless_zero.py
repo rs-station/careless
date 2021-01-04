@@ -22,7 +22,7 @@ sigma_intensity_key = 'SIGIPR'
 
 mtz = rs.read_mtz(inFN).compute_dHKL().reset_index()
 mtz = mtz[~mtz.label_absences()['ABSENT']]
-mtz['Hasu'],mtz['Kasu'],mtz['Lasu'] = mtz.hkl_to_asu()[['H', 'K', 'L']].to_numpy().T
+mtz.loc[:,['Hasu','Kasu','Lasu']] = mtz.hkl_to_asu().loc[:,['H', 'K', 'L']]
 mtz['miller_id'] = mtz.groupby(['Hasu', 'Kasu', 'Lasu']).ngroup()
 
 miller_id = mtz['miller_id'].to_numpy()
