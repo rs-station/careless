@@ -8,12 +8,12 @@ from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
-dmin = 5. #Use less memory and go faster
+dmin = 5. #Use less memory and go faster the test files only go out to 4 angstroms anyway
 
 base_dir = dirname(abspath(__file__))
 mtz_filenames = [
-    base_dir + '/../../examples/pyp/off.mtz',
-    base_dir + '/../../examples/pyp/2ms.mtz',
+    base_dir + '/pyp_off.mtz',
+    base_dir + '/pyp_2ms.mtz',
 ]
 
 mtz_data = []
@@ -21,7 +21,7 @@ for f in mtz_filenames:
     m = rs.read_mtz(f)
     mtz_data.append(m[m.compute_dHKL().dHKL >= dmin])
 
-reference_filename = base_dir + '/pyp_off.mtz'
+reference_filename = base_dir + '/pyp_reference.mtz'
 
 for f in mtz_filenames:
     assert exists(f)
