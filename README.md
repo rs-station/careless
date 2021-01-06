@@ -21,10 +21,7 @@ Pip will handle installation of all dependencies.
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 ## Examples
-- [room temp SAD phasing for lysozyme](examples/HEWLSSAD.md)
-- [time resolved differences in photoactive yellow protein](examples/PYPTRX.md)
-- [merging serial crystallography from a free electron laser](examples/XFEL.md)
-- For a barebones implementation of the careless model, have a look at [careless_zero](examples/CARELESS_ZERO.md)
+For `careless` usage examples and data from the paper, check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
 
 ## Core Model
 
