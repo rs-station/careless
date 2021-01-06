@@ -1,21 +1,22 @@
-mkdir merge
-
+mkdir merge 
 careless mono \
   --iterations=10000 \
+  --image-scale-key=BATCH \
+  --dmin=1.8 \
   --anomalous \
   --learning-rate=0.001 \
   "dHKL,BATCH,xobs,yobs" \
   unmerged.mtz \
   merge/thermolysin
 
-mkdir merge_eov
-
+mkdir merge_eo
 careless mono \
   --iterations=10000 \
+  --image-scale-key=BATCH \
+  --dmin=1.8 \
   --anomalous \
   --learning-rate=0.001 \
-  "dHKL,BATCH,xobs,yobs,cartesian_delta_x,cartesian_delta_y,cartesian_delta_z" \
+  "dHKL,BATCH,xobs,yobs,ewald_offset" \
   unmerged.mtz \
-  merge_eov/thermolysin
-
+  merge_eo/thermolysin
 
