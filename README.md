@@ -1,5 +1,6 @@
 # Careless 
 Merging crystallography data without much physics. 
+To learn more about how `careless` works, check out the [preprint](https://doi.org/10.1101/2021.01.05.425510) on bioRxiv.
 
 ![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/master/graph/badge.svg)](https://codecov.io/gh/Hekstra-Lab/careless)
