@@ -130,6 +130,31 @@ class Stacy(Amoroso):
                 name,
             )
 
+    @classmethod
+    def wilson_prior(cls, centric, epsilon, Sigma=1.):
+        """
+        Construct a wilson prior based ont he Stacy distribution.
+        Centric Wilson distributions are HalfNormals with scale = sqrt(epsilon * Sigma)
+        P(F|Sigma,epsilon)  = (2*pi*Sigma*epsilon)**(-0.5) * exp(-F**2 / 2 / Sigma / epsilon)
+                            = Stacy(F|2*Sigma*epsilon, 0.5, 2)
+
+        Acentric Wilson distribution 
+        P(F|Sigma,epsilon) = (2/Sigma/epsilon) * F * exp(-(F**2/Sigma/epsilon))
+                           = Stacy(F | sqrt(Sigma*epsilon), 1., 2.)
+
+        Parameters
+        ----------
+        centric : array (bool)
+            boolean array with True for centric reflections
+        epsilon : array (float)
+            float array of structure factor multiplicities
+        """
+        centric = np.array(centric, dtype=epsilon.dtype) #<-- coerce same same
+        theta = centric*np.sqrt(2. * epsilon * Sigma) + (1.-centric)*np.sqrt(Sigma*epsilon)
+        alpha = centric*0.5 + (1.-centric)
+        beta = centric*2. + (1. - centric)*2.
+        return cls(theta, alpha, beta)
+
     @staticmethod
     def _stacy_params(dist):
         if isinstance(dist, Stacy):
@@ -319,3 +344,28 @@ class FoldedNormal(tfd.TransformedDistribution):
 
     def stddev(self, name='stddev', **kwargs):
         return tf.math.sqrt(self.variance())
+
+if __name__=="__main__":
+    from careless.models.priors.wilson import Centric,Acentric
+    F = np.linspace(1e-10, 10, 1000)
+    #Test centrics
+    epsilon = np.random.choice([1., 2., 3., 4., 6.], 100).astype(np.float32)
+    Sigma = np.random.random(100).astype(np.float32)
+    centric = np.ones(100) == 1.
+    test = Stacy.wilson_prior(centric, epsilon, Sigma)
+    ref = Centric(epsilon, Sigma)
+    assert np.all(np.isclose(test.log_prob(F[:,None]), ref.log_prob(F[:,None]), rtol=1e-3))
+    assert np.all(np.isclose(test.prob(F[:,None]), ref.prob(F[:,None]), rtol=1e-3))
+
+    #Test acentrics
+    centric = np.ones(100) == 0.
+    test = Stacy.wilson_prior(centric, epsilon, Sigma)
+    ref = Acentric(epsilon, Sigma)
+    assert np.all(np.isclose(test.prob(F[:,None]), ref.prob(F[:,None]), rtol=1e-3))
+
+    #Test higher dimensions
+    centric = np.random.choice([True, False], [10, 20, 30])
+    epsilon = np.random.choice([1., 2., 3., 4., 6.], [10, 20, 30]).astype(np.float32)
+    q = Stacy.wilson_prior(centric, epsilon)
+    q.log_prob(q.sample())
+
