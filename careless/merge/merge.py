@@ -130,9 +130,9 @@ class BaseMerger():
                 np.random.shuffle(batch)
                 half1,half2 = np.array_split(batch, 2)
                 if first:
-                    yield ds.loc[ds.BATCH.isin(half1)]
+                    yield ds.loc[ds[bkey]isin(half1)]
                 else:
-                    yield ds.loc[ds.BATCH.isin(half2)]
+                    yield ds.loc[ds[bkey]isin(half2)]
         return cls(half_loader(True), anomalous, **kwargs), cls(half_loader(False), anomalous, **kwargs)
 
     def label_multiplicity(self):
