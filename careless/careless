@@ -133,16 +133,6 @@ if not parser.skip_xval:
     parser.output_base = output_base + '_half2'
     half2  = main(half2, parser, mlp_weights=mlp_weights, freeze_mlp=True)
 
-print(f"""
-################################################################################
-# Optimization completed
-################################################################################
-
-Relative quality metrics
-  AIC : {merger.merger.akaike_information_criterion(10)}
-  BIC : {merger.merger.bayesian_information_criterion(10)}
-""")
-
 if parser.embed:
     from matplotlib import pyplot as plt
     from IPython import embed
