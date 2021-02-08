@@ -73,7 +73,7 @@ class BaseMerger():
 
             if anomalous:
                 self.anomalous = True
-                friedel_sign = 2 * (ds['M/ISYM'] %2 - 0.5).to_numpy()
+                friedel_sign = np.array([-1., 1.])[ds['M/ISYM'] % 2]
                 friedel_sign[ds.label_centrics().CENTRIC] = 1.
                 ds.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * ds.loc[:,['H', 'K', 'L']]
                 ds['FRIEDEL'] = friedel_sign
