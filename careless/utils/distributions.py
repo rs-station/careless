@@ -136,7 +136,7 @@ class Stacy(Amoroso):
         Construct a wilson prior based ont he Stacy distribution.
         Centric Wilson distributions are HalfNormals with scale = sqrt(epsilon * Sigma)
         P(F|Sigma,epsilon)  = (2*pi*Sigma*epsilon)**(-0.5) * exp(-F**2 / 2 / Sigma / epsilon)
-                            = Stacy(F|2*Sigma*epsilon, 0.5, 2)
+                            = Stacy(F| sqrt(2*Sigma*epsilon), 0.5, 2)
 
         Acentric Wilson distribution 
         P(F|Sigma,epsilon) = (2/Sigma/epsilon) * F * exp(-(F**2/Sigma/epsilon))
@@ -149,7 +149,9 @@ class Stacy(Amoroso):
         epsilon : array (float)
             float array of structure factor multiplicities
         """
-        centric = np.array(centric, dtype=epsilon.dtype) #<-- coerce same same
+        centric = tf.cast(centric, dtype=tf.float32)
+        epsilon = tf.convert_to_tensor(epsilon, dtype=tf.float32)
+        #centric = np.array(centric, dtype=np.float32) #<-- coerce same same
         theta = centric*np.sqrt(2. * epsilon * Sigma) + (1.-centric)*np.sqrt(Sigma*epsilon)
         alpha = centric*0.5 + (1.-centric)
         beta = centric*2. + (1. - centric)*2.
