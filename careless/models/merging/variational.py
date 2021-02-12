@@ -110,6 +110,24 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
         else:
             return I
 
+    @property
+    def num_params(self):
+        return tf.reduce_sum([tf.reduce_prod(i.shape) for i in self.trainable_variables])
+
+    def akaike_information_criterion(self, samples=10):
+        log_prob = 0
+        for i in range(samples):
+            I,kl_div = self.sample(return_kl_term=True)
+            log_prob += tf.reduce_sum(self.likelihood.log_prob(I))
+        return 2*tf.math.log(tf.cast(self.num_params, tf.float32)) - 2.*log_prob/samples
+
+    def bayesian_information_criterion(self, samples=10):
+        log_prob = 0
+        for i in range(samples):
+            I,kl_div = self.sample(return_kl_term=True)
+            log_prob += tf.reduce_sum(self.likelihood.log_prob(I))
+        return tf.math.log(tf.cast(self.num_params, tf.float32))*self.num_observations - 2.*log_prob/samples
+
     def __call__(self, sample_shape=()):
         """
         Parameters
