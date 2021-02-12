@@ -8,10 +8,25 @@ Merging crystallography data without much physics.
 
 
 ## Installation
+### Simple
+```
     pip install -U pip
     git clone https://github.com/Hekstra-Lab/careless
     cd careless
     pip install -e .
+```
+
+### Conda
+If you want to install `careless` in a separate environment, you may use `conda`:
+
+```
+conda env create -f careless.yml # will install the environment under `careless` name
+conda activate careless # activate environment
+# install only `careless` without any dependencies -- they were handeled by conda two lines before
+python3 -m pip install --no-deps -e . 
+```
+
+This way you're not dependent on specific package updates that we don't have full control of.
 
 ## Dependencies
 Pip will handle installation of all dependencies. 
