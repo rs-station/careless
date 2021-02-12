@@ -8,7 +8,7 @@ parser = parser.parse_args()
 from careless.merge.merge import *
 import numpy as np
 
-def main(merger, parser):
+def main(merger, parser, mlp_weights=None, freeze_mlp=False):
     if parser.prior_mtz:
         merger.append_reference_data(parser.prior_mtz)
 
@@ -49,6 +49,11 @@ def main(merger, parser):
 
     metadata_keys = parser.metadata_keys.split(',')
     merger.add_scaling_model(parser.sequential_layers, metadata_keys)
+    if mlp_weights is not None:
+        merger.scaling_model[0].set_weights(mlp_weights)
+    if freeze_mlp:
+        merger.scaling_model[0].trainable = False
+
     if parser.image_scale_key is not None:
         merger.add_image_scaler(parser.image_scale_key, parser.image_scale_prior)
 
@@ -121,11 +126,12 @@ else:
 
 merger = main(merger, parser)
 output_base = parser.output_base
+mlp_weights = merger.scaling_model[0].get_weights()
 if not parser.skip_xval:
     parser.output_base = output_base + '_half1'
-    half1  = main(half1, parser)
+    half1  = main(half1, parser, mlp_weights=mlp_weights, freeze_mlp=True)
     parser.output_base = output_base + '_half2'
-    half2  = main(half2, parser)
+    half2  = main(half2, parser, mlp_weights=mlp_weights, freeze_mlp=True)
 
 if parser.embed:
     from matplotlib import pyplot as plt

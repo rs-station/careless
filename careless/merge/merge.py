@@ -73,7 +73,7 @@ class BaseMerger():
 
             if anomalous:
                 self.anomalous = True
-                friedel_sign = 2 * (ds['M/ISYM'] %2 - 0.5).to_numpy()
+                friedel_sign = np.array([-1., 1.])[ds['M/ISYM'] % 2]
                 friedel_sign[ds.label_centrics().CENTRIC] = 1.
                 ds.loc[:,['H', 'K', 'L']] = friedel_sign[:,None] * ds.loc[:,['H', 'K', 'L']]
                 ds['FRIEDEL'] = friedel_sign
@@ -125,10 +125,14 @@ class BaseMerger():
             for inFN in filenames:
                 ds = rs.read_mtz(inFN)
                 np.random.seed(seed)
+                bkey = get_first_key_of_type(ds, 'B')
+                batch = ds[bkey].unique().to_numpy(dtype=int)
+                np.random.shuffle(batch)
+                half1,half2 = np.array_split(batch, 2)
                 if first:
-                    yield ds[np.random.random(len(ds)) > 0.5]
+                    yield ds.loc[ds[bkey].isin(half1)]
                 else:
-                    yield ds[np.random.random(len(ds)) <= 0.5]
+                    yield ds.loc[ds[bkey].isin(half2)]
         return cls(half_loader(True), anomalous, **kwargs), cls(half_loader(False), anomalous, **kwargs)
 
     def label_multiplicity(self):

@@ -8,7 +8,7 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
     """
     Neural network based scaler with simple dense layers.
     """
-    def __init__(self, metadata, layers=5, prior=None):
+    def __init__(self, metadata, layers=20, prior=None):
         """
         Parameters
         ----------
@@ -26,9 +26,10 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         for i in range(layers):
             self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
             #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
+        #self.add(tf.keras.layers.Dropout(0.1))
 
-        #self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True))
-        self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+        self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True, kernel_initializer='identity')) #TODO: <<<=====Is this better or worse??!?
+        #self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
 
     @property
     def loc(self):
