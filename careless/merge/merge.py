@@ -45,7 +45,7 @@ class BaseMerger():
     anomalous = False
     surrogate_posterior = None
 
-    def __init__(self, datasets, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None):
+    def __init__(self, datasets, anomalous=False, dmin=None, isigi_cutoff=None, intensity_key=None, weight_kl=False):
         """
         Parameters
         ----------
@@ -64,6 +64,7 @@ class BaseMerger():
         self.data = None
         self.cells = []
         self.spacegroups = []
+        self.weight_kl = weight_kl
         for i,ds in enumerate(datasets):
             ds = ds.copy() #Out of an abundance of caution
             ds.reset_index(inplace=True)
@@ -217,6 +218,7 @@ class BaseMerger():
             self.prior,
             self.likelihood,
             self.surrogate_posterior,
+            self.weight_kl,
         )
 
     def train_model(self, iterations, mc_samples=1, learning_rate=0.001, beta_1=0.8, beta_2=0.95, clip_value=None):

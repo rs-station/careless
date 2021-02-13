@@ -79,7 +79,8 @@ if parser.type == 'mono':
         anomalous=parser.anomalous, 
         dmin=parser.dmin, 
         isigi_cutoff=parser.isigi_cutoff, 
-        intensity_key=parser.intensity_key
+        intensity_key=parser.intensity_key,
+        weight_kl=parser.multiplicity_weighted_elbo,
     )
     half1,half2 = MonoMerger.half_datasets_from_mtzs(
         *parser.mtzinput, 
@@ -87,7 +88,8 @@ if parser.type == 'mono':
         seed=parser.seed,
         dmin=parser.dmin, 
         isigi_cutoff=parser.isigi_cutoff, 
-        intensity_key=parser.intensity_key
+        intensity_key=parser.intensity_key,
+        weight_kl=parser.multiplicity_weighted_elbo,
     )
 elif parser.type == 'poly':
     merger = PolyMerger.from_mtzs(
@@ -95,7 +97,8 @@ elif parser.type == 'poly':
         anomalous=parser.anomalous, 
         dmin=None, 
         isigi_cutoff=parser.isigi_cutoff, 
-        intensity_key=parser.intensity_key
+        intensity_key=parser.intensity_key,
+        weight_kl=parser.multiplicity_weighted_elbo,
     )
     half1,half2 = PolyMerger.half_datasets_from_mtzs(
         *parser.mtzinput, 
@@ -103,7 +106,8 @@ elif parser.type == 'poly':
         seed=parser.seed,
         dmin=None, 
         isigi_cutoff=parser.isigi_cutoff, 
-        intensity_key=parser.intensity_key
+        intensity_key=parser.intensity_key,
+        weight_kl=parser.multiplicity_weighted_elbo,
     )
 
     merger.expand_harmonics(
