@@ -11,7 +11,7 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
-    def __init__(self, miller_ids, scaling_models, prior, likelihood, surrogate_posterior=None):
+    def __init__(self, miller_ids, scaling_models, prior, likelihood, surrogate_posterior=None, use_weighted_kl_div=False):
         """"
         Parameters
         ----------
@@ -39,6 +39,9 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
             Any posteriors passed in with this arg must have all properly transformed parameters in their
             `self.trainable_variables` iterable.  Use `tfp.util.TransformedVariable` to ensure positivity constraints
             where applicable.
+        use_weighted_kl_div : bool (optional)
+            If True, the Dkl(surrogate_posterior || prior) will be weighted by the multiplicity of each reflection.
+            This may lead to a better scaling model in certain cases, but by default this is set to false.
         """
         super().__init__(miller_ids)
 
@@ -46,6 +49,7 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
         self.prior = prior
         self.likelihood = likelihood
         self.scaling_models = scaling_models if isinstance(scaling_models, (list, tuple)) else (scaling_models, )
+        self.weight_kl = use_weighted_kl_div
 
         if surrogate_posterior is None:
             zero = 0.
@@ -90,8 +94,10 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
         if return_kl_term:
             q_F = self.surrogate_posterior.log_prob(F)
             p_F = self.prior.log_prob(F)
-            #kl_div += tf.reduce_sum( q_F * ( tf.math.log(q_F + self.eps) - tf.math.log(p_F + self.eps) ) )
-            kl_div += tf.reduce_sum( q_F - p_F ) 
+            if self.weight_kl:
+                kl_div += tf.reduce_mean(self.expand(q_F - p_F)) #<--this is abismal model
+            else:
+                kl_div += tf.reduce_sum( q_F - p_F ) 
 
         scale = 1.
         for model in self.scaling_models:
@@ -142,7 +148,10 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
         """
         I,kl_div = self.sample(return_kl_term=True, sample_shape=sample_shape)
         log_prob = self.likelihood.log_prob(I)
-        log_likelihood = tf.reduce_sum(log_prob)
+        if self.weight_kl:
+            log_likelihood = tf.reduce_mean(log_prob)
+        else:
+            log_likelihood = tf.reduce_sum(log_prob)
         loss = -log_likelihood + kl_div
         return loss
 
