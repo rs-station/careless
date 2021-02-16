@@ -1,0 +1,97 @@
+#!/usr/env/bin python
+
+import reciprocalspaceship as rs
+import numpy as np
+from argparse import ArgumentParser
+
+
+doc = """
+The uncertainty estimates from `careless` are too pessimistic for some use cases. 
+They seem to be particularly problematic for maximum likelihood phasing routines. 
+This simple script tries to use the half datasets to create more traditional
+uncertainty estimates. 
+"""
+
+parser = ArgumentParser(doc)
+parser.add_argument('full', type=str, help='*_0.mtz output from careless corresponding to merging the full data set.')
+parser.add_argument('half1', type=str, help='*half1_0.mtz output from careless corresponding to merging the first half data set.')
+parser.add_argument('half2', type=str, help='*half1_0.mtz output from careless corresponding to merging the second half data set.')
+parser.add_argument('-o', help='Output file name defaults to "out.mtz"', default='out.mtz', type=str)
+parser = parser.parse_args()
+
+"""
+The model asserts that the <\sigma> over resolution bins can be approximated by the empirical differences between 
+half data sets. 
+"""
+
+
+ds = rs.read_mtz(parser.full).stack_anomalous().join(
+        rs.read_mtz(parser.half1).stack_anomalous(), 
+        rsuffix='1'
+    ).join(
+        rs.read_mtz(parser.half2).stack_anomalous(), 
+        rsuffix='2'
+    ).dropna().compute_dHKL().label_centrics().compute_multiplicity()
+
+ds = ds[(ds.N > 0) & (ds.N1 > 0) & (ds.N2 > 0)]
+
+ds['SigEstimate'] = np.sqrt(0.5*(ds.F - ds.F1)**2. + 0.5*(ds.F - ds.F2)**2.)/ds['EPSILON']
+
+
+
+def kernel_smoother(y, X, Xstar=None, bins=50, gridpoints=None):
+    """ return yStar """
+    if Xstar is None:
+        Xstar = X
+
+    #Use double precision
+    y = np.array(y, dtype=np.float64)
+    X = np.array(X, dtype=np.float64)
+    Xstar = np.array(Xstar, dtype=np.float64)
+
+    if gridpoints is None:
+        gridpoints = int(bins*20)
+
+    bw = (X.max() - X.min())/bins
+
+    #Evaulate the kernel smoother over grid points
+    grid = np.linspace(X.min(), X.max(), gridpoints)
+    K = np.exp(-0.5*((X[:,None] - grid[None,:])/bw)**2.)
+    K = K/K.sum(0)
+    protos = y@K
+
+    #Use a kernel smoother to interpolate the grid points
+    bw = grid[1] - grid[0]
+    K = np.exp(-0.5*((Xstar[:,None] - grid[None,:])/bw)**2.)
+    K = K/K.sum(1)[:,None]
+    Sigma = K@protos
+
+    return Sigma
+
+
+out = rs.read_mtz(parser.full)
+anomalous = False
+if 'F(+)' in out:
+    anomalous = True
+    out = out.stack_anomalous()
+
+Xstar = out.compute_dHKL().dHKL**-2.
+
+#It seems prudent to handle centrics and acentrics separately.
+idx = ds.CENTRIC
+optimistic_scale =  kernel_smoother(ds.loc[idx, 'SigEstimate'], ds.loc[idx, 'dHKL']**-2., Xstar)
+pessimistic_scale = kernel_smoother(ds.loc[idx, 'SigF'],        ds.loc[idx, 'dHKL']**-2., Xstar)
+idx = out.label_centrics().CENTRIC
+out.loc[idx, 'SigF'] = out.loc[idx, 'SigF']*optimistic_scale / pessimistic_scale
+
+#It seems prudent to handle centrics and acentrics separately.
+idx = ~ds.CENTRIC
+optimistic_scale =  kernel_smoother(ds.loc[idx, 'SigEstimate'], ds.loc[idx, 'dHKL']**-2., Xstar)
+pessimistic_scale = kernel_smoother(ds.loc[idx, 'SigF'],        ds.loc[idx, 'dHKL']**-2., Xstar)
+idx = ~out.label_centrics().CENTRIC
+out.loc[idx, 'SigF'] = out.loc[idx, 'SigF']*optimistic_scale / pessimistic_scale
+
+if anomalous:
+    out = out.unstack_anomalous()[['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)']]
+
+out.write_mtz(parser.o)
