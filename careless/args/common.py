@@ -12,6 +12,12 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+    (("--multiplicity-weighted-elbo", ), {
+        "help":"Reweight the kl_div term by multiplicity. This may perform better in some cases.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
     (("--use-weights", ),  {
         "help":"Use a weighted likelihood function.",
         "action" : "store_true",
