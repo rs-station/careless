@@ -18,6 +18,7 @@ setup(
             'scripts/ccplot',
             'scripts/ccanom_plot',
             'scripts/make_difference_map',
+            'scripts/optimistic_uncertainties',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
