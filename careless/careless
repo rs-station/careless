@@ -64,6 +64,7 @@ def main(merger, parser, mlp_weights=None, freeze_mlp=False):
         beta_1=parser.beta_1,
         beta_2=parser.beta_2,
         clip_value=parser.clip_value,
+        use_nadam=parser.use_nadam,
     )
     np.save(f"{parser.output_base}_losses.npy", losses)
 
