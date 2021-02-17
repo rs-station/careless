@@ -18,6 +18,12 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+    (("--use-nadam", ), {
+        "help":"Instead of using the Adam optimizer, use the Nadam optimizer which has Nesterov momentum.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+
     (("--use-weights", ),  {
         "help":"Use a weighted likelihood function.",
         "action" : "store_true",
