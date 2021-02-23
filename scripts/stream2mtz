@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import argparse
+import reciprocalspaceship as rs
+
+doc = """\
+Convert CrystFEL stream to an mtz with geometric metadata
+"""
+
+parser = argparse.ArgumentParser(
+    doc, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument(
+    'stream', help='File in CrystFEL stream format. Must and with .stream')
+parser.add_argument(
+    '-o',
+    '--out',
+    type=str,
+    help='Output filename. If nothing specified, will use <streamname>.mtz',
+    default=None)
+parser.add_argument('-g',
+                    '--spacegroup',
+                    type=int,
+                    help='Space group number for the output mtz',
+                    default=1)
+parser = parser.parse_args()
+
+stream = parser.stream
+out = parser.out
+
+if out is None:
+    out = stream[::-1].replace('.stream'[::-1], '.mtz'[::-1],
+                               1)[::-1]  # replace file extension only
+
+table = rs.read_crystfel(stream)
+table.spacegroup = parser.spacegroup # must to that for gemmi not to complain
+table.write_mtz(out, skip_problem_mtztypes=True)
