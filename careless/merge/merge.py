@@ -390,7 +390,7 @@ class HarmonicDeconvolutionMixin:
         else:
             lambda_min, lambda_max = wavelength_range
 
-        self.data = expand_harmonics(self.data, dmin=dmin, wavelength_key='Wavelength')
+        self.data = expand_harmonics(self.data, dmin=dmin, wavelength_key=wavelength_key)
         self.data = self.data[(self.data[wavelength_key] >= lambda_min) & (self.data[wavelength_key] <= lambda_max)]
         self.remove_sys_absences()
         return self
