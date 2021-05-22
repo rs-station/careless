@@ -8,12 +8,19 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
     """
     Neural network based scaler with simple dense layers.
     """
-    def __init__(self, metadata, layers=20, prior=None):
+    def __init__(self, metadata, layers=20, prior=None, width=None):
         """
         Parameters
         ----------
         metadata : array 
             m x d array of reflection metadata.
+        layers : int (optional)
+            How many dense layers to add. The default is 20 layers.
+        prior : tfd.Distribution (optional)
+            An optional prior distirubtion on the scaler output.
+        width : int (optional)
+            Optionally set the width of the hidden layers to be different than the dimensions of the
+            metadata. 
         """
         super().__init__()
 
@@ -21,10 +28,12 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
 
         self.metadata = np.array(metadata, dtype=np.float32)
         n,d = metadata.shape
+        if width is None:
+            width = d
 
         self.add(tf.keras.Input(shape=d))
         for i in range(layers):
-            self.add(tf.keras.layers.Dense(d, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+            self.add(tf.keras.layers.Dense(width, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
             #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
         #self.add(tf.keras.layers.Dropout(0.1))
 
