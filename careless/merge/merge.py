@@ -350,7 +350,7 @@ class BaseMerger():
             prior = tfd.Normal(1., prior)
             self.scaling_model.append(VariationalImageScaler(self.data[image_id_key].to_numpy().astype(np.int64), prior))
 
-    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True):
+    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True, width=None):
         """
         Parameters
         ----------
@@ -358,9 +358,11 @@ class BaseMerger():
             Sequential dense leaky relu layers. The default is 20.
         metadata_keys : list
             List of keys to use for generating the metadata. If None, self.metadata_keys will be used.
-        invert_dHKL : bool (optional)
+        inverse_square_dHKL : bool (optional)
             Optionally transform any metadata keys named 'dHKL' by raising them to the negative 2 power.
             The default is True. 
+        width : int (optional)
+            Optionally specify a different width for the neural network than the width of the metadata array.
         """
         if metadata_keys is None:
             metadata_keys = self.metadata_keys
@@ -375,9 +377,9 @@ class BaseMerger():
         metadata = (metadata - metadata.mean(0))/metadata.std(0)
         from careless.models.scaling.nn import SequentialScaler
         if self.scaling_model is None:
-            self.scaling_model = [SequentialScaler(metadata, layers)]
+            self.scaling_model = [SequentialScaler(metadata, layers, width=width)]
         else:
-            self.scaling_model.append(SequentialScaler(metadata, layers))
+            self.scaling_model.append(SequentialScaler(metadata, layers, width=width))
 
 class HarmonicDeconvolutionMixin:
     def expand_harmonics(self, dmin=None, wavelength_key='Wavelength', wavelength_range=None):

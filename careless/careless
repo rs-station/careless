@@ -48,7 +48,7 @@ def main(merger, parser, mlp_weights=None, freeze_mlp=False):
         merger.add_normal_likelihood(parser.use_weights)
 
     metadata_keys = parser.metadata_keys.split(',')
-    merger.add_scaling_model(parser.sequential_layers, metadata_keys)
+    merger.add_scaling_model(parser.sequential_layers, metadata_keys, parser.mlp_width)
     if mlp_weights is not None:
         merger.scaling_model[0].set_weights(mlp_weights)
     if freeze_mlp:
