@@ -197,6 +197,12 @@ args_and_kwargs = (
         "default":20,
     }),
 
+    (("--mlp-width",), {
+        "help": "Use a different width for the hidden layers of the neural net than the width of the metadata array.",
+        "type": int,
+        "default": None,
+    }),
+
     (("--studentt-scale",), {
         "help": "Scale parameter for variational student t likelihood.",
         "type": float,
