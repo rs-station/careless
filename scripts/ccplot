@@ -72,7 +72,6 @@ idx = half1.index.intersection(half2.index)
 half1 = half1.loc[idx]
 half2 = half2.loc[idx]
 
-
 bins = np.percentile(half1.dHKL, np.linspace(100, 0, nbins + 1))
 bins = np.vstack((bins[:-1], bins[1:]))
 colors = np.zeros(len(half1))
@@ -82,6 +81,7 @@ ticks = []
 from tqdm import tqdm
 for binnumber, (i,j) in tqdm(enumerate(zip(*bins))):
     idx = (half1.dHKL >= j) & (half1.dHKL <= i)
+    idx = idx.astype(bool)
     colors[idx] = binnumber / nbins
     cc.append(np.corrcoef(half1[idx][ikey1], half2[idx][ikey2])[0,1])
     ticks.append(f'{i:0.2f}-{j:0.2f}')
