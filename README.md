@@ -14,6 +14,7 @@ Merging crystallography data without much physics.
     pip install -e .
 
 ## Dependencies
+`careless` currently supports __Python 3.7 or 3.8__. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
