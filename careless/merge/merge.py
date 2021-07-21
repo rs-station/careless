@@ -382,7 +382,6 @@ class BaseMerger():
 
         #Apply appropriate preprocessing
         if positional_encoding_frequencies != 1:
-            print("Encoding positions ...")
             #Normalize metadata between -1 and 1
             metadata = 2.*(metadata - metadata.min(-2)) / (metadata.max(-2) - metadata.min(-2)) - 1.
             # The positional encoding as defined in https://arxiv.org/pdf/2003.08934.pdf is
@@ -397,7 +396,6 @@ class BaseMerger():
         else:
             # standardize the metadata if no positional encoding
             metadata = (metadata - metadata.mean(0))/metadata.std(0)
-        print(f"metdata.shape: {metadata.shape}")
         from careless.models.scaling.nn import SequentialScaler
         if self.scaling_model is None:
             self.scaling_model = [SequentialScaler(metadata, layers, width=width)]
