@@ -16,6 +16,10 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         np.random.seed(parser.seed)
         tf.random.set_seed(parser.seed)
 
+        #Run eagerly if requested. This is very slow but needed for very large models
+        if parser.run_eagerly:
+            tf.config.run_functions_eagerly(True)
+
         #Disable the GPU if requested. This can be useful for training multiple models at the same time
         if parser.disable_gpu:
             tf.config.set_visible_devices([], 'GPU')
