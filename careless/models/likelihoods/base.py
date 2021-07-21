@@ -6,3 +6,5 @@ class Likelihood():
     def prob(self, *args):
         raise NotImplementedError("Likelihood classes must implement a prob method")
 
+    def sample(self, *args):
+        raise NotImplementedError("Likelihood classes must implement a sample method")

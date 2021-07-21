@@ -1,4 +1,5 @@
 from careless.models.likelihoods.base import Likelihood
+from careless.models.likelihoods.mono import MonoBase
 from careless.models.base import PerGroupModel
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
@@ -6,17 +7,47 @@ import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
 
-class ConvolvedDist():
-    """This mixin can be used to extend tensorflow_probability distributions to apply a convolution before computing probabilities."""
+
+class LaueBase(MonoBase):
+    def __init__(self, distribution, harmonic_convolution_tensor, weights=None):
+        """
+        Parameters
+        ----------
+        distribution : tensorflow_probability.distributions.Distribution
+            The likelihood distribution. There should be one entry for each reflection observation
+        harmonic_convolution_tensor : tensorflow.SparseTensor
+            A sparse binary tensor defining which observations are harmonics. 
+        weights : tensorflow.Tensor or None
+            Optional weight vector applied to the log probabilities. 
+
+        Attributes
+        ----------
+        likelihood : tensorflow_probability.distributions.Distribution
+        weights : tensorflow.Tensor
+        """
+        self.likelihood = distribution
+        if weights is not None:
+            weights = np.array(weights, dtype=np.float32)
+        self.weights = weights
+        self.harmonic_convolution_tensor = harmonic_convolution_tensor
+
     def log_prob(self, value, name='log_prob', **kwargs):
-        return super().log_prob(self.convolve(value), name, **kwargs)
+        log_probs = self.likelihood.log_prob(self.convolve(value), name, **kwargs)
+        if self.weights is None:
+            return log_probs
+        else:
+            return self.weights * log_probs
 
     def prob(self, value, name='prob', **kwargs):
-        return super().prob(self.convolve(value), name, **kwargs)
+        probs = self.likelihood.prob(self.convolve(value), name, **kwargs)
+        if self.weights is None:
+            return probs
+        else:
+            return self.weights * probs
 
     def convolve(self, tensor):
         """
-        Paramters
+        Parameters
         ---------
         tensor : tf.Tensor
             array of predicted reflection intensities with length self.harmonic_convolution_tensor.shape[1]
@@ -41,17 +72,7 @@ class ConvolvedDist():
             ))
         return convolved
 
-class LaueBase(ConvolvedDist):
-    weights = None
-
-    def log_prob(self, value, name='log_prob', **kwargs):
-        log_probs = super().log_prob(value, name, **kwargs)
-        if self.weights is None:
-            return log_probs
-        else:
-            return self.weights * log_probs
-
-class NormalLikelihood(LaueBase, tfd.Normal, Likelihood):
+class NormalLikelihood(LaueBase):
     def __init__(self, iobs, sigiobs, harmonic_id, weights=None):
         """
         Parameters
@@ -65,14 +86,14 @@ class NormalLikelihood(LaueBase, tfd.Normal, Likelihood):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)
-        super().__init__(loc, scale)
+
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
-        self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
+        harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
-        if weights is not None:
-            self.weights = np.array(weights, dtype=np.float32)
+        likelihood = tfd.Normal(loc, scale)
+        super().__init__(likelihood, harmonic_convolution_tensor, weights)
 
-class LaplaceLikelihood(LaueBase, tfd.Laplace, Likelihood):
+class LaplaceLikelihood(LaueBase):
     def __init__(self, iobs, sigiobs, harmonic_id, weights=None):
         """
         Parameters
@@ -86,14 +107,14 @@ class LaplaceLikelihood(LaueBase, tfd.Laplace, Likelihood):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)/np.sqrt(2.)
-        super().__init__(loc, scale)
+
         self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
-        self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
+        harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
-        if weights is not None:
-            self.weights = np.array(weights, dtype=np.float32)
+        likelihood = tfd.Laplace(loc, scale)
+        super().__init__(likelihood, harmonic_convolution_tensor, weights)
 
-class StudentTLikelihood(LaueBase, tfd.StudentT, Likelihood):
+class StudentTLikelihood(LaueBase):
     def __init__(self, iobs, sigiobs, harmonic_id, dof, weights=None):
         """
         Parameters
@@ -109,10 +130,10 @@ class StudentTLikelihood(LaueBase, tfd.StudentT, Likelihood):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)
-        super().__init__(dof, loc, scale)
-        self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
-        self.harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
 
-        if weights is not None:
-            self.weights = np.array(weights, dtype=np.float32)
+        self.harmonic_index = np.array(harmonic_id, dtype=np.int32)
+        harmonic_convolution_tensor = PerGroupModel(self.harmonic_index).expansion_tensor
+
+        likelihood = tfd.StudentT(dof, loc, scale)
+        super().__init__(likelihood, harmonic_convolution_tensor, weights)
 

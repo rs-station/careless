@@ -4,15 +4,42 @@ from tensorflow_probability import distributions as tfd
 import numpy as np
 
 
-class MonoBase():
+class MonoBase(Likelihood):
+    def __init__(self, distribution, weights=None):
+        """
+        Parameters
+        ----------
+        distribution : tensorflow_probability.distributions.Distribution
+        weights : tensorflow.Tensor
+
+        Attributes
+        ----------
+        likelihood : tensorflow_probability.distributions.Distribution
+        weights : tensorflow.Tensor
+        """
+        self.likelihood = distribution
+        if weights is not None:
+            weights = np.array(weights, dtype=np.float32)
+        self.weights = weights 
+
+    def sample(self, *args, **kwargs):
+        return self.likelihood.sample(*args, **kwargs)
+
     def log_prob(self, X):
-        log_prob = super().log_prob(X)
+        log_prob = self.likelihood.log_prob(X)
         if self.weights is None:
             return log_prob
         else:
             return self.weights * log_prob
 
-class NormalLikelihood(tfd.Normal, Likelihood, MonoBase):
+    def prob(self, X):
+        prob = self.likelihood.prob(X)
+        if self.weights is None:
+            return prob
+        else:
+            return self.weights * prob
+
+class NormalLikelihood(MonoBase):
     def __init__(self, iobs, sigiobs, weights=None):
         """
         Parameters
@@ -24,14 +51,10 @@ class NormalLikelihood(tfd.Normal, Likelihood, MonoBase):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)
-        super().__init__(loc, scale)
+        likelihood = tfd.Normal(loc, scale)
+        super().__init__(likelihood, weights)
 
-        if weights is None:
-            self.weights = None
-        else:
-            self.weights = np.array(weights, dtype=np.float32)
-
-class LaplaceLikelihood(tfd.Laplace, Likelihood, MonoBase):
+class LaplaceLikelihood(MonoBase):
     def __init__(self, iobs, sigiobs, weights=None):
         """
         Parameters
@@ -43,14 +66,10 @@ class LaplaceLikelihood(tfd.Laplace, Likelihood, MonoBase):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)/np.sqrt(2.)
-        super().__init__(loc, scale)
+        likelihood = tfd.Laplace(loc, scale)
+        super().__init__(likelihood, weights)
 
-        if weights is None:
-            self.weights = None
-        else:
-            self.weights = np.array(weights, dtype=np.float32)
-
-class StudentTLikelihood(tfd.StudentT, Likelihood, MonoBase):
+class StudentTLikelihood(MonoBase):
     def __init__(self, iobs, sigiobs, dof, weights=None):
         """
         Parameters
@@ -64,9 +83,6 @@ class StudentTLikelihood(tfd.StudentT, Likelihood, MonoBase):
         """
         loc = np.array(iobs, dtype=np.float32)
         scale = np.array(sigiobs, dtype=np.float32)
-        super().__init__(dof, loc, scale)
+        likelihood = tfd.StudentT(dof, loc, scale)
+        super().__init__(likelihood, weights)
 
-        if weights is None:
-            self.weights = None
-        else:
-            self.weights = np.array(weights, dtype=np.float32)
