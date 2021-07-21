@@ -166,6 +166,12 @@ args_and_kwargs = (
         "default": False,
     }),
 
+    (("--run-eagerly",), {
+        "help":"Running tensorflow in eager mode may be required for high memory models.", 
+        "action":'store_true', 
+        "default":False,
+    }),
+
     (("--disable-gpu",), {
         "help":"Disable GPU for high memory models.", 
         "action":'store_true', 
