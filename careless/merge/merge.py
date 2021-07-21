@@ -350,7 +350,7 @@ class BaseMerger():
             prior = tfd.Normal(1., prior)
             self.scaling_model.append(VariationalImageScaler(self.data[image_id_key].to_numpy().astype(np.int64), prior))
 
-    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True, width=None):
+    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True, width=None, positional_encoding_frequencies=1):
         """
         Parameters
         ----------
@@ -363,6 +363,11 @@ class BaseMerger():
             The default is True. 
         width : int (optional)
             Optionally specify a different width for the neural network than the width of the metadata array.
+        position_encoding_frequencies : int (optional)
+            The maximum log2 frequency for positional encoding. The default (1) means no encoding. 
+            Because the positional encoding makes the input data very wide, it is strongly encouraged
+            to pair this option with a sensible width like 10 units. Otherwise the model will likely
+            exceed available memory.
         """
         if metadata_keys is None:
             metadata_keys = self.metadata_keys
@@ -374,7 +379,25 @@ class BaseMerger():
         if inverse_square_dHKL and 'dHKL' in metadata_keys:
             idx = np.where(np.array(metadata_keys) == 'dHKL')
             metadata[:,idx] = metadata[:,idx]**-2.
-        metadata = (metadata - metadata.mean(0))/metadata.std(0)
+
+        #Apply appropriate preprocessing
+        if positional_encoding_frequencies != 1:
+            print("Encoding positions ...")
+            #Normalize metadata between -1 and 1
+            metadata = 2.*(metadata - metadata.min(-2)) / (metadata.max(-2) - metadata.min(-2)) - 1.
+            # The positional encoding as defined in https://arxiv.org/pdf/2003.08934.pdf is
+            #   gamma(p) = (sin(2**0*pi*p), cos(2**0*pi*p), ..., sin(2**(L-1)*pi*p), cos(2**(L-1)*pi*p))
+            L = np.arange(positional_encoding_frequencies)
+            f = np.pi*2**L
+            fp = (f[...,None,:]*metadata[...,:,None]).reshape(metadata.shape[:-1] + (-1,))
+            metadata = np.concatenate((
+                np.cos(fp),
+                np.sin(fp),
+            ), axis=-1)
+        else:
+            # standardize the metadata if no positional encoding
+            metadata = (metadata - metadata.mean(0))/metadata.std(0)
+        print(f"metdata.shape: {metadata.shape}")
         from careless.models.scaling.nn import SequentialScaler
         if self.scaling_model is None:
             self.scaling_model = [SequentialScaler(metadata, layers, width=width)]

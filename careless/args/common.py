@@ -18,6 +18,14 @@ args_and_kwargs = (
         "default" : False,
     }),
 
+
+    (("--positional-encoding-frequencies", "-L"), {
+        "help":"Number of positional encoding frequencies to apply to metadata. The default is 1 which corresponds to no encoding."
+               "If you use this option, it should be paired with 'mlp-width=' in order to prevent the model from using too much memory.",
+        "type" : int,
+        "default" : 1,
+    }),
+
     (("--use-nadam", ), {
         "help":"Instead of using the Adam optimizer, use the Nadam optimizer which has Nesterov momentum.",
         "action" : "store_true",
