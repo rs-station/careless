@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='careless',
-    version='0.1.4',
+    version='0.1.5',
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     packages=find_packages(),
@@ -10,7 +10,7 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.8",
         "tqdm",
-        "tensorflow>=2.4",
+        "tensorflow==2.5",
         "tensorflow-probability",
     ],
     scripts = [
