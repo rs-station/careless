@@ -31,7 +31,6 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
         if width is None:
             width = d
 
-        self.add(tf.keras.Input(shape=d))
         for i in range(layers):
             self.add(tf.keras.layers.Dense(width, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
             #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
@@ -96,7 +95,6 @@ class LowRankScaler(tf.keras.models.Sequential, Scaler):
         self.metadata = np.array(metadata, dtype=np.float32)
         n,d = metadata.shape
 
-        self.add(tf.keras.Input(shape=d))
         for i in range(layers):
             self.add(tf.keras.layers.Dense(rank + 2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
             #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
