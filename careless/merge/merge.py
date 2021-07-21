@@ -179,9 +179,9 @@ class BaseMerger():
         else:
             raise TypeError(f"append_reference_data expected string or rs.DataSet, but received {type(ds)}")
         if self.anomalous:
-            ds = ds.stack_anomalous().expand_to_p1()
+            ds = ds.expand_to_p1().stack_anomalous()
         else:
-            ds = ds.expand_anomalous().expand_to_p1()
+            ds = ds.expand_to_p1().expand_anomalous()
 
         self.data = self.data.join(ds.loc[:,ds.dtypes=='F'].iloc[:,0].rename("REF"), on=['Hobs', 'Kobs', 'Lobs'])
         self.data = self.data.join(ds.loc[:,ds.dtypes=='Q'].iloc[:,0].rename("SIGREF"), on=['Hobs', 'Kobs', 'Lobs'])
