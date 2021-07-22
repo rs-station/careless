@@ -101,11 +101,11 @@ plt.tight_layout()
 plt.figure()
 cmap = plt.get_cmap()
 plt.errorbar(
-    half1[ikey1],
-    half2[ikey2],
-    xerr=half1[sigkey1],
-    yerr=half2[sigkey2],
-    color=cmap(colors),
+    half1[ikey1].to_numpy('float32'),
+    half2[ikey2].to_numpy('float32'),
+    xerr=half1[sigkey1].to_numpy('float32'),
+    yerr=half2[sigkey2].to_numpy('float32'),
+    ecolor=cmap(colors),
     ls='none',
     alpha=0.2,
 )
