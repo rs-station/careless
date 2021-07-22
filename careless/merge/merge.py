@@ -350,7 +350,7 @@ class BaseMerger():
             prior = tfd.Normal(1., prior)
             self.scaling_model.append(VariationalImageScaler(self.data[image_id_key].to_numpy().astype(np.int64), prior))
 
-    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True, width=None, positional_encoding_frequencies=1):
+    def add_scaling_model(self, layers=20, metadata_keys=None, inverse_square_dHKL=True, width=None, positional_encoding_frequencies=1, positional_encoding_keys=None):
         """
         Parameters
         ----------
@@ -363,11 +363,14 @@ class BaseMerger():
             The default is True. 
         width : int (optional)
             Optionally specify a different width for the neural network than the width of the metadata array.
-        position_encoding_frequencies : int (optional)
+        positional_encoding_frequencies : int (optional)
             The maximum log2 frequency for positional encoding. The default (1) means no encoding. 
             Because the positional encoding makes the input data very wide, it is strongly encouraged
             to pair this option with a sensible width like 10 units. Otherwise the model will likely
             exceed available memory.
+        positional_encoding_keys : list (optional)
+            If specified, the metadata columns corresponding to these keys will be encoded and appended to 
+            the `metadata_keys` columns. 
         """
         if metadata_keys is None:
             metadata_keys = self.metadata_keys
@@ -375,27 +378,37 @@ class BaseMerger():
             self.metadata_keys = metadata_keys
         else:
             raise TypeError("metadata_keys has type None but list expected.")
-        metadata = self.data[metadata_keys].to_numpy().astype(np.float32)
+        metadata = self.data[metadata_keys].to_numpy('float32')
         if inverse_square_dHKL and 'dHKL' in metadata_keys:
             idx = np.where(np.array(metadata_keys) == 'dHKL')
             metadata[:,idx] = metadata[:,idx]**-2.
 
-        #Apply appropriate preprocessing
-        if positional_encoding_frequencies != 1:
-            #Normalize metadata between -1 and 1
-            metadata = 2.*(metadata - metadata.min(-2)) / (metadata.max(-2) - metadata.min(-2)) - 1.
-            # The positional encoding as defined in https://arxiv.org/pdf/2003.08934.pdf is
+        # standardize the metadata 
+        metadata = (metadata - metadata.mean(0))/metadata.std(0)
+
+        def encode(X, L):
+            # The positional encoding as defined in the NeRF paper https://arxiv.org/pdf/2003.08934.pdf is
             #   gamma(p) = (sin(2**0*pi*p), cos(2**0*pi*p), ..., sin(2**(L-1)*pi*p), cos(2**(L-1)*pi*p))
-            L = np.arange(positional_encoding_frequencies)
+            # Normalize metadata between -1 and 1
+            X = 2.*(X - X.min(-2)) / (X.max(-2) - X.min(-2)) - 1.
+            L = np.arange(L)
             f = np.pi*2**L
-            fp = (f[...,None,:]*metadata[...,:,None]).reshape(metadata.shape[:-1] + (-1,))
-            metadata = np.concatenate((
+            fp = (f[...,None,:]*X[...,:,None]).reshape(X.shape[:-1] + (-1,))
+            return np.concatenate((
                 np.cos(fp),
                 np.sin(fp),
             ), axis=-1)
-        else:
-            # standardize the metadata if no positional encoding
-            metadata = (metadata - metadata.mean(0))/metadata.std(0)
+
+        #Apply optional positional encodings
+        if positional_encoding_frequencies != 1: 
+            #In this case we just encode all the metadata
+            if positional_encoding_keys is None:
+                metadata = encode(metadata, positional_encoding_frequencies)
+            else:
+                to_encode = self.data[positional_encoding_keys].to_numpy('float32')
+                encoded = encode(to_encode, positional_encoding_frequencies) 
+                metadata = np.concatenate((metadata, encoded), axis=-1)
+
         from careless.models.scaling.nn import SequentialScaler
         if self.scaling_model is None:
             self.scaling_model = [SequentialScaler(metadata, layers, width=width)]
