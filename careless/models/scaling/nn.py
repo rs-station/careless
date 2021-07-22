@@ -33,37 +33,29 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
 
         for i in range(layers):
             self.add(tf.keras.layers.Dense(width, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
-            #self.add(tf.keras.layers.Dense(d, activation='softplus', use_bias=True))
-        #self.add(tf.keras.layers.Dropout(0.1))
 
         self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True, kernel_initializer='identity')) #TODO: <<<=====Is this better or worse??!?
-        #self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
         #This is a hack to initialize the weights for this module
-        super().__call__(self.metadata[None,0])
+        self(self.metadata[None,0])
 
     @property
     def loc(self):
-        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc, scale = tf.unstack(self(self.metadata), axis=-1)
         return loc
 
     @property
     def scale(self):
-        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc, scale = tf.unstack(self(self.metadata), axis=-1)
         scale = tf.math.softplus(scale)
         return scale
 
     def loc_and_scale(self):
-        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc, scale = tf.unstack(self(self.metadata), axis=-1)
         scale = tf.math.softplus(scale)
         return loc, scale
 
-    def __call__(self):
-        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
-        scale = tf.math.softplus(scale)
-        return tfd.Normal(loc, scale).sample()
-
     def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
-        loc, scale = tf.unstack(super().__call__(self.metadata), axis=1)
+        loc, scale = self.loc_and_scale()
         scale = tf.math.softplus(scale)
         dist = tfd.Normal(loc, scale)
         sample = dist.sample(sample_shape, seed, name, **kwargs)
