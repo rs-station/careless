@@ -38,6 +38,8 @@ class SequentialScaler(tf.keras.models.Sequential, Scaler):
 
         self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True, kernel_initializer='identity')) #TODO: <<<=====Is this better or worse??!?
         #self.add(tf.keras.layers.Dense(2, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+        #This is a hack to initialize the weights for this module
+        super().__call__(self.metadata[None,0])
 
     @property
     def loc(self):
