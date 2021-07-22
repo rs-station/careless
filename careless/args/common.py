@@ -21,9 +21,19 @@ args_and_kwargs = (
 
     (("--positional-encoding-frequencies", "-L"), {
         "help":"Number of positional encoding frequencies to apply to metadata. The default is 1 which corresponds to no encoding."
-               "If you use this option, it should be paired with 'mlp-width=' in order to prevent the model from using too much memory.",
+               "If you use this option, it should be paired with 'mlp-width=' in order to prevent the model from using too much memory."
+               "By default all metadata columns will be encoded using the same formula. To encode a subset of the columns, please see"
+               "the `--positional-encoding-keys` parameter",
         "type" : int,
         "default" : 1,
+    }),
+
+    (("--positional-encoding-keys", ), {
+        "help":"If the `--positional-encoding-frequencies` flag is set to an integer > 1, this parameter enables encoding a specific subset of"
+               'of mtz columns. Supply a comma separated string of metadata keys (ie "XDET,YDET"), and these keys will be encoded separately and '
+               'appended to the rest of the metadata. ', 
+        "type" : str,
+        "default" : None,
     }),
 
     (("--use-nadam", ), {
