@@ -67,6 +67,22 @@ class VariationalMergingModel(PerGroupModel, tf.Module):
         # Cache the initial values of the surrogate posterior in case they must be rescued later
         self._surrogate_posterior_init = [x.value() for x in self.surrogate_posterior.trainable_variables]
 
+    def predict(self):
+        """
+        Compute the expected value of reflection observations under the current model.
+        """
+        scale = 1.
+        for model in self.scaling_models:
+            if hasattr(model, "loc"):
+                scale *= model.loc
+            else:
+                scale *= model()
+
+        #This is <F**2.>
+        Fsquared = self.surrogate_posterior.mean()**2. + self.surrogate_posterior.stddev()**2.
+        I = self.expand(Fsquared)*scale
+        return I
+
     def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
         """
         Randomly sample predicted reflection observations.
