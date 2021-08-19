@@ -38,11 +38,11 @@ class BaseModel(tfk.layers.Layer):
 
     @staticmethod
     def get_input_by_name(inputs, name):
-        if name not in self.input_index:
+        if name not in BaseModel.input_index:
             raise ValueError(
-                f"name, {name}, not a valid key. Valid keys are {self.input_index.keys()}."
+                f"name, {name}, not a valid key. Valid keys are {BaseModel.input_index.keys()}."
             )
-        idx = inpt_index[name]
+        idx = BaseModel.input_index[name]
         try:
             datum = inputs[idx]
         except:
@@ -54,37 +54,37 @@ class BaseModel(tfk.layers.Layer):
     @staticmethod
     def get_refl_id(inputs):
         """ Given a collection of inputs extract just the reflection_id """
-        return get_input_by_name(inputs, 'refl_id')
+        return BaseModel.get_input_by_name(inputs, 'refl_id')
 
     @staticmethod
     def get_image_id(inputs):
         """ Given a collection of inputs extract just the image_id """
-        return get_input_by_name(inputs, 'input_id')
+        return BaseModel.get_input_by_name(inputs, 'input_id')
 
     @staticmethod
     def get_metadata(inputs):
         """ Given a collection of inputs extract just the metadata """
-        return get_input_by_name(inputs, 'metadata')
+        return BaseModel.get_input_by_name(inputs, 'metadata')
 
     @staticmethod
     def get_intensities(inputs):
         """ Given a collection of inputs extract just the intensities """
-        return get_input_by_name(inputs, 'intensities')
+        return BaseModel.get_input_by_name(inputs, 'intensities')
 
     @staticmethod
     def get_uncertainties(inputs):
         """ Given a collection of inputs extract just the uncertainty estimates """
-        return get_input_by_name(inputs, 'uncertainties')
+        return BaseModel.get_input_by_name(inputs, 'uncertainties')
 
     @staticmethod
     def get_wavelength(inputs):
         """ Given a collection of inputs extract just the wavelength. This method only applies to Laue data."""
-        return get_input_by_name(inputs, 'wavelength')
+        return BaseModel.get_input_by_name(inputs, 'wavelength')
 
     @staticmethod
     def get_harmonic_id(inputs):
         """ Given a collection of inputs extract just the harmonic_id. This method only applies to Laue data."""
-        return get_input_by_name(inputs, 'harmonic_id')
+        return BaseModel.get_input_by_name(inputs, 'harmonic_id')
 
 class PerXXGroupModel():
     """
