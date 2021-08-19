@@ -1,10 +1,95 @@
 import tensorflow as tf
+from tensorflow import keras as tfk
 import numpy as np
 
 
 
-class PerGroupModel():
+class BaseModel(tfk.layers.Layer):
+    """ 
+    Base class for all models in `careless`. 
+    It encodes accessors for the standard format inputs to the model. 
+    When extending this class, use the get_{
+        metadata,
+        refl_id,
+        image_id,
+        intensities,
+        uncertainties,
+        wavelength,
+        harmonic_id
+    } static methods to parse your inputs. This ensures it is easy to
+    change the data format in the future.
     """
+    input_index = {
+        'refl_id'       : 0,
+        'image_id'      : 1,
+        'metadata'      : 2,
+        'intensities'   : 3,
+        'uncertainties' : 4,
+        'wavelength'    : 5,
+        'harmonic_id'   : 6,
+    }
+
+    def call(self, inputs):
+        raise NotImplementedError(
+            "All Scaler classes must implement a call method which accepts inputs "
+            "which are a sequence inputs = [refl_id, image_id, metadata] and      "
+            "returns a tfp.distributions.Distribution.                            "
+        )
+
+    @staticmethod
+    def get_input_by_name(inputs, name):
+        if name not in self.input_index:
+            raise ValueError(
+                f"name, {name}, not a valid key. Valid keys are {self.input_index.keys()}."
+            )
+        idx = inpt_index[name]
+        try:
+            datum = inputs[idx]
+        except:
+            raise ValueError(
+                f"Attempting to gather {name} data from input tensors, {inputs}, with length {len(inputs)} failed."
+            )
+        return datum
+
+    @staticmethod
+    def get_refl_id(inputs):
+        """ Given a collection of inputs extract just the reflection_id """
+        return get_input_by_name(inputs, 'refl_id')
+
+    @staticmethod
+    def get_image_id(inputs):
+        """ Given a collection of inputs extract just the image_id """
+        return get_input_by_name(inputs, 'input_id')
+
+    @staticmethod
+    def get_metadata(inputs):
+        """ Given a collection of inputs extract just the metadata """
+        return get_input_by_name(inputs, 'metadata')
+
+    @staticmethod
+    def get_intensities(inputs):
+        """ Given a collection of inputs extract just the intensities """
+        return get_input_by_name(inputs, 'intensities')
+
+    @staticmethod
+    def get_uncertainties(inputs):
+        """ Given a collection of inputs extract just the uncertainty estimates """
+        return get_input_by_name(inputs, 'uncertainties')
+
+    @staticmethod
+    def get_wavelength(inputs):
+        """ Given a collection of inputs extract just the wavelength. This method only applies to Laue data."""
+        return get_input_by_name(inputs, 'wavelength')
+
+    @staticmethod
+    def get_harmonic_id(inputs):
+        """ Given a collection of inputs extract just the harmonic_id. This method only applies to Laue data."""
+        return get_input_by_name(inputs, 'harmonic_id')
+
+class PerXXGroupModel():
+    """
+    This legacy class is no longer used, but it contains some useful snippets regarding sparse tensor ops. 
+
     Base class for corrections that are applied to reflection observations by some grouping.
     This uses tensorflow SparseTensor multiplication to take care of indexing.
 
