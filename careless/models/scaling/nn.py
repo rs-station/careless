@@ -10,20 +10,19 @@ class MLPScaler(BaseModel):
     Neural network based scaler with simple dense layers.
     This neural network outputs a normal distribution.
     """
-    def __init__(self, layers, width):
+    def __init__(self, n_layers, width):
         """
         Parameters
         ----------
-        layers : int 
+        n_layers : int 
             Number of layers
         width : int
             Width of layers
         """
         super().__init__()
 
-        self.metadata = np.array(metadata, dtype=np.float32)
         layers = []
-        for i in range(layers):
+        for i in range(n_layers):
             layers.append(
                 tf.keras.layers.Dense(
                     width, 
@@ -48,7 +47,7 @@ class MLPScaler(BaseModel):
 
         self.network = tf.keras.Sequential(layers)
 
-    def call(sefl, inputs):
+    def call(self, inputs):
         """
         Parameters
         ----------
