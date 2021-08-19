@@ -1,73 +1,66 @@
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
-from careless.models.scaling.base import Scaler
+import tensorflow_probability as tfp
+from careless.models.base import BaseModel
 import numpy as np
 
 
-class SequentialScaler(tf.keras.models.Sequential, Scaler):
+class MLPScaler(BaseModel):
     """
     Neural network based scaler with simple dense layers.
+    This neural network outputs a normal distribution.
     """
-    def __init__(self, metadata, layers=20, prior=None, width=None):
+    def __init__(self, layers, width):
         """
         Parameters
         ----------
-        metadata : array 
-            m x d array of reflection metadata.
-        layers : int (optional)
-            How many dense layers to add. The default is 20 layers.
-        prior : tfd.Distribution (optional)
-            An optional prior distirubtion on the scaler output.
-        width : int (optional)
-            Optionally set the width of the hidden layers to be different than the dimensions of the
-            metadata. 
+        layers : int 
+            Number of layers
+        width : int
+            Width of layers
         """
         super().__init__()
 
-        self.prior = prior
-
         self.metadata = np.array(metadata, dtype=np.float32)
-        n,d = metadata.shape
-        if width is None:
-            width = d
-
+        layers = []
         for i in range(layers):
-            self.add(tf.keras.layers.Dense(width, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
+            layers.append(
+                tf.keras.layers.Dense(
+                    width, 
+                    activation=tf.keras.layers.LeakyReLU(), 
+                    use_bias=True, 
+                    kernel_initializer='identity'
+                    )
+                )
 
-        self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True, kernel_initializer='identity')) #TODO: <<<=====Is this better or worse??!?
-        #This is a hack to initialize the weights for this module
-        self(self.metadata[None,0])
+        #The last layer is linear and generates location/scale params
+        layers.append(
+            tf.keras.layers.Dense(
+                tfp.layers.IndependentNormal.params_size(), 
+                activation='linear', 
+                use_bias=True, 
+                kernel_initializer='identity'
+            )
+        )
 
-    @property
-    def loc(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        return loc
+        #The final layer converts the output to a Normal distribution
+        layers.append(tfp.layers.IndependentNormal())
 
-    @property
-    def scale(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        scale = tf.math.softplus(scale)
-        return scale
+        self.network = tf.keras.Sequential(layers)
 
-    def loc_and_scale(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        scale = tf.math.softplus(scale)
-        return loc, scale
+    def call(sefl, inputs):
+        """
+        Parameters
+        ----------
+        inputs : tf.Tensor(float32)
+            An arbitrarily batched input tensor
 
-    def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
-        loc, scale = self.loc_and_scale()
-        scale = tf.math.softplus(scale)
-        dist = tfd.Normal(loc, scale)
-        sample = dist.sample(sample_shape, seed, name, **kwargs)
-        if return_kl_term:
-            if self.prior is None:
-                kl_div =  0.
-            else:
-                log_q = dist.log_prob(sample)
-                log_p = self.prior.log_prob(sample)
-                kl_div =  tf.reduce_sum(log_q - log_p, axis=-1)
-            return sample, kl_div
-        else:
-            return sample
+        Returns
+        -------
+        dist : tfp.distributions.Distribution
+            A tfp distribution instance.
+        """
+        metadata = self.get_metadata(inputs)
+        return self.network(metadata)
 
 
