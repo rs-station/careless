@@ -16,7 +16,7 @@ class ImageScaler(BaseModel):
             The maximum number of image variables to be learned
         """
         super().__init__()
-        self._scales = tf.Variable(tf.ones(self.num_groups - 1))
+        self._scales = tf.Variable(tf.ones(max_images - 1))
 
     @property
     def scales(self):
