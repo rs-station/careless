@@ -36,6 +36,7 @@ def laue_inputs():
     ds = load_dataset('data/pyp_off.mtz')
     ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
     ds.hkl_to_asu(inplace=True)
+    ds.compute_dHKL(inplace=True)
 
     #expand the wavelength range a bit to get more harmonics for testing
     lam_min = 0.8 * ds.Wavelength.min()
@@ -71,5 +72,46 @@ def laue_inputs():
         uncertainties,
         wavelength,
         harmonic_id
+    ]
+    return inputs
+
+
+@pytest.fixture
+def mono_inputs():
+    #shh these are actually laue data 0.o
+    from careless.io.asu import ReciprocalASU,ReciprocalASUCollection
+
+    ds = load_dataset('data/pyp_off.mtz')
+    ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
+    ds.hkl_to_asu(inplace=True)
+    ds.compute_dHKL(inplace=True)
+
+    #expand the wavelength range a bit to get more harmonics for testing
+    lam_min = 0.8 * ds.Wavelength.min()
+    lam_max = 1.2 * ds.Wavelength.max()
+
+    hkls = ds.get_hkls()
+
+    rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
+    rasu_collection = ReciprocalASUCollection([rasu])
+
+    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int32'), hkls)
+    image_id = ds.groupby('BATCH').ngroup().to_numpy('int32')[:,None]
+    metadata = ds[[
+        'dHKL',
+        'Hobs',
+        'Kobs',
+        'Lobs',
+        'BATCH'
+    ]].to_numpy('float32')
+    intensities   = ds.I.to_numpy('float32')[:,None]
+    uncertainties = ds.SigI.to_numpy('float32')[:,None]
+
+    inputs = [
+        refl_id,
+        image_id,
+        metadata,
+        intensities,
+        uncertainties,
     ]
     return inputs

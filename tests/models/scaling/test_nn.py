@@ -22,6 +22,6 @@ def MLPScaler_test(mc_samples, inputs):
 def test_MLPScaler_laue(mc_samples, laue_inputs):
     MLPScaler_test(mc_samples, laue_inputs)
 
-#@pytest.mark.parametrize("mc_samples", [1, 3])
-#def test_MLPScaler_mono(mc_samples, mono_inputs):
-#    test_MLPScaler(mc_samples, mono_inputs)
+@pytest.mark.parametrize("mc_samples", [1, 3])
+def test_MLPScaler_mono(mc_samples, mono_inputs):
+    MLPScaler_test(mc_samples, mono_inputs)
