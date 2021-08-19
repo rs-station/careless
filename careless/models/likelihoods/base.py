@@ -1,10 +1,10 @@
+from careless.models.base import BaseModel
 
-class Likelihood():
-    def log_prob(self, *args):
-        raise NotImplementedError("Likelihood classes must implement a log_prob method")
 
-    def prob(self, *args):
-        raise NotImplementedError("Likelihood classes must implement a prob method")
+class Likelihood(BaseModel):
+    def call(inputs):
+        raise NotImplementedError(
+            "Likelihoods must implement a call method that returns a `tfp.distribution.Distribution` "
+            "or a similar object with a `log_prob` method."
+        )
 
-    def sample(self, *args):
-        raise NotImplementedError("Likelihood classes must implement a sample method")
