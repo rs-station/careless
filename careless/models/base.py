@@ -59,7 +59,7 @@ class BaseModel(tfk.layers.Layer):
     @staticmethod
     def get_image_id(inputs):
         """ Given a collection of inputs extract just the image_id """
-        return BaseModel.get_input_by_name(inputs, 'input_id')
+        return BaseModel.get_input_by_name(inputs, 'image_id')
 
     @staticmethod
     def get_metadata(inputs):
