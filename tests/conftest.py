@@ -26,7 +26,7 @@ def load_dataset(datapath):
     """
     inFN = abspath(join(dirname(__file__), datapath))
     return rs.read_mtz(inFN)
-    
+
 class LaueTestData():
     def __init__(self, mtz_file):
         from careless.utils.laue import expand_harmonics
@@ -48,7 +48,7 @@ class LaueTestData():
         rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
         rasu_collection = ReciprocalASUCollection([rasu])
 
-        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)[:,None]
         image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
         metadata = ds[[
             'Wavelength',
@@ -83,9 +83,6 @@ laue_test_data = LaueTestData('data/pyp_off.mtz')
 def laue_inputs():
     return laue_test_data.inputs
 
-@pytest.fixture
-def laue_inputs():
-    return laue_test_data.inputs
 
 class MonoTestData():
     def __init__(self, mtz_file):
@@ -97,16 +94,12 @@ class MonoTestData():
         ds.hkl_to_asu(inplace=True)
         ds.compute_dHKL(inplace=True)
 
-        #expand the wavelength range a bit to get more harmonics for testing
-        lam_min = 0.8 * ds.Wavelength.min()
-        lam_max = 1.2 * ds.Wavelength.max()
-
         hkls = ds.get_hkls()
 
         rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
         rasu_collection = ReciprocalASUCollection([rasu])
 
-        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)[:,None]
         image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
         metadata = ds[[
             'dHKL',
@@ -129,10 +122,13 @@ class MonoTestData():
             uncertainties,
         ]
 
-mono_test_data = LaueTestData('data/pyp_off.mtz')
+mono_test_data = MonoTestData('data/pyp_off.mtz')
 
 @pytest.fixture
 def mono_inputs():
     return mono_test_data.inputs
 
+@pytest.fixture
+def mono_reciprocal_asu_collection():
+    return mono_test_data.reciprocal_asu_collection
 
