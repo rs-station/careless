@@ -17,7 +17,7 @@ class LaplaceLikelihood(Likelihood):
             self.get_uncertainties(inputs),
         )
 
-class StudentTLikelihood(MonoBase):
+class StudentTLikelihood(Likelihood):
     def __init__(self, dof):
         """
         Parameters
