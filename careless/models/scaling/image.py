@@ -57,6 +57,6 @@ class HybridImageScaler(BaseModel):
         a = self.image_scaler(inputs)
         return tfp.distributions.TransformedDistribution(
             q,
-            tfp.bijectors.AffineScalar(shift=0., scale=a),
+            tfp.bijectors.Scale(scale=a),
         )
 
