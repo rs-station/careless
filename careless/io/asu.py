@@ -34,7 +34,7 @@ class ReciprocalASU():
             }, 
             cell=cell,
             spacegroup=spacegroup,
-        )
+        ).compute_multiplicity().label_centrics()
         self.lookup_table = lookup_table
 
     def to_refl_id(self, H):
