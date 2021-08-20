@@ -1,5 +1,4 @@
 from careless.models.likelihoods.base import Likelihood
-from careless.models.base import PerGroupModel
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow_probability as tfp
