@@ -4,17 +4,17 @@ from tensorflow_probability import distributions as tfd
 import numpy as np
 
 class NormalLikelihood(Likelihood):
-    def call(inputs):
+    def call(self, inputs):
         return tfd.Normal(
-            self.get_intensities,
-            self.get_uncertainties,
+            self.get_intensities(inputs),
+            self.get_uncertainties(inputs),
         )
 
 class LaplaceLikelihood(Likelihood):
-    def call(inputs):
+    def call(self, inputs):
         return tfd.Laplace(
-            self.get_intensities,
-            self.get_uncertainties,
+            self.get_intensities(inputs),
+            self.get_uncertainties(inputs),
         )
 
 class StudentTLikelihood(MonoBase):
@@ -28,10 +28,10 @@ class StudentTLikelihood(MonoBase):
         super().__init__()
         self.dof = dof
 
-    def call(inputs):
+    def call(self, inputs):
         return tfd.StudentT(
             self.dof,
-            self.get_intensities,
-            self.get_uncertainties,
+            self.get_intensities(inputs),
+            self.get_uncertainties(inputs),
         )
 
