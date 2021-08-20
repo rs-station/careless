@@ -37,6 +37,16 @@ class ReciprocalASU():
         ).compute_multiplicity().label_centrics()
         self.lookup_table = lookup_table
 
+    @property
+    def centric(self):
+        """ boolean array true for centric refl_ids """
+        return self.lookup_table.CENTRIC.to_numpy('bool')
+
+    @property
+    def multiplicity(self):
+        """ the multiplicity of each structure factor """
+        return self.lookup_table.EPSILON.to_numpy('float32')
+
     def to_refl_id(self, H):
         """
         Parameters
@@ -85,6 +95,16 @@ class ReciprocalASUCollection():
                 self.lookup_table =  tab
         self.asu_and_miller_lookup_table = self.lookup_table.set_index(['asu_id', 'H', 'K', 'L'])
         self.refl_id_lookup_table = self.lookup_table.set_index('id')
+
+    @property
+    def centric(self):
+        """ boolean array true for centric refl_ids """
+        return self.refl_id_lookup_table.CENTRIC.to_numpy('bool')
+
+    @property
+    def multiplicity(self):
+        """ the multiplicity of each structure factor """
+        return self.refl_id_lookup_table.EPSILON.to_numpy('float32')
 
     def to_asu_id_and_miller_index(self, refl_id):
         """
