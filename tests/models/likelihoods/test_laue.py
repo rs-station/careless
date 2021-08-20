@@ -1,61 +1,50 @@
+import pytest
 from careless.models.likelihoods.laue import *
+from careless.models.base import BaseModel
+from tensorflow_probability import distributions as tfd
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
+def fake_ipred(inputs):
+    harmonic_id = BaseModel.get_harmonic_id(inputs)
+    intensities = BaseModel.get_intensities(inputs)
+    counts = np.bincount(harmonic_id.flatten())[:,None].astype('float32') 
+    i  = intensities / counts
+    return i[harmonic_id.flatten()]
+
+def test_laue_NormalLikelihood(laue_inputs):
+    likelihood = NormalLikelihood()(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.Normal(iobs, sigiobs)
+
+    test = likelihood.log_prob(ipred)
+    expected = l_true.log_prob(iobs)
+    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
+
+def test_laue_LaplaceLikelihood(laue_inputs):
+    likelihood = LaplaceLikelihood()(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.Laplace(iobs, sigiobs)
+
+    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
+
+@pytest.mark.parametrize('dof', [1., 2., 4.])
+def test_laue_StudentTLikelihood(dof, laue_inputs):
+    likelihood = StudentTLikelihood(dof)(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.StudentT(dof, iobs, sigiobs)
+
+    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
 
 
-# This is a bit tricky, but we need to test that all the dimensions for harmonic deconvolutions work out
-# We're going to have a certain number of observed reflections `n_refls`. We're going to have a larger number
-# of harmonics that need predicting, `n_harmonics`. 
-
-
-n_refls = 10
-n_harmonics = 77
-n_samples = 13
-
-iobs, sigiobs = np.random.random((2, n_refls))
-
-#Convenient way to make sure we have at least one of every refl_id
-harmonic_index = np.concatenate((np.arange(n_refls), np.random.randint(0, n_refls, n_harmonics - n_refls))) 
-
-predictions = np.random.random(n_harmonics).astype(np.float32)
-n_predictions = np.random.random((n_samples, n_harmonics)).astype(np.float32)
-
-def test_NormalLikelihood():
-    likelihood = NormalLikelihood(iobs, sigiobs, harmonic_index)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)
-
-def test_LaplaceLikelihood():
-    likelihood = LaplaceLikelihood(iobs, sigiobs, harmonic_index)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)
-
-def test_StudentTLikelihood():
-    dof = 4.
-    likelihood = StudentTLikelihood(iobs, sigiobs, harmonic_index, dof)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)
