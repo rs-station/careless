@@ -8,12 +8,11 @@ import numpy as np
 
 class LaueBase(Likelihood):
     @staticmethod
-    def get_sparse_conv_tensor(harmonic_id, nobs):
-        nobs = intensities.shape[0]
-        npred = harmonic_id.shape[0]
-        idx = tf.concat((harmonic_id, tf.range(npred, dtype='int64')[:,None]), axis=-1)
-        dense_shape = (nobs, npred)
-        sparse_conv_tensor = tf.SparseTensor(idx, tf.ones(npred), dense_shape)
+    def get_sparse_conv_tensor(harmonic_id, n_obs):
+        n_pred = harmonic_id.shape[0]
+        idx = tf.concat((harmonic_id, tf.range(n_pred, dtype='int64')[:,None]), axis=-1)
+        dense_shape = (n_obs, n_pred)
+        sparse_conv_tensor = tf.SparseTensor(idx, tf.ones(n_pred), dense_shape)
         return sparse_conv_tensor
 
     def dist(self, loc, scale):
@@ -25,8 +24,9 @@ class LaueBase(Likelihood):
         harmonic_id   = self.get_harmonic_id(inputs)
         intensities   = self.get_intensities(inputs)
         uncertainties = self.get_uncertainties(inputs)
-        sparse_conv_tensor = self.get_sparse_conv_tensor(harmonic_id, nobs)
-        likelihood = self._dist(intensities, uncertainties)
+        n_obs = intensities.shape[-2]
+        sparse_conv_tensor = self.get_sparse_conv_tensor(harmonic_id, n_obs)
+        likelihood = self.dist(intensities, uncertainties)
 
         class ConvolvedLikelihood():
             """
@@ -37,7 +37,7 @@ class LaueBase(Likelihood):
                 self.distribution = distribution
 
             def convolve(self, value):
-                tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value, adjoint_b=True)
+                return tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value)
 
             def mean(self, *args, **kwargs):
                 return self.distribution.mean(*args, **kwargs)
