@@ -27,91 +27,112 @@ def load_dataset(datapath):
     inFN = abspath(join(dirname(__file__), datapath))
     return rs.read_mtz(inFN)
     
+class LaueTestData():
+    def __init__(self, mtz_file):
+        from careless.utils.laue import expand_harmonics
+        from careless.io.asu import ReciprocalASU,ReciprocalASUCollection
+
+        ds = load_dataset(mtz_file)
+        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
+        ds.hkl_to_asu(inplace=True)
+        ds.compute_dHKL(inplace=True)
+
+        #expand the wavelength range a bit to get more harmonics for testing
+        lam_min = 0.8 * ds.Wavelength.min()
+        lam_max = 1.2 * ds.Wavelength.max()
+
+        ds = expand_harmonics(ds)
+        ds = ds[(ds.Wavelength >= lam_min) & (ds.Wavelength <= lam_max)]
+        hkls = ds.get_hkls()
+
+        rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
+        rasu_collection = ReciprocalASUCollection([rasu])
+
+        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+        image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
+        metadata = ds[[
+            'Wavelength',
+            'dHKL',
+            'Hobs',
+            'Kobs',
+            'Lobs',
+            'BATCH'
+        ]].to_numpy('float32')
+        intensities = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().I.to_numpy('float32')[:,None]
+        uncertainties = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().SigI.to_numpy('float32')[:,None]
+        wavelength  = ds.Wavelength.to_numpy('float32')[:,None]
+        harmonic_id = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).ngroup().to_numpy('int64')[:,None]
+
+        self.data = ds
+        self.reciprocal_asu = rasu
+        self.reciprocal_asu_collection = rasu_collection
+        self.inputs = [
+            refl_id,
+            image_id,
+            metadata,
+            intensities,
+            uncertainties,
+            wavelength,
+            harmonic_id
+        ]
+
+laue_test_data = LaueTestData('data/pyp_off.mtz')
+
 
 @pytest.fixture
 def laue_inputs():
-    from careless.utils.laue import expand_harmonics
-    from careless.io.asu import ReciprocalASU,ReciprocalASUCollection
+    return laue_test_data.inputs
 
-    ds = load_dataset('data/pyp_off.mtz')
-    ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
-    ds.hkl_to_asu(inplace=True)
-    ds.compute_dHKL(inplace=True)
+@pytest.fixture
+def laue_inputs():
+    return laue_test_data.inputs
 
-    #expand the wavelength range a bit to get more harmonics for testing
-    lam_min = 0.8 * ds.Wavelength.min()
-    lam_max = 1.2 * ds.Wavelength.max()
+class MonoTestData():
+    def __init__(self, mtz_file):
+        #shh these are actually laue data 0.o
+        from careless.io.asu import ReciprocalASU,ReciprocalASUCollection
 
-    ds = expand_harmonics(ds)
-    ds = ds[(ds.Wavelength >= lam_min) & (ds.Wavelength <= lam_max)]
-    hkls = ds.get_hkls()
+        ds = load_dataset('data/pyp_off.mtz')
+        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
+        ds.hkl_to_asu(inplace=True)
+        ds.compute_dHKL(inplace=True)
 
-    rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
-    rasu_collection = ReciprocalASUCollection([rasu])
+        #expand the wavelength range a bit to get more harmonics for testing
+        lam_min = 0.8 * ds.Wavelength.min()
+        lam_max = 1.2 * ds.Wavelength.max()
 
-    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
-    image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
-    metadata = ds[[
-        'Wavelength',
-        'dHKL',
-        'Hobs',
-        'Kobs',
-        'Lobs',
-        'BATCH'
-    ]].to_numpy('float32')
-    intensities = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().I.to_numpy('float32')[:,None]
-    uncertainties = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().SigI.to_numpy('float32')[:,None]
-    wavelength  = ds.Wavelength.to_numpy('float32')[:,None]
-    harmonic_id = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).ngroup().to_numpy('int64')[:,None]
+        hkls = ds.get_hkls()
 
-    inputs = [
-        refl_id,
-        image_id,
-        metadata,
-        intensities,
-        uncertainties,
-        wavelength,
-        harmonic_id
-    ]
-    return inputs
+        rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
+        rasu_collection = ReciprocalASUCollection([rasu])
 
+        refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+        image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
+        metadata = ds[[
+            'dHKL',
+            'Hobs',
+            'Kobs',
+            'Lobs',
+            'BATCH'
+        ]].to_numpy('float32')
+        intensities   = ds.I.to_numpy('float32')[:,None]
+        uncertainties = ds.SigI.to_numpy('float32')[:,None]
+
+        self.data = ds
+        self.reciprocal_asu = rasu
+        self.reciprocal_asu_collection = rasu_collection
+        self.inputs = [
+            refl_id,
+            image_id,
+            metadata,
+            intensities,
+            uncertainties,
+        ]
+
+mono_test_data = LaueTestData('data/pyp_off.mtz')
 
 @pytest.fixture
 def mono_inputs():
-    #shh these are actually laue data 0.o
-    from careless.io.asu import ReciprocalASU,ReciprocalASUCollection
+    return mono_test_data.inputs
 
-    ds = load_dataset('data/pyp_off.mtz')
-    ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
-    ds.hkl_to_asu(inplace=True)
-    ds.compute_dHKL(inplace=True)
 
-    #expand the wavelength range a bit to get more harmonics for testing
-    lam_min = 0.8 * ds.Wavelength.min()
-    lam_max = 1.2 * ds.Wavelength.max()
-
-    hkls = ds.get_hkls()
-
-    rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
-    rasu_collection = ReciprocalASUCollection([rasu])
-
-    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
-    image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
-    metadata = ds[[
-        'dHKL',
-        'Hobs',
-        'Kobs',
-        'Lobs',
-        'BATCH'
-    ]].to_numpy('float32')
-    intensities   = ds.I.to_numpy('float32')[:,None]
-    uncertainties = ds.SigI.to_numpy('float32')[:,None]
-
-    inputs = [
-        refl_id,
-        image_id,
-        metadata,
-        intensities,
-        uncertainties,
-    ]
-    return inputs
