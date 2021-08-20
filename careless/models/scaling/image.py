@@ -37,7 +37,7 @@ class ImageScaler(BaseModel):
         """
         image_ids = self.get_image_id(inputs)
         w = self.scales
-        return tf.gather(w, image_ids)
+        return tf.squeeze(tf.gather(w, image_ids))
 
 class HybridImageScaler(BaseModel):
     """
