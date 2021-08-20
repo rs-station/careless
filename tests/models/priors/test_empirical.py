@@ -21,7 +21,7 @@ SigFobs[~observed] = 1.
 def ReferencePrior_test(p, ref, mc_samples):
     #This part checks indexing and gradient numerics
     q = tfd.TruncatedNormal( #<-- use this dist because RW has positive support
-        Fobs, 
+        tf.Variable(Fobs), 
         tfp.util.TransformedVariable( 
             SigFobs,
             tfp.bijectors.Softplus(),
@@ -45,28 +45,28 @@ def ReferencePrior_test(p, ref, mc_samples):
     result = p.log_prob(z).numpy()[...,observed]
     assert np.allclose(expected, result)
 
-@pytest.mark.parametrize('mc_samples', [3, 1])
+@pytest.mark.parametrize('mc_samples', [(), 3, 1])
 def test_LaplaceReferencePrior(mc_samples):
     p = LaplaceReferencePrior(Fobs[observed], SigFobs[observed], observed)
     q = tfd.Laplace(Fobs, SigFobs/np.sqrt(2.))
     ReferencePrior_test(p, q, mc_samples)
 
 
-@pytest.mark.parametrize('mc_samples', [3, 1])
+@pytest.mark.parametrize('mc_samples', [(), 3, 1])
 def test_NormalReferencePrior(mc_samples):
     p = NormalReferencePrior(Fobs[observed], SigFobs[observed], observed)
     q = tfd.Normal(Fobs, SigFobs)
     ReferencePrior_test(p, q, mc_samples)
 
 
-@pytest.mark.parametrize('mc_samples', [3, 1])
+@pytest.mark.parametrize('mc_samples', [(), 3, 1])
 def test_StudentTReferencePrior(mc_samples):
     p = StudentTReferencePrior(Fobs[observed], SigFobs[observed], 4., observed)
     q = tfd.StudentT(4, Fobs, SigFobs)
     ReferencePrior_test(p, q, mc_samples)
 
 
-@pytest.mark.parametrize('mc_samples', [3, 1])
+@pytest.mark.parametrize('mc_samples', [(), 3, 1])
 @pytest.mark.parametrize('centrics', ['all', 'none', 'some'])
 def test_RiceWoolfsonReferencePrior(mc_samples, centrics):
     if centrics == 'all':
