@@ -49,8 +49,8 @@ def laue_inputs():
     rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
     rasu_collection = ReciprocalASUCollection([rasu])
 
-    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int32'), hkls)
-    image_id = ds.groupby('BATCH').ngroup().to_numpy('int32')[:,None]
+    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+    image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
     metadata = ds[[
         'Wavelength',
         'dHKL',
@@ -59,11 +59,10 @@ def laue_inputs():
         'Lobs',
         'BATCH'
     ]].to_numpy('float32')
-    intensities   = ds.I.to_numpy('float32')[:,None]
     intensities = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().I.to_numpy('float32')[:,None]
     uncertainties = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().SigI.to_numpy('float32')[:,None]
     wavelength  = ds.Wavelength.to_numpy('float32')[:,None]
-    harmonic_id = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).ngroup().to_numpy('int32')[:,None]
+    harmonic_id = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).ngroup().to_numpy('int64')[:,None]
 
     inputs = [
         refl_id,
@@ -96,8 +95,8 @@ def mono_inputs():
     rasu = ReciprocalASU(ds.cell, ds.spacegroup, ds.compute_dHKL().dHKL.min(), False)
     rasu_collection = ReciprocalASUCollection([rasu])
 
-    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int32'), hkls)
-    image_id = ds.groupby('BATCH').ngroup().to_numpy('int32')[:,None]
+    refl_id  = rasu_collection.to_refl_id(np.zeros((len(hkls), 1), dtype='int64'), hkls)
+    image_id = ds.groupby('BATCH').ngroup().to_numpy('int64')[:,None]
     metadata = ds[[
         'dHKL',
         'Hobs',
