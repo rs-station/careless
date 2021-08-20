@@ -13,7 +13,10 @@ def test_mono_NormalLikelihood(mono_inputs):
     iobs = BaseModel.get_intensities(mono_inputs)
     sigiobs = BaseModel.get_uncertainties(mono_inputs)
 
-    l_true = tfd.Normal(iobs, sigiobs)
+    l_true = tfd.Normal(
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs),
+    )
     z = l_true.sample()
 
     assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))
@@ -23,7 +26,10 @@ def test_mono_LaplaceLikelihood(mono_inputs):
     iobs = BaseModel.get_intensities(mono_inputs)
     sigiobs = BaseModel.get_uncertainties(mono_inputs)
 
-    l_true = tfd.Laplace(iobs, sigiobs)
+    l_true = tfd.Laplace(
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs)/np.sqrt(2.),
+    )
     z = l_true.sample()
 
     assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))
@@ -34,7 +40,11 @@ def test_mono_StudentTLikelihood(dof, mono_inputs):
     iobs = BaseModel.get_intensities(mono_inputs)
     sigiobs = BaseModel.get_uncertainties(mono_inputs)
 
-    l_true = tfd.StudentT(dof, iobs, sigiobs)
+    l_true = tfd.StudentT(
+        dof, 
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs),
+    )
     z = l_true.sample()
 
     assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))

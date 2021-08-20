@@ -3,21 +3,22 @@ import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 import numpy as np
 
-class NormalLikelihood(Likelihood):
-    def call(self, inputs):
-        return tfd.Normal(
-            self.get_intensities(inputs),
-            self.get_uncertainties(inputs),
-        )
+class LocationScaleLikelihood(Likelihood):
+    def get_loc_and_scale(self, inputs):
+        loc   = self.get_intensities(inputs)
+        scale = self.get_uncertainties(inputs)
+        return tf.squeeze(loc), tf.squeeze(scale)
 
-class LaplaceLikelihood(Likelihood):
+class NormalLikelihood(LocationScaleLikelihood):
     def call(self, inputs):
-        return tfd.Laplace(
-            self.get_intensities(inputs),
-            self.get_uncertainties(inputs),
-        )
+        return tfd.Normal(*self.get_loc_and_scale(inputs))
 
-class StudentTLikelihood(Likelihood):
+class LaplaceLikelihood(LocationScaleLikelihood):
+    def call(self, inputs):
+        loc, scale = self.get_loc_and_scale(inputs)
+        return tfd.Laplace(loc, scale/np.sqrt(2.))
+
+class StudentTLikelihood(LocationScaleLikelihood):
     def __init__(self, dof):
         """
         Parameters
@@ -29,9 +30,5 @@ class StudentTLikelihood(Likelihood):
         self.dof = dof
 
     def call(self, inputs):
-        return tfd.StudentT(
-            self.dof,
-            self.get_intensities(inputs),
-            self.get_uncertainties(inputs),
-        )
+        return tfd.StudentT(self.dof, *self.get_loc_and_scale(inputs))
 
