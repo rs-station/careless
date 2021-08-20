@@ -1,4 +1,4 @@
-from careless.models.likelihoods.base import Likelihood
+from careless.models.likelihoods.mono import Likelihood
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow_probability as tfp
@@ -37,11 +37,16 @@ class LaueBase(Likelihood):
                 self.distribution = distribution
 
             def convolve(self, value):
+                """
+                Takes a set of sample points at which to compute the log prob. 
+                values can either be a bare vector or it may have a batch
+                dimension for mc samples, ie shape=(b, n_predictions). 
+                """
                 # TODO: see if anything can be done about this
                 # This line gets triggered iff mc_samples == 1 during testing
                 if value.ndim == 1:
                     value = tf.expand_dims(value, 0)
-                return tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value, adjoint_b=True)
+                return tf.transpose(tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value, adjoint_b=True))
 
             def mean(self, *args, **kwargs):
                 return self.distribution.mean(*args, **kwargs)
@@ -56,11 +61,15 @@ class LaueBase(Likelihood):
 
 class NormalLikelihood(LaueBase):
     def dist(self, loc, scale):
+        loc = tf.squeeze(loc)
+        scale = tf.squeeze(scale)
         return tfd.Normal(loc, scale)
 
 class LaplaceLikelihood(LaueBase):
     def dist(self, loc, scale):
-        return tfd.Laplace(loc, scale)
+        loc = tf.squeeze(loc)
+        scale = tf.squeeze(scale)
+        return tfd.Laplace(loc, scale/np.sqrt(2.))
 
 class StudentTLikelihood(LaueBase):
     def __init__(self, dof):
@@ -74,5 +83,7 @@ class StudentTLikelihood(LaueBase):
         self.dof = dof
 
     def dist(self, loc, scale):
+        loc = tf.squeeze(loc)
+        scale = tf.squeeze(scale)
         return tfd.StudentT(self.dof, loc, scale)
 

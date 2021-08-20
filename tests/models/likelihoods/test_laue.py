@@ -22,9 +22,13 @@ def test_laue_NormalLikelihood(laue_inputs):
 
     l_true = tfd.Normal(iobs, sigiobs)
 
-    test = likelihood.log_prob(ipred)
-    expected = l_true.log_prob(iobs)
-    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
+    test = likelihood.log_prob(ipred.T).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+    #from IPython import embed
+    #embed()
+    #XX
+    assert np.array_equal(expected.shape, test.T.shape)
+    assert np.allclose(expected, test.T)
 
 def test_laue_LaplaceLikelihood(laue_inputs):
     likelihood = LaplaceLikelihood()(laue_inputs)
@@ -32,9 +36,12 @@ def test_laue_LaplaceLikelihood(laue_inputs):
     sigiobs = BaseModel.get_uncertainties(laue_inputs)
     ipred = fake_ipred(laue_inputs)
 
-    l_true = tfd.Laplace(iobs, sigiobs)
+    l_true = tfd.Laplace(iobs, sigiobs/np.sqrt(2.))
 
-    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
+    test = likelihood.log_prob(ipred.T).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+    assert np.array_equal(expected.shape, test.T.shape)
+    assert np.allclose(expected, test.T)
 
 @pytest.mark.parametrize('dof', [1., 2., 4.])
 def test_laue_StudentTLikelihood(dof, laue_inputs):
@@ -45,6 +52,7 @@ def test_laue_StudentTLikelihood(dof, laue_inputs):
 
     l_true = tfd.StudentT(dof, iobs, sigiobs)
 
-    assert np.allclose(likelihood.log_prob(ipred), l_true.log_prob(iobs))
-
-
+    test = likelihood.log_prob(ipred.T).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+    assert np.array_equal(expected.shape, test.T.shape)
+    assert np.allclose(expected, test.T)
