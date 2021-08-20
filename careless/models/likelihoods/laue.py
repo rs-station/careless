@@ -37,7 +37,11 @@ class LaueBase(Likelihood):
                 self.distribution = distribution
 
             def convolve(self, value):
-                return tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value)
+                # TODO: see if anything can be done about this
+                # This line gets triggered iff mc_samples == 1 during testing
+                if value.ndim == 1:
+                    value = tf.expand_dims(value, 0)
+                return tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value, adjoint_b=True)
 
             def mean(self, *args, **kwargs):
                 return self.distribution.mean(*args, **kwargs)
