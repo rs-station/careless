@@ -7,14 +7,6 @@ import numpy as np
 
 
 class LaueBase(Likelihood):
-    @staticmethod
-    def get_sparse_conv_tensor(harmonic_id, n_obs):
-        n_pred = harmonic_id.shape[0]
-        idx = tf.concat((harmonic_id, tf.range(n_pred, dtype='int64')[:,None]), axis=-1)
-        dense_shape = (n_obs, n_pred)
-        sparse_conv_tensor = tf.SparseTensor(idx, tf.ones(n_pred), dense_shape)
-        return sparse_conv_tensor
-
     def dist(self, loc, scale):
         raise NotImplementedError(
             """ Extensions of this class must implement self.location_scale_distribution(loc, scale) """
@@ -24,16 +16,15 @@ class LaueBase(Likelihood):
         harmonic_id   = self.get_harmonic_id(inputs)
         intensities   = self.get_intensities(inputs)
         uncertainties = self.get_uncertainties(inputs)
-        n_obs = intensities.shape[-2]
-        sparse_conv_tensor = self.get_sparse_conv_tensor(harmonic_id, n_obs)
+
         likelihood = self.dist(intensities, uncertainties)
 
         class ConvolvedLikelihood():
             """
             Convolved log probability object for Laue data.
             """
-            def __init__(self, distribution, sparse_conv_tensor):
-                self.sparse_conv_tensor = sparse_conv_tensor
+            def __init__(self, distribution, harmonic_id):
+                self.harmonic_id = harmonic_id
                 self.distribution = distribution
 
             def convolve(self, value):
@@ -42,11 +33,9 @@ class LaueBase(Likelihood):
                 values can either be a bare vector or it may have a batch
                 dimension for mc samples, ie shape=(b, n_predictions). 
                 """
-                # TODO: see if anything can be done about this
-                # This line gets triggered iff mc_samples == 1 during testing
-                if value.ndim == 1:
-                    value = tf.expand_dims(value, 0)
-                return tf.transpose(tf.sparse.sparse_dense_matmul(self.sparse_conv_tensor, value, adjoint_b=True))
+                tv = tf.transpose(value)
+                tr = tf.scatter_nd(self.harmonic_id, tv, tv.shape)
+                return tf.transpose(tr)
 
             def mean(self, *args, **kwargs):
                 return self.distribution.mean(*args, **kwargs)
@@ -57,7 +46,7 @@ class LaueBase(Likelihood):
             def log_prob(self, value):
                 return self.distribution.log_prob(self.convolve(value))
 
-        return ConvolvedLikelihood(likelihood, sparse_conv_tensor)
+        return ConvolvedLikelihood(likelihood, harmonic_id)
 
 class NormalLikelihood(LaueBase):
     def dist(self, loc, scale):
