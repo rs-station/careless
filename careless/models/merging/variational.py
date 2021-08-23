@@ -12,7 +12,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
-    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model):
+    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1):
         """"
         Parameters
         ----------
@@ -31,14 +31,17 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             This is a Likelihood object from careless.
         scaling_model : careless.models.base.BaseModel
             An instance of a class from carless.model.scaling 
+        mc_sample_size : int (optional)
+            This sets how many reparameterized samples will be used to compute the loss function.
         """
         super().__init__()
         self.prior = prior
         self.surrogate_posterior = surrogate_posterior
         self.likelihood = likelihood
         self.scaling_model = scaling_model
+        self.mc_sample_size = mc_sample_size
 
-    def call(self, inputs, mc_samples=1):
+    def call(self, inputs):
         """
         Parameters
         ----------
@@ -51,10 +54,10 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         predictions : tf.Tensor
             Values predicted by the model for this sample. 
         """
-        z_f = self.surrogate_posterior.sample(mc_samples)
+        z_f = self.surrogate_posterior.sample(self.mc_sample_size)
 
         scale_dist = self.scaling_model(inputs)
-        z_scale = scale_dist.sample(mc_samples)
+        z_scale = scale_dist.sample(self.mc_sample_size)
 
         kl_div = tf.reduce_sum(self.surrogate_posterior.log_prob(z_f) - self.prior.log_prob(z_f))
 
@@ -67,8 +70,8 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         ll = tf.reduce_sum(likelihood.log_prob(ipred))
 
         #just to make things consistent across mc_samples
-        ll     /= mc_samples
-        kl_div /= mc_samples
+        ll     /= self.mc_sample_size
+        kl_div /= self.mc_sample_size
 
         #Do some keras-y stuff
         self.add_loss(-ll)

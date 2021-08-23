@@ -68,13 +68,9 @@ def test_laue(likelihood_model, prior_model, scaling_model, laue_inputs, mc_samp
         high = 1e10,
     )
 
-    merger = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler)
-    ipred_samples = merger(laue_inputs, mc_samples=mc_samples)
+    merger = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, mc_samples)
+    ipred = merger(laue_inputs)
 
-    isfinite = np.all(np.isfinite(ipred_samples.numpy()))
-    assert isfinite
-
-    ipred = merger.expectation(laue_inputs)
     isfinite = np.all(np.isfinite(ipred.numpy()))
     assert isfinite
 

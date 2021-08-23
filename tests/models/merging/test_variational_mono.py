@@ -68,13 +68,9 @@ def test_mono(likelihood_model, prior_model, scaling_model, mono_inputs, mc_samp
         high = 1e10,
     )
 
-    merger = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler)
-    ipred_samples = merger(mono_inputs, mc_samples=mc_samples)
+    merger = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, mc_samples)
+    ipred = merger(mono_inputs)
 
-    isfinite = np.all(np.isfinite(ipred_samples.numpy()))
-    assert isfinite
-
-    ipred = merger.expectation(mono_inputs)
     isfinite = np.all(np.isfinite(ipred.numpy()))
     assert isfinite
 
