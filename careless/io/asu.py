@@ -106,6 +106,16 @@ class ReciprocalASUCollection():
         """ the multiplicity of each structure factor """
         return self.refl_id_lookup_table.EPSILON.to_numpy('float32')
 
+    @property
+    def hkls(self):
+        """ the multiplicity of each structure factor """
+        return self.refl_id_lookup_table.get_hkls()
+
+    @property
+    def asu_ids(self):
+        """ the multiplicity of each structure factor """
+        return self.refl_id_lookup_table.asu_id.to_numpy('int')
+
     def to_asu_id_and_miller_index(self, refl_id):
         """
         Parameters
