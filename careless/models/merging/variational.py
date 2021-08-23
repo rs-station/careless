@@ -38,20 +38,6 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.likelihood = likelihood
         self.scaling_model = scaling_model
 
-    def expectation(self, inputs):
-        """
-        Compute the expected value of reflection observations under the current model.
-        """
-        scale_dist = self.scaling_model(inputs)
-
-        #This is <F**2.>
-        # Variance(F) = SigF**2 = <F**2> - <F>**2 
-        f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
-
-        refl_id = self.get_refl_id(inputs)
-        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
-        return iexp
-
     def call(self, inputs, mc_samples=1):
         """
         Parameters
