@@ -8,7 +8,7 @@ from tensorflow import keras as tfk
 import numpy as np
 
 
-class VariationalMergingModel(BaseModel):
+class VariationalMergingModel(tfk.Model, BaseModel):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
@@ -38,10 +38,6 @@ class VariationalMergingModel(BaseModel):
         self.likelihood = likelihood
         self.scaling_model = scaling_model
 
-        #This is just to make sure tf picks up the variables which doesn't always happen with
-        #transformed variables
-        self.qvars = surrogate_posterior.variables
-
     def expectation(self, inputs):
         """
         Compute the expected value of reflection observations under the current model.
@@ -52,8 +48,8 @@ class VariationalMergingModel(BaseModel):
         f2 = self.surrogate_posterior.mean()**2. + self.surrogate_posterior.stddev()**2.
 
         refl_id = self.get_refl_id(inputs)
-        ipred = scale_dist.mean() * tf.gather(f2, refl_id, axis=-1)
-        return ipred
+        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
+        return iexp
 
     def call(self, inputs, mc_samples=1):
         """
@@ -76,10 +72,10 @@ class VariationalMergingModel(BaseModel):
         kl_div = tf.reduce_sum(self.surrogate_posterior.log_prob(z_f) - self.prior.log_prob(z_f))
 
         refl_id = self.get_refl_id(inputs)
+
         ipred = z_scale * tf.gather(z_f, tf.squeeze(refl_id, axis=-1), axis=-1)**2.
 
         likelihood = self.likelihood(inputs)
-
 
         ll = tf.reduce_sum(likelihood.log_prob(ipred))
 
@@ -92,7 +88,13 @@ class VariationalMergingModel(BaseModel):
         self.add_loss(kl_div)
         self.add_metric(-ll, name="NLL")
         self.add_metric(kl_div, name="KLDiv")
-        return ipred
+
+        #Let's actually return the expected value of the data under the current model
+        #This is <F**2.>
+        f2 = self.surrogate_posterior.mean()**2. + self.surrogate_posterior.stddev()**2.
+        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
+        return iexp
+
 
 #Legacy class to be deleted....
 #class VariationalXXMergingModel(PerGroupModel, tf.Module):

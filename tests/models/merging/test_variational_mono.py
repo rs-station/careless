@@ -78,3 +78,4 @@ def test_mono(likelihood_model, prior_model, scaling_model, mono_inputs, mc_samp
     isfinite = np.all(np.isfinite(ipred.numpy()))
     assert isfinite
 
+    merger.compile('Adam')

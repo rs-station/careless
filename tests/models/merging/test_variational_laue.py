@@ -78,3 +78,6 @@ def test_laue(likelihood_model, prior_model, scaling_model, laue_inputs, mc_samp
     isfinite = np.all(np.isfinite(ipred.numpy()))
     assert isfinite
 
+    merger = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler)
+    merger.compile('Adam')
+    #merger.fit([l[None,...] for l in laue_inputs], steps_per_epoch=1, batch_size=1)

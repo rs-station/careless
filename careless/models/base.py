@@ -49,6 +49,8 @@ class BaseModel(tfk.layers.Layer):
             raise ValueError(
                 f"Attempting to gather {name} data from input tensors, {inputs}, with length {len(inputs)} failed."
             )
+        if datum.shape[0] == 1:
+            datum = tf.squeeze(datum, axis=0)
         return datum
 
     @staticmethod

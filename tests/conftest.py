@@ -62,6 +62,9 @@ class LaueTestData():
         uncertainties = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).first().SigI.to_numpy('float32')[:,None]
         wavelength  = ds.Wavelength.to_numpy('float32')[:,None]
         harmonic_id = ds.groupby(['BATCH', 'H_0', 'K_0', 'L_0']).ngroup().to_numpy('int64')[:,None]
+        pad = len(refl_id) - len(intensities)
+        intensities   = np.pad(intensities, [[0,pad],[0,0]])
+        uncertainties = np.pad(uncertainties, [[0,pad],[0,0]], constant_values = 1./np.sqrt(np.pi * 2))
 
         self.data = ds
         self.reciprocal_asu = rasu

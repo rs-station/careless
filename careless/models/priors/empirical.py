@@ -20,6 +20,13 @@ class ReferencePrior():
             idx = tf.where(observed)
             self.idx = tf.reshape(idx, (-1,))
 
+    def mean(self):
+        """ This just passes through to self.base_dist. """
+        return self.base_dist.mean()
+
+    def stddev(self):
+        """ This just passes through to self.base_dist. """
+        return self.base_dist.stddev()
 
     def log_prob(self, values):
         if self.idx is None:
