@@ -68,3 +68,8 @@ def test_double_reciprocal_asu_collection(dmin, anomalous, cell_and_spacegroups)
 
         multiplicities = np.concatenate(multiplicities)
         assert np.all(rac.multiplicity == multiplicities)
+
+        assert rasus[0] is rac[0]
+        assert rasus[1] is rac[1]
+        for i,j in zip(rasus, rac):
+            assert i is j

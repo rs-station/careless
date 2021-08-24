@@ -1,4 +1,5 @@
 import reciprocalspaceship as rs
+import pandas as pd
 import numpy as np
 
 class ReciprocalASU():
@@ -59,7 +60,8 @@ class ReciprocalASU():
         refl_id : np.array
             (n x 1) array of integer reflection ids
         """
-        return self.lookup_table.set_index(['H','K','L']).loc[H.tolist(), 'id']
+        idx = pd.MultiIndex.from_arrays(H.T, names = ['H', 'K', 'L'])
+        return self.lookup_table.set_index(['H','K','L']).loc[idx, 'id']
 
     def to_miller_index(self, refl_id):
         """
@@ -149,7 +151,11 @@ class ReciprocalASUCollection():
         refl_id : np.array
             (n x 1) array of integer reflection ids to convert to miller indices
         """
-        index = np.concatenate((asu_id, H), axis=1).astype('int')
-        return self.asu_and_miller_lookup_table.loc[index.tolist(), 'id'].to_numpy('int')
+        idx = np.concatenate((asu_id, H), axis=1).astype('int')
+        idx = pd.MultiIndex.from_arrays(idx.T, names = ['asu_id', 'H', 'K', 'L'])
+        return self.asu_and_miller_lookup_table.loc[idx, 'id'].to_numpy('int')
+
+    def __getitem__(self, i):
+        return self.reciprocal_asus[i]
 
 
