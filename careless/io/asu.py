@@ -35,7 +35,7 @@ class ReciprocalASU():
             }, 
             cell=cell,
             spacegroup=spacegroup,
-        ).compute_multiplicity().label_centrics()
+        ).compute_multiplicity().label_centrics().compute_dHKL()
         self.lookup_table = lookup_table
 
     @property
@@ -47,6 +47,11 @@ class ReciprocalASU():
     def multiplicity(self):
         """ the multiplicity of each structure factor """
         return self.lookup_table.EPSILON.to_numpy('float32')
+
+    @property
+    def dHKL(self):
+        """ the multiplicity of each structure factor """
+        return self.lookup_table.dHKL.to_numpy('float32')
 
     def to_refl_id(self, H):
         """
@@ -107,6 +112,11 @@ class ReciprocalASUCollection():
     def multiplicity(self):
         """ the multiplicity of each structure factor """
         return self.refl_id_lookup_table.EPSILON.to_numpy('float32')
+
+    @property
+    def dHKL(self):
+        """ the multiplicity of each structure factor """
+        return self.lookup_table.dHKL.to_numpy('float32')
 
     @property
     def hkls(self):
