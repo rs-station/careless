@@ -37,7 +37,7 @@ class BaseModel(tfk.layers.Layer):
 
     @staticmethod
     def get_name_by_index(index : int) -> str:
-        for k,v in BaseModel.items():
+        for k,v in BaseModel.input_index.items():
             if v == index:
                 return k
         raise ValueError(
