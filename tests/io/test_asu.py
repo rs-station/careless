@@ -32,6 +32,9 @@ def test_reciprocal_asu(dmin, anomalous, cell_and_spacegroups):
         miller_index = rasu.to_miller_index(np.arange(len(Hall)))
         assert np.all(miller_index == Hall)
 
+        dHKL = rasu.dHKL
+        assert np.all(np.isfinite(dHKL))
+
 
 @pytest.mark.parametrize('anomalous', [[True, True], [True, False], [False, False]])
 @pytest.mark.parametrize('dmin', [[10., 10.], [5., 10.], [5., 5.]])
@@ -73,3 +76,6 @@ def test_double_reciprocal_asu_collection(dmin, anomalous, cell_and_spacegroups)
         assert rasus[1] is rac[1]
         for i,j in zip(rasus, rac):
             assert i is j
+
+        dHKL = rac.dHKL
+        assert np.all(np.isfinite(dHKL))
