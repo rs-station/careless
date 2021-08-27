@@ -168,4 +168,6 @@ class ReciprocalASUCollection():
     def __getitem__(self, i):
         return self.reciprocal_asus[i]
 
+    def __len__(self):
+        return len(self.reciprocal_asus)
 

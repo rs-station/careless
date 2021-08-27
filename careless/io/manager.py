@@ -6,25 +6,21 @@ from careless.models.base import BaseModel
 from careless.models.priors.wilson import WilsonPrior
 
 
-class Manager():
+class DataManager():
     """
     This class comprises various data manipulation methods as well as methods to aid in model construction.
     """
     inputs
     asu_collection 
 
-    def __init__(self, datasets, formatter):
+    def __init__(self, inputs, asu_collection):
         """
         Parameters
         ----------
-        datasets : iterable
-            A list or other iterable of rs.DataSet objects.
-        formatter : careless.io.loader.DataFormatter
-            A DataFormatter instance or other similar callable which takes a sequence of
-            datasets and returns a tuple, (inputs : (x, y, sigy), asu_collection : ReciprocalASUCollection)
+        inputs : tuple
+        asu_collection : ReciprocalASUCollection
         """
-        self.formatter = formatter
-        self.inputs,self.asu_collection = formatter(datasets)
+        self.inputs,self.asu_collection = inputs,asu_collection
 
     @classmethod
     def from_mtz_files(cls, filenames, formatter):
