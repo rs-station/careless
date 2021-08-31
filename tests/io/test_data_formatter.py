@@ -15,7 +15,7 @@ metadata_keys = ['dHKL', 'Hobs', 'image_id']
 @pytest.mark.parametrize('dmin', [0., 7.])
 @pytest.mark.parametrize('isigi_cutoff', [None, 3.])
 @pytest.mark.parametrize('positional_encoding_keys', [None, ['X', 'Y']])
-@pytest.mark.parametrize('encoding_bit_depth', [1, 3])
+@pytest.mark.parametrize('encoding_bit_depth', [3])
 def test_mono_formatter(
         intensity_key,
         sigma_key,
@@ -63,7 +63,7 @@ def test_mono_formatter(
 @pytest.mark.parametrize('dmin', [None, 7.])
 @pytest.mark.parametrize('isigi_cutoff', [None, 3.])
 @pytest.mark.parametrize('positional_encoding_keys', [None, ['X', 'Y']])
-@pytest.mark.parametrize('encoding_bit_depth', [1, 3])
+@pytest.mark.parametrize('encoding_bit_depth', [3])
 def test_laue_formatter(
         lam_min,
         lam_max,

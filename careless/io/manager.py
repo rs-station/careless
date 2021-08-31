@@ -5,14 +5,10 @@ from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
 from careless.models.priors.wilson import WilsonPrior
 
-
 class DataManager():
     """
     This class comprises various data manipulation methods as well as methods to aid in model construction.
     """
-    inputs
-    asu_collection 
-
     def __init__(self, inputs, asu_collection):
         """
         Parameters
@@ -62,83 +58,30 @@ class DataManager():
         sigiobs = BaseModel.get_uncertainties(inputs)
         packed  = (inputs, iobs, sigiobs)
         tfds = tf.data.Dataset.from_tensor_slices(packed)
-        return tfds.batch(iobs)
+        return tfds.batch(len(iobs))
 
-    def split_laue_data_by_refl(self, test_fraction=0.5):
-        """
+    def get_results(self, surrogate_posterior):
+        """ 
+        Extract results from a surrogate_posterior.
+
+        Parameters
+        ----------
+        surrogate_posterior : tfd.Distribution
+            A tensorflow_probability distribution or similar object with `mean` and `stddev` methods
+
         Returns
         -------
-        train : tf.data.DataSet
-        test  : tf.data.DataSet
+        results : tuple
+            A tuple of rs.DataSet objects containing the results corresponding to each 
+            ReciprocalASU contained in self.asu_collection
         """
-        harmonic_id = BaseModel.get_harmonic_id(self.inputs)
-        test_idx = (np.random.random(harmonic_id.max()) <= test_fraction)[harmonic_id]
-
-        train = []
-        test  = []
-
-        def reformat_inputs(inputs, idx):
-            harmonic_id = BaseModel.get_harmonic_id(inputs)
-            intensity_idx = np.sort(np.unique(harmonic_id[idx]))
-
-            data = []
-            for i,v in enumerate(inputs):
-                name = BaseModel.get_name_by_index(i)
-                if name in ("intensities", "uncertainties"):
-                    data.append(v[intensity_idx])
-                elif name == 'harmonic_id':
-                    _,v = np.unique(v[idx], return_inverse=True)
-                    data.append(v)
-                else:
-                    data.append(v[idx])
-            return data
-
-        train = self.get_tf_dataset(reformat_inputs(inputs, ~idx))
-        test  = self.get_tf_dataset(reformat_inputs(inputs, idx))
-        return train,test
-
-    def split_data_by_refl(self, test_fraction=0.5):
-        """
-        Returns
-        -------
-        train : tf.data.DataSet
-        test  : tf.data.DataSet
-        """
-
-        if len(self.inputs) >= BaseModel.input_index['harmonic_id']:
-            return self.split_laue_data_by_refl(self, test_fraction)
-
-        refl_id = BaseModel.get_refl_id(self.inputs)
-        idx = np.random.random(len(refl_id)) <= test_fraction
-
-        train = self.get_tf_dataset([i[~idx] for i in self.inputs])
-        test  = self.get_tf_dataset([ i[idx] for i in self.inputs])
-
-        return train,test
-
-    def split_data_by_image(self):
-        """
-        Returns
-        -------
-        train : tf.data.DataSet
-        test  : tf.data.DataSet
-        """
-        image_id = BaseModel.get_image_id(even_data.as_numpy_iterator().next()[0])
-        idx = (np.random.random(image_id.max()+1) <= test_fraction)[image_id]
-
-        train = self.get_tf_dataset([i[~idx] for i in self.inputs])
-        test  = self.get_tf_dataset([ i[idx] for i in self.inputs])
-
-        return train,test
-
-    def get_results(self, model):
-        """ Extract results from a VariationalMergingModel instance """
-        F = model.surrogate_posterior.mean().numpy()
-        SigF = model.surrogate_posterior.stddev().numpy()
+        F = surrogate_posterior.mean().numpy()
+        SigF = surrogate_posterior.stddev().numpy()
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(np.arange(len(F)))
         h,k,l = H.T
-        refl_id = BaseModel.get_refl_id(even_data.as_numpy_iterator().next()[0])
-        N = np.bincount(refl_id, minlenght=len(F))
+        refl_id = BaseModel.get_refl_id(self.inputs)
+        N = np.bincount(refl_id.flatten(), minlength=len(F))
+        results = ()
         for i,asu in enumerate(self.asu_collection):
             idx = asu_id == i
             output = rs.DataSet({
@@ -162,5 +105,109 @@ class DataManager():
                 output = output.unstack_anomalous()
                 output = output[['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'N(+)', 'N(-)']]
 
-            yield output
+            results += (output, )
+        return results
+
+    # <-- start xval data splitting methods
+    def split_mono_data_by_mask(self, test_idx):
+        """
+        Method for splitting mono data given a boolean mask. 
+
+        Parameters
+        ----------
+        test_idx : array (boolean)
+            Boolean array with length of inputs.
+
+        Returns
+        -------
+        train : tuple
+        test  : tuple
+        """
+        test,train = (),()
+        for inp in self.inputs:
+            test  += (inp[ test_idx.flatten(),...] ,)
+            train += (inp[~test_idx.flatten(),...] ,)
+        return train, test
+
+    def split_data_by_refl(self, test_fraction=0.5):
+        if BaseModel.is_laue(self.inputs):
+            harmonic_id = BaseModel.get_harmonic_id(self.inputs)
+            test_idx = (np.random.random(harmonic_id.max()+1) <= test_fraction)[harmonic_id]
+            train, test = self.split_laue_data_by_mask(test_idx)
+            return self.get_tf_dataset(train), self.get_tf_dataset(test)
+
+        test_idx = np.random.random(len(self.inputs[0])) <= test_fraction
+        train, test = self.split_mono_data_by_mask(test_idx)
+        return self.get_tf_dataset(train), self.get_tf_dataset(test)
+
+    def split_laue_data_by_mask(self, test_idx):
+        """
+        Method for splitting laue data given a boolean mask. 
+        This method will split up the data and alter the harmonic_id
+        column to reflect the decrease in size of the array. 
+
+        Parameters
+        ----------
+        test_idx : array (boolean)
+            Boolean array with length of inputs.
+
+        Returns
+        -------
+        train : tuple
+        test  : tuple
+        """
+        harmonic_id = BaseModel.get_harmonic_id(self.inputs)
+
+        # Let us just test that the boolean mask is valid for these data.
+        # If it does not split observations, isect should be empty
+        isect = np.intersect1d(
+            harmonic_id[test_idx].flatten(),
+            harmonic_id[~test_idx].flatten(),
+        )
+        if len(isect) > 0:
+            raise ValueError(f"test_idx splits harmonic observations with harmonic_id : {isect}")
+
+        def split(inputs, idx):
+            harmonic_id = BaseModel.get_harmonic_id(inputs)
+
+            result = ()
+            uni,inv = np.unique(harmonic_id[idx], return_inverse=True)
+            for i,v in enumerate(inputs):
+                name = BaseModel.get_name_by_index(i)
+                if name in ('intensities', 'uncertainties'):
+                    v = v[uni]
+                    v = np.pad(v, [[0, len(inv) - len(v)], [0, 0]])
+                elif name == 'harmonic_id':
+                    v = inv
+                else:
+                    v = v[idx.flatten(),...]
+                result += (v ,)
+            return result
+
+        return split(self.inputs, ~test_idx), split(self.inputs, test_idx)
+
+    def split_data_by_image(self, test_fraction=0.5):
+        """
+        Returns
+        -------
+        train : tf.data.DataSet
+        test  : tf.data.DataSet
+        """
+        image_id = BaseModel.get_image_id(self.inputs)
+        test_idx = np.random.random(image_id.max()+1) <= test_fraction
+
+        # Low image count edge case (mostly just for testing purposes)
+        if True not in test_idx:
+            test_idx[0] = True
+        elif False not in test_idx:
+            test_idx[0] = False
+            
+        test_idx = test_idx[image_id]
+        if BaseModel.is_laue(self.inputs):
+            train, test = self.split_laue_data_by_mask(test_idx)
+        else:
+            train, test = self.split_mono_data_by_mask(test_idx)
+
+        return self.get_tf_dataset(train), self.get_tf_dataset(test)
+    # --> end xval data splitting methods
 
