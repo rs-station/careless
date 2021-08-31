@@ -1,5 +1,6 @@
 from careless.utils.distributions import Rice,FoldedNormal
 from tensorflow_probability.python.internal.special_math import ndtr
+import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 from tensorflow_probability.python.internal import tensor_util
@@ -58,4 +59,34 @@ class TruncatedNormal(tfd.TruncatedNormal):
         s = super().sample(*args, **kwargs)
         low = self.low
         return tf.maximum(self.low, s)
+
+    @classmethod
+    def from_location_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
+        """
+        Instantiate a learnable distribution with good default bijectors.
+
+        loc : array
+            The initial location of the distribution
+        scale : array
+            The initial scale parameter of the distribution
+        low : float or array (optional)
+            The lower limit of the support for the distribution.
+        high : float or array (optional)
+            The upper limit of the support for the distribution.
+        scale_shift : float (optional)
+            A small constant added to the scale to increase numerical stability.
+        """
+        loc   = tfp.util.TransformedVariable(
+            loc,
+            tfb.Softplus(),
+        )
+        scale = tfp.util.TransformedVariable(
+            scale,
+            tfb.Chain([
+                tfb.Softplus(),
+                tfb.Shift(1e-7),
+            ]),
+        )
+        return cls(loc, scale, low, high)
+
 
