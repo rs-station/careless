@@ -142,6 +142,22 @@ class MonoFormatter(DataFormatter):
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
 
+    @classmethod
+    def from_parser(cls, parser):
+        dmin = 0. if parser.dmin is None else parser.dmin
+        return cls(
+            parser.intensity_key,
+            None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
+            parser.image_key,
+            parser.metadata_keys.split(','),
+            parser.separate_files,
+            parser.anomalous,
+            dmin,
+            parser.isigi_cutoff,
+            parser.positional_encoding_keys.split(','),
+            parser.positional_encoding_frequencies,
+        )
+
     def prep_dataset(self, ds, inplace=True):
         """
         Format a single data set.
@@ -314,6 +330,26 @@ class LaueFormatter(DataFormatter):
         self.isigi_cutoff = isigi_cutoff
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
+
+    @classmethod
+    def from_parser(cls, parser):
+        dmin = 0. if parser.dmin is None else parser.dmin
+        lmin,lmax = parser.wavelength_range
+        return cls(
+            parser.wavelength_key,
+            lmin,
+            lmax,
+            parser.intensity_key,
+            None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
+            parser.image_key,
+            parser.metadata_keys.split(','),
+            parser.separate_files,
+            parser.anomalous,
+            dmin,
+            parser.isigi_cutoff,
+            parser.positional_encoding_keys.split(','),
+            parser.positional_encoding_frequencies,
+        )
 
     def prep_dataset(self, ds):
         """
