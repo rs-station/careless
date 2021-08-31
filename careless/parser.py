@@ -10,7 +10,12 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         parser = super().parse_args(*args, **kwargs)
 
         from os import environ
-        environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
+        if parser.tf_dbug:
+            # This is very noisy
+            environ['TF_CPP_MIN_LOG_LEVEL'] = 1
+        else:
+            # This is very quiet
+            environ['TF_CPP_MIN_LOG_LEVEL'] = 3
 
         import tensorflow as tf
         np.random.seed(parser.seed)
@@ -41,27 +46,16 @@ class CustomParser(EnvironmentSettingsMixin):
      - Detect conflicting arguments and raise an informative error
     """
     def _validate_input_files(self, parser):
-        for inFN in parser.mtzinput:
+        for inFN in parser.reflection_files:
             if not exists(inFN):
-                self.error(f"Unmerged Mtz file {inFN} does not exist")
-
-        if parser.prior_mtz:
-            if not exists(parser.prior_mtz):
-                self.error(f"Prior Mtz file {parser.prior_mtz} does not exist")
-
-    def _validate_priors(self, parser):
-        if parser.studentt_prior_dof:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--studentt-prior-dof requires --prior-mtz")
-        if parser.laplace_prior:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--laplace-prior requires --prior-mtz")
-        if parser.normal_prior:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--normal-prior requires --prior-mtz")
+                self.error(f"Unmerged reflection file {inFN} does not exist")
+            elif inFN.endswith(".mtz") or inFN.endswith(".stream"):
+                continue
+            self.error(
+                f"Could not determine filetype for reflection file, {inFN}." 
+                 "Please make sure your files end in '.mtz' or '.stream' as"
+                 " appropriate."
+                )
 
     def parse_args(self, *args, **kwargs):
         parser = super().parse_args(*args, **kwargs)
@@ -88,13 +82,6 @@ from careless.args.poly import args_and_kwargs
 for args,kwargs in args_and_kwargs:
     poly.add_argument(*args, **kwargs)
 
-from careless.args.exclusive import groups
-for group in groups:
-    mono_group = mono.add_mutually_exclusive_group()
-    poly_group = poly.add_mutually_exclusive_group()
-    for args,kwargs in group:
-        mono_group.add_argument(*args, **kwargs)
-        poly_group.add_argument(*args, **kwargs)
 
 if __name__=="__main__":
     #This makes debugging without running the full script easy

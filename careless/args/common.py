@@ -6,18 +6,24 @@ args_and_kwargs = (
         "type":str, 
     }),
 
+    (("reflection_files", ), { 
+        "metavar":"reflections.{mtz,stream}", 
+        "help":"Mtz or stream file(s) containing unmerged reflection observations.", 
+        "type":str, 
+        "nargs":'+',
+    }),
+
+    (("output_base", ), {
+        "metavar":"out", 
+        "help":"Output filename base.", 
+        "type":str,
+    }),
+
     (("--embed", ),  {
         "help":"Drop to an IPython shell at the end of optimization to play around.",
         "action" : "store_true",
         "default" : False,
     }),
-
-    (("--multiplicity-weighted-elbo", ), {
-        "help":"Reweight the kl_div term by multiplicity. This may perform better in some cases.",
-        "action" : "store_true",
-        "default" : False,
-    }),
-
 
     (("--positional-encoding-frequencies", "-L"), {
         "help":"Number of positional encoding frequencies to apply to metadata. The default is 1 which corresponds to no encoding."
@@ -36,18 +42,6 @@ args_and_kwargs = (
         "default" : None,
     }),
 
-    (("--use-nadam", ), {
-        "help":"Instead of using the Adam optimizer, use the Nadam optimizer which has Nesterov momentum.",
-        "action" : "store_true",
-        "default" : False,
-    }),
-
-    (("--use-weights", ),  {
-        "help":"Use a weighted likelihood function.",
-        "action" : "store_true",
-        "default" : False,
-    }),
-
     (("--mc-samples",), {
         "help":"This is the number of samples to take per gradient step with default 1. " ,
         "type": int, 
@@ -60,16 +54,9 @@ args_and_kwargs = (
         "default" : False,
     }),
 
-
     (("--image-scale-key", ),  {
         "help":"Key to use for per image scaling. ",
         "type":str, 
-        "default" : None,
-    }),
-
-    (("--image-scale-prior", ),  {
-        "help":"Fractional scale of the prior (normal) distribution on image scales. ",
-        "type":float, 
         "default" : None,
     }),
 
@@ -87,43 +74,11 @@ args_and_kwargs = (
         "default" : None,
     }),
 
-    (("--folded-normal-surrogate", ), {
-        "help":"Use a folded normal (woolfson) distribution as the surrogate posterio instead of truncated normal",
-        "action":"store_true",
-        "default": False,
-    }),
-
-    (("--rice-woolfson-surrogate", ), {
-        "help":"Use a hybrid rice/woolfson distribution as the surrogate posterio instead of truncated normal",
-        "action":"store_true",
-        "default": False,
-    }),
-
-    (("mtzinput", ), { 
-        "metavar":"file.mtz", 
-        "help":"Mtz filename(s).", 
-        "type":str, 
-        "nargs":'+',
-    }),
-
-    (("output_base", ), {
-        "metavar":"out", 
-        "help":"Output filename base.", 
-        "type":str,
-    }),
-
     (("-c", "--isigi-cutoff"), {
         "help":"Minimum I over Sigma(I) for included reflections. Default is to include all reflections", 
         "type":float, 
         "default":None,
     }),
-
-# This is not supported yet
-#    (("-s", "--space-group"), {
-#        "help":f"Spacegroup number or symbol to merge in. By default use the Mtz spacegroup.", 
-#        "type":str, 
-#        "default":None,
-#    }),
 
     (("-d", "--dmin"), {
         "help":f"Maximum resolution in Ångstroms. If this is not supplied," 
@@ -141,19 +96,13 @@ args_and_kwargs = (
     (("--iterations",), {
         "help":"Number of gradient steps to take.", 
         "type":int, 
-        "default":2000,
+        "default":10000,
     }),
 
     (("--learning-rate",), {
         "help":"Adam learning rate. The default is 0.001", 
         "type":float, 
         "default":0.001,
-    }),
-
-    (("--clip-value",), {
-        "help":"Maximum gradient absolute value.", 
-        "type": float, 
-        "default": None,
     }),
 
     (("--beta-1",), {
@@ -194,13 +143,11 @@ args_and_kwargs = (
         "default":False,
     }),
 
-    (("--tf-log-level",), {
-        "help": "Change the TensorFlow log verbosity by setting the "
-                "TF_CPP_MIN_LOG_LEVEL environment variable. "
-                "The default is 3 which is quiet.", 
-        "type":int, 
-        "nargs":1, 
-        "default":3,
+    (("--tf-debug",), {
+        "help": "Increase the TensorFlow log verbosity by setting the "
+                "TF_CPP_MIN_LOG_LEVEL environment variable. ",
+        "action" : 'store_true',
+        "default":False,
     }),
 
     (("--seed",), { 
@@ -209,14 +156,8 @@ args_and_kwargs = (
         "default":1234, 
     }),
 
-    (("--prior-mtz",), { 
-        "help":f"Mtz containing prior structure factors and standard deviations.", 
-        "type":str, 
-        "default":None, 
-    }),
-
-    (("--sequential-layers",), {
-        "help": "The number of sequential dense neural network layers in the scaling model.",
+    (("--mlp-layers",), {
+        "help": "The number of dense neural network layers in the scaling model.",
         "type":int,
         "default":20,
     }),
@@ -227,10 +168,19 @@ args_and_kwargs = (
         "default": None,
     }),
 
-    (("--studentt-scale",), {
-        "help": "Scale parameter for variational student t likelihood.",
-        "type": float,
+    (("--wilson-prior-b",), {
+        "help":"Experimental Feature: "
+               "This flag enables learning reflections on a particular Wilson scale. "
+               "By default, the Wilson prior is flat across resolution bins. ",
+        "type": float, 
         "default": None,
+    }),
+
+    (("--studentt-likelihood-dof",), { 
+        "help":"Degrees of freedom for student t likelihood function.",
+        "type":float, 
+        "metavar":'DOF', 
+        "default":None,
     }),
 
 )
