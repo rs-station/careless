@@ -36,6 +36,16 @@ class BaseModel(tfk.layers.Layer):
         )
 
     @staticmethod
+    def is_laue(inputs : tuple) -> bool:
+        """
+        Test if the inputs are from Laue or Mono data
+        """
+        laue_size = BaseModel.get_index_by_name("harmonic_id") + 1
+        if len(inputs) >= laue_size:
+            return True
+        return False
+
+    @staticmethod
     def get_name_by_index(index : int) -> str:
         for k,v in BaseModel.input_index.items():
             if v == index:
