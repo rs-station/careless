@@ -142,10 +142,10 @@ class ReciprocalASUCollection():
         H : np.array
             (n x 3) array of miller indices 
         """
-        data = self.refl_id_lookup_table.loc[refl_id]
+        data = self.refl_id_lookup_table.loc[refl_id.flatten()]
         H = data.get_hkls()
         asu_id = data['asu_id'].to_numpy('int')
-        return asu_id, H
+        return asu_id[:,None], H
 
     def to_refl_id(self, asu_id, H):
         """
