@@ -89,7 +89,7 @@ class DataManager():
                 'K' : k[idx],
                 'L' : l[idx],
                 'F' : F[idx],
-                'SigF' : F[idx],
+                'SigF' : SigF[idx],
                 'N' : N[idx],
                 }, 
                 cell=asu.cell, 
