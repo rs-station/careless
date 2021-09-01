@@ -80,10 +80,11 @@ class DataManager():
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(np.arange(len(F)))
         h,k,l = H.T
         refl_id = BaseModel.get_refl_id(self.inputs)
-        N = np.bincount(refl_id.flatten(), minlength=len(F))
+        N = np.bincount(refl_id.flatten(), minlength=len(F)).astype('float32')
         results = ()
         for i,asu in enumerate(self.asu_collection):
             idx = asu_id == i
+            idx = idx.flatten()
             output = rs.DataSet({
                 'H' : h[idx],
                 'K' : k[idx],
@@ -151,7 +152,8 @@ class DataManager():
 
         test_idx = np.random.random(len(self.inputs[0])) <= test_fraction
         train, test = self.split_mono_data_by_mask(test_idx)
-        return self.get_tf_dataset(train), self.get_tf_dataset(test)
+        #return self.get_tf_dataset(train), self.get_tf_dataset(test)
+        return train, test
 
     def split_laue_data_by_mask(self, test_idx):
         """
@@ -230,6 +232,7 @@ class DataManager():
         else:
             train, test = self.split_mono_data_by_mask(test_idx)
 
-        return self.get_tf_dataset(train), self.get_tf_dataset(test)
+        #return self.get_tf_dataset(train), self.get_tf_dataset(test)
+        return train, test
     # --> end xval data splitting methods
 
