@@ -61,7 +61,7 @@ class TruncatedNormal(tfd.TruncatedNormal):
         return tf.maximum(self.low, s)
 
     @classmethod
-    def from_location_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
+    def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
         """
         Instantiate a learnable distribution with good default bijectors.
 

@@ -6,7 +6,7 @@ from careless.models.merging.surrogate_posteriors import TruncatedNormal
 def test_truncated_normal():
     loc   = np.ones(100, dtype='float32')
     scale = np.ones(100, dtype='float32')
-    q = TruncatedNormal.from_location_and_scale(loc, scale)
+    q = TruncatedNormal.from_loc_and_scale(loc, scale)
     z = q.sample()
     ll = q.log_prob(z)
     assert np.all(np.isfinite( z))
