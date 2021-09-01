@@ -48,19 +48,13 @@ args_and_kwargs = (
         "default" : 1,
     }),
 
-    (("--skip-xval", ),  {
-        "help":"Bypass merging half data sets.",
-        "action" : "store_true",
-        "default" : False,
-    }),
-
-    (("--image-scale-key", ),  {
-        "help":"Key to use for per image scaling. ",
-        "type":str, 
+    (("--test-fraction", ),  {
+        "help":"Perform cross validation on a held out fraction of data.",
+        "type" : float,
         "default" : None,
     }),
 
-    (("--image-id-key", ),  {
+    (("--image-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",
         "type":str, 

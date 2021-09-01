@@ -10,12 +10,12 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         parser = super().parse_args(*args, **kwargs)
 
         from os import environ
-        if parser.tf_dbug:
+        if parser.tf_debug:
             # This is very noisy
-            environ['TF_CPP_MIN_LOG_LEVEL'] = 1
+            environ['TF_CPP_MIN_LOG_LEVEL'] = "1"
         else:
             # This is very quiet
-            environ['TF_CPP_MIN_LOG_LEVEL'] = 3
+            environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
         import tensorflow as tf
         np.random.seed(parser.seed)
@@ -60,7 +60,6 @@ class CustomParser(EnvironmentSettingsMixin):
     def parse_args(self, *args, **kwargs):
         parser = super().parse_args(*args, **kwargs)
         self._validate_input_files(parser)
-        self._validate_priors(parser)
         return parser
 
 
