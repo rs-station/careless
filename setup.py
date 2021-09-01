@@ -10,7 +10,7 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.8",
         "tqdm",
-        "tensorflow==2.5",
+        "tensorflow>=2.6",
         "tensorflow-probability",
     ],
     scripts = [

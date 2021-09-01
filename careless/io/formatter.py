@@ -298,7 +298,6 @@ class MonoFormatter(DataFormatter):
 
         return self.pack_inputs(inputs), rac
 
-
 class LaueFormatter(DataFormatter):
     def __init__(
             self, 
@@ -358,22 +357,23 @@ class LaueFormatter(DataFormatter):
 
     @classmethod
     def from_parser(cls, parser):
-        dmin = 0. if parser.dmin is None else parser.dmin
-        lmin,lmax = parser.wavelength_range
+        lmin = lmax = None
+        if parser.wavelength_range is not None:
+            lmin,lmax = parser.wavelength_range
         pe_keys = parser.positional_encoding_keys
         if pe_keys is not None:
             pe_keys = pe_keys.split(','),
         return cls(
             parser.wavelength_key,
-            lmin,
-            lmax,
             parser.intensity_key,
             None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
             parser.image_key,
             parser.metadata_keys.split(','),
             parser.separate_files,
             parser.anomalous,
-            dmin,
+            lmin,
+            lmax,
+            parser.dmin,
             parser.isigi_cutoff,
             pe_keys,
             parser.positional_encoding_frequencies,
@@ -426,7 +426,7 @@ class LaueFormatter(DataFormatter):
         ds = expand_harmonics(ds, dmin, wavelength_key)
 
         # Filter by wavelength
-        idx = (ds[wavelength_key] <= lam_min) | (ds[wavelength_key] >= lam_max)
+        idx = (ds[wavelength_key] < lam_min) | (ds[wavelength_key] > lam_max)
         ds.drop(ds.index[idx], inplace=True)
 
         # Systematic absences
@@ -501,12 +501,17 @@ class LaueFormatter(DataFormatter):
             data.get_hkls(),
             )
 
+        iobs  = data[['harmonic_id',   'intensity']].groupby('harmonic_id').first().to_numpy('float32')
+        sigma = data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32')
+        iobs  = np.pad( iobs, [[0, len(refl_id) - len( iobs)], [0, 0]])
+        sigma = np.pad(sigma, [[0, len(refl_id) - len(sigma)], [0, 0]])
+
         inputs = {
             'refl_id'   : refl_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
-            'intensities'   : data['intensity'].to_numpy('float32')[:,None],
-            'uncertainties' : data['uncertainty'].to_numpy('float32')[:,None],
+            'intensities'   : data[['harmonic_id', 'intensity']].groupby('harmonic_id').first().to_numpy('float32'),
+            'uncertainties'   : data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32'),
             'wavelength' : data[self.wavelength_key].to_numpy('float32')[:,None],
             'harmonic_id' : data['harmonic_id'].to_numpy('int64')[:,None],
         }

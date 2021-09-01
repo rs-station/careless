@@ -86,6 +86,13 @@ laue_test_data = LaueTestData('data/pyp_off.mtz')
 def laue_inputs():
     return laue_test_data.inputs
 
+@pytest.fixture
+def laue_data_set():
+    return laue_test_data.data
+
+@pytest.fixture
+def laue_reciprocal_asu_collection():
+    return laue_test_data.reciprocal_asu_collection
 
 class MonoTestData():
     def __init__(self, mtz_file):
@@ -134,4 +141,8 @@ def mono_inputs():
 @pytest.fixture
 def mono_reciprocal_asu_collection():
     return mono_test_data.reciprocal_asu_collection
+
+@pytest.fixture
+def mono_data_set():
+    return mono_test_data.data
 

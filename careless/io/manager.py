@@ -105,8 +105,6 @@ class DataManager():
             results += (output, )
         return results
 
-
-
     def get_results(self, surrogate_posterior):
         """ 
         Extract results from a surrogate_posterior.
@@ -195,7 +193,8 @@ class DataManager():
             harmonic_id = BaseModel.get_harmonic_id(self.inputs)
             test_idx = (np.random.random(harmonic_id.max()+1) <= test_fraction)[harmonic_id]
             train, test = self.split_laue_data_by_mask(test_idx)
-            return self.get_tf_dataset(train), self.get_tf_dataset(test)
+            #return self.get_tf_dataset(train), self.get_tf_dataset(test)
+            return train, test
 
         test_idx = np.random.random(len(self.inputs[0])) <= test_fraction
         train, test = self.split_mono_data_by_mask(test_idx)
@@ -238,9 +237,9 @@ class DataManager():
                 name = BaseModel.get_name_by_index(i)
                 if name in ('intensities', 'uncertainties'):
                     v = v[uni]
-                    v = np.pad(v, [[0, len(inv) - len(v)], [0, 0]])
+                    v = np.pad(v, [[0, len(inv) - len(v)], [0, 0]], constant_values=1.)
                 elif name == 'harmonic_id':
-                    v = inv
+                    v = inv[:,None]
                 else:
                     v = v[idx.flatten(),...]
                 result += (v ,)

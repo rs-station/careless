@@ -80,6 +80,7 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     H_0_asu = (H/np.gcd.reduce(H, axis=1)[:,None]).astype(np.int32)
     ds.loc[:,['H', 'K', 'L']] = n[:,None] * H_0_asu
     ds['dHKL'] = ds['d_0'] / ds['harmonic'] 
+    ds.reset_index(inplace=True, drop=True)
 
     return ds
 
