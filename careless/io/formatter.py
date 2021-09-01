@@ -95,6 +95,28 @@ class DataFormatter():
         data, rac = self.get_data_and_asu_collection(datasets)
         return self.finalize(data, rac)
 
+    def format_files(self, files):
+        """
+        Parameters
+        ----------
+        files : iterable
+            An iterable of filename strings.
+
+        Returns
+        -------
+        inputs : tuple
+            This is a nested tuple of numpy arrays formatted as merging inputs.
+        asu_collection : careless.io.asu.ReciprocalASUCollection
+            A collection of reciprocal asus to aid in intepreting results.
+        """
+        def load(filename):
+            if filename.endswith('.mtz'):
+                return rs.read_mtz(filename)
+            elif filename.endswith('.stream'):
+                return rs.read_crystfel(filename)
+
+        return self((load(f) for f in files))
+
 
 class MonoFormatter(DataFormatter):
     """
@@ -145,6 +167,9 @@ class MonoFormatter(DataFormatter):
     @classmethod
     def from_parser(cls, parser):
         dmin = 0. if parser.dmin is None else parser.dmin
+        pe_keys = parser.positional_encoding_keys
+        if pe_keys is not None:
+            pe_keys = pe_keys.split(','),
         return cls(
             parser.intensity_key,
             None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
@@ -154,7 +179,7 @@ class MonoFormatter(DataFormatter):
             parser.anomalous,
             dmin,
             parser.isigi_cutoff,
-            parser.positional_encoding_keys.split(','),
+            pe_keys,
             parser.positional_encoding_frequencies,
         )
 
@@ -335,6 +360,9 @@ class LaueFormatter(DataFormatter):
     def from_parser(cls, parser):
         dmin = 0. if parser.dmin is None else parser.dmin
         lmin,lmax = parser.wavelength_range
+        pe_keys = parser.positional_encoding_keys
+        if pe_keys is not None:
+            pe_keys = pe_keys.split(','),
         return cls(
             parser.wavelength_key,
             lmin,
@@ -347,7 +375,7 @@ class LaueFormatter(DataFormatter):
             parser.anomalous,
             dmin,
             parser.isigi_cutoff,
-            parser.positional_encoding_keys.split(','),
+            pe_keys,
             parser.positional_encoding_frequencies,
         )
 

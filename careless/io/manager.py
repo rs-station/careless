@@ -60,6 +60,53 @@ class DataManager():
         tfds = tf.data.Dataset.from_tensor_slices(packed)
         return tfds.batch(len(iobs))
 
+    def get_predictions(self, model, inputs=None):
+        """ 
+        Extract results from a surrogate_posterior.
+
+        Parameters
+        ----------
+        model : VariationalMergingModel
+            A merging model from careless
+        inputs : tuple (optional)
+            Inputs for which to make the predictions if None, self.inputs is used.
+
+        Returns
+        -------
+        predictions : tuple
+            A tuple of rs.DataSet objects containing the predictions for each 
+            ReciprocalASU contained in self.asu_collection
+        """
+        if inputs is None:
+            inputs = self.inputs
+
+        refl_id = BaseModel.get_refl_id(inputs)
+        iobs = BaseModel.get_intensities(inputs).flatten()
+        sig_iobs = BaseModel.get_uncertainties(inputs).flatten()
+        asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
+        ipred = model(inputs).numpy().flatten()
+        h,k,l = H.T
+        results = ()
+        for i,asu in enumerate(self.asu_collection):
+            idx = asu_id == i
+            idx = idx.flatten()
+            output = rs.DataSet({
+                'H' : h[idx],
+                'K' : k[idx],
+                'L' : l[idx],
+                'Iobs' : iobs[idx],
+                'SigIobs' : sig_iobs[idx],
+                'Ipred' : ipred[idx],
+                }, 
+                cell=asu.cell, 
+                spacegroup=asu.spacegroup,
+                merged=False,
+            ).infer_mtz_dtypes().set_index(['H', 'K', 'L'])
+            results += (output, )
+        return results
+
+
+
     def get_results(self, surrogate_posterior):
         """ 
         Extract results from a surrogate_posterior.
