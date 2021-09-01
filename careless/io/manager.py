@@ -130,6 +130,19 @@ class DataManager():
         return train, test
 
     def split_data_by_refl(self, test_fraction=0.5):
+        """
+        Method for splitting data given a boolean mask. 
+
+        Parameters
+        ----------
+        test_fraction : float (optional)
+            The fraction of reflections which will be reserved for testing.
+
+        Returns
+        -------
+        train : tuple
+        test  : tuple
+        """
         if BaseModel.is_laue(self.inputs):
             harmonic_id = BaseModel.get_harmonic_id(self.inputs)
             test_idx = (np.random.random(harmonic_id.max()+1) <= test_fraction)[harmonic_id]
@@ -188,10 +201,19 @@ class DataManager():
 
     def split_data_by_image(self, test_fraction=0.5):
         """
+        Method for splitting data given a boolean mask. 
+        This method will designate full images as belonging to the 
+        train or test sets. 
+
+        Parameters
+        ----------
+        test_fraction : float (optional)
+            The fraction of images which will be reserved for testing.
+
         Returns
         -------
-        train : tf.data.DataSet
-        test  : tf.data.DataSet
+        train : tuple
+        test  : tuple
         """
         image_id = BaseModel.get_image_id(self.inputs)
         test_idx = np.random.random(image_id.max()+1) <= test_fraction
