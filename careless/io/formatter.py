@@ -169,7 +169,7 @@ class MonoFormatter(DataFormatter):
         dmin = 0. if parser.dmin is None else parser.dmin
         pe_keys = parser.positional_encoding_keys
         if pe_keys is not None:
-            pe_keys = pe_keys.split(','),
+            pe_keys = pe_keys.split(',')
         return cls(
             parser.intensity_key,
             None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
@@ -362,7 +362,7 @@ class LaueFormatter(DataFormatter):
             lmin,lmax = parser.wavelength_range
         pe_keys = parser.positional_encoding_keys
         if pe_keys is not None:
-            pe_keys = pe_keys.split(','),
+            pe_keys = pe_keys.split(',')
         return cls(
             parser.wavelength_key,
             parser.intensity_key,
@@ -485,6 +485,7 @@ class LaueFormatter(DataFormatter):
         asu_collection : careless.io.asu.ReciprocalASUCollection
             A collection of reciprocal asus to aid in intepreting results.
         """
+        data = data.copy() #This is maybe overkill
         data['harmonic_id'] = data.groupby(['image_id', 'H_0', 'K_0', 'L_0']).ngroup()
 
         data['dHKL'] = data.dHKL**-2.
