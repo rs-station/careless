@@ -503,15 +503,15 @@ class LaueFormatter(DataFormatter):
 
         iobs  = data[['harmonic_id',   'intensity']].groupby('harmonic_id').first().to_numpy('float32')
         sigma = data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32')
-        iobs  = np.pad( iobs, [[0, len(refl_id) - len( iobs)], [0, 0]])
-        sigma = np.pad(sigma, [[0, len(refl_id) - len(sigma)], [0, 0]])
+        iobs  = np.pad( iobs, [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
+        sigma = np.pad(sigma, [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
 
         inputs = {
             'refl_id'   : refl_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
-            'intensities'   : data[['harmonic_id', 'intensity']].groupby('harmonic_id').first().to_numpy('float32'),
-            'uncertainties'   : data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32'),
+            'intensities'   : iobs,
+            'uncertainties'   : sigma,
             'wavelength' : data[self.wavelength_key].to_numpy('float32')[:,None],
             'harmonic_id' : data['harmonic_id'].to_numpy('int64')[:,None],
         }
