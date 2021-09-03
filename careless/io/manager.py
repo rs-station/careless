@@ -105,7 +105,7 @@ class DataManager():
             results += (output, )
         return results
 
-    def get_results(self, surrogate_posterior):
+    def get_results(self, surrogate_posterior, output_parameters=True):
         """ 
         Extract results from a surrogate_posterior.
 
@@ -113,6 +113,9 @@ class DataManager():
         ----------
         surrogate_posterior : tfd.Distribution
             A tensorflow_probability distribution or similar object with `mean` and `stddev` methods
+        output_parameters : bool (optional)
+            If True, output the parameters of the surrogate distribution in addition to the 
+            moments. 
 
         Returns
         -------
@@ -122,6 +125,13 @@ class DataManager():
         """
         F = surrogate_posterior.mean().numpy()
         SigF = surrogate_posterior.stddev().numpy()
+        params = None
+        if output_parameters:
+            params = {}
+            for k in surrogate_posterior.parameter_properties():
+                v = surrogate_posterior.parameters[k]
+                numpify = lambda x : tf.convert_to_tensor(x).numpy()
+                params[k] = numpify(v).flatten() * np.ones(len(F), dtype='float32')
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(np.arange(len(F)))
         h,k,l = H.T
         refl_id = BaseModel.get_refl_id(self.inputs)
@@ -142,6 +152,9 @@ class DataManager():
                 spacegroup=asu.spacegroup,
                 merged=True,
             ).infer_mtz_dtypes().set_index(['H', 'K', 'L'])
+            if params is not None:
+                for key,val in params.items():
+                    output[key] = rs.DataSeries(val[idx], index=output.index, dtype='R')
 
             # Remove unobserved refls
             output = output[output.N > 0] 
@@ -149,7 +162,10 @@ class DataManager():
             # Reformat anomalous data
             if asu.anomalous:
                 output = output.unstack_anomalous()
-                output = output[['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'N(+)', 'N(-)']]
+                # PHENIX will expect the sf / error keys in a particular order.
+                anom_keys = ['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'N(+)', 'N(-)']
+                reorder = anom_keys + [key for key in output if key not in anom_keys]
+                output = output[reorder]
 
             results += (output, )
         return results
