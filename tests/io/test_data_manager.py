@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from careless.io.manager import DataManager
 from careless.models.base import BaseModel
+from careless.models.merging.surrogate_posteriors import TruncatedNormal
 
 
 def test_data_manager_laue(laue_inputs, laue_reciprocal_asu_collection):
@@ -13,8 +14,14 @@ def test_data_manager_laue(laue_inputs, laue_reciprocal_asu_collection):
     dm.get_tf_dataset(inputs)
     train,test = dm.split_data_by_refl(0.1)
     train,test = dm.split_data_by_image(0.1)
-    q = dm.get_wilson_prior()
+    p = dm.get_wilson_prior()
     _ = dm.get_wilson_prior(20.)
+    q = TruncatedNormal(
+        p.mean(),
+        p.stddev(),
+        0., 
+        10000.,
+    )
     results = dm.get_results(q)
     for result in results:
         assert result.N.min() > 0
@@ -28,8 +35,14 @@ def test_data_manager_mono(mono_inputs, mono_reciprocal_asu_collection):
     dm.get_tf_dataset(inputs)
     train,test = dm.split_data_by_refl(0.1)
     train,test = dm.split_data_by_image(0.1)
-    q = dm.get_wilson_prior()
+    p = dm.get_wilson_prior()
     _ = dm.get_wilson_prior(20.)
+    q = TruncatedNormal(
+        p.mean(),
+        p.stddev(),
+        0., 
+        10000.,
+    )
     results = dm.get_results(q)
     for result in results:
         assert result.N.min() > 0
