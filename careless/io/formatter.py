@@ -69,7 +69,7 @@ class DataFormatter():
             if data is None:
                 data = ds
             else:
-                data = data.append(ds)
+                data = data.append(ds, check_isomorphous=False)
 
         if len(reciprocal_asus) == 0:
             reciprocal_asus.append(ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
