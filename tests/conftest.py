@@ -31,6 +31,12 @@ def on_file():
     filename = abspath(join(dirname(__file__), datapath))
     return filename
 
+@pytest.fixture
+def on_file_alt_sg():
+    datapath = "data/pyp_2ms_P3.mtz"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
 def load_dataset(datapath):
     """
     Load dataset at given datapath. Datapath is expected to be a list of
