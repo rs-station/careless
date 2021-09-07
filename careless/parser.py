@@ -66,8 +66,8 @@ class CustomParser(EnvironmentSettingsMixin):
 description = """
 Scale and merge crystallographic data by approximate inference.
 """
-
 parser = CustomParser(description=description)
+
 subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
 mono = subs.add_parser("mono", help="Process monochromatic diffraction data.")
 poly = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.")
@@ -82,8 +82,3 @@ for args,kwargs in args_and_kwargs:
     poly.add_argument(*args, **kwargs)
 
 
-if __name__=="__main__":
-    #This makes debugging without running the full script easy
-    parser=parser.parse_args()
-    from IPython import embed
-    embed(colors="Linux")

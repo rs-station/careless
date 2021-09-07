@@ -14,12 +14,16 @@ setup(
         "tensorflow-probability",
     ],
     scripts = [
-            'careless/careless',
             'scripts/ccplot',
             'scripts/ccanom_plot',
             'scripts/make_difference_map',
             'scripts/optimistic_uncertainties',
     ],
+    entry_points={
+        "console_scripts": [
+            "careless=careless.careless:main",
+        ]
+    },
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
 )
