@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='careless',
-    version='0.1.5',
+    version='0.2.0',
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     packages=find_packages(),
