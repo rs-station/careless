@@ -105,7 +105,7 @@ class DataManager():
             results += (output, )
         return results
 
-    def get_results(self, surrogate_posterior, output_parameters=True):
+    def get_results(self, surrogate_posterior, inputs=None, output_parameters=True):
         """ 
         Extract results from a surrogate_posterior.
 
@@ -113,6 +113,8 @@ class DataManager():
         ----------
         surrogate_posterior : tfd.Distribution
             A tensorflow_probability distribution or similar object with `mean` and `stddev` methods
+        inputs : tuple (optional)
+            Optionally use a different object from self.inputs to compute the redundancy of reflections.
         output_parameters : bool (optional)
             If True, output the parameters of the surrogate distribution in addition to the 
             moments. 
@@ -123,6 +125,8 @@ class DataManager():
             A tuple of rs.DataSet objects containing the results corresponding to each 
             ReciprocalASU contained in self.asu_collection
         """
+        if inputs is None:
+            inputs = self.inputs
         F = surrogate_posterior.mean().numpy()
         SigF = surrogate_posterior.stddev().numpy()
         params = None
@@ -134,7 +138,7 @@ class DataManager():
                 params[k] = numpify(v).flatten() * np.ones(len(F), dtype='float32')
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(np.arange(len(F)))
         h,k,l = H.T
-        refl_id = BaseModel.get_refl_id(self.inputs)
+        refl_id = BaseModel.get_refl_id(inputs)
         N = np.bincount(refl_id.flatten(), minlength=len(F)).astype('float32')
         results = ()
         for i,asu in enumerate(self.asu_collection):
