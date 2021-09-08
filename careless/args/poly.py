@@ -1,3 +1,5 @@
+name = "Laue"
+description = None
 
 args_and_kwargs = (
     (("-l", "--wavelength-range"), {

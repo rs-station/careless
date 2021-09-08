@@ -62,23 +62,47 @@ class CustomParser(EnvironmentSettingsMixin):
         self._validate_input_files(parser)
         return parser
 
+import re
+import textwrap
+class CustomFormatter(argparse.HelpFormatter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._whitespace_matcher=re.compile("\n(?!\n)")
+
+    def _fill_text(self, text, width, indent):
+        #First replace single newlines with a space
+        text = re.sub(r'(?!>\n)\n(?!\n)', '', text)
+        return textwrap.fill(text, width, initial_indent=indent, subsequent_indent=indent, replace_whitespace=False, drop_whitespace=False)
 
 description = """
-Scale and merge crystallographic data by approximate inference.
+Scale and merge crystallographic data by \n\n\n approximate inference.
 """
-parser = CustomParser(description=description)
+parser = CustomParser(description=description, formatter_class=CustomFormatter)
 
 subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
-mono = subs.add_parser("mono", help="Process monochromatic diffraction data.")
-poly = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.")
+mono_sub = subs.add_parser("mono", help="Process monochromatic diffraction data.", formatter_class=CustomFormatter)
+poly_sub = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.", formatter_class=CustomFormatter)
 
-from careless.args.common import args_and_kwargs
-for args,kwargs in args_and_kwargs:
-    mono.add_argument(*args, **kwargs)
-    poly.add_argument(*args, **kwargs)
+from careless.args import required,poly,groups
 
-from careless.args.poly import args_and_kwargs
-for args,kwargs in args_and_kwargs:
-    poly.add_argument(*args, **kwargs)
+for args,kwargs in required.args_and_kwargs:
+    mono_sub.add_argument(*args, **kwargs)
+    poly_sub.add_argument(*args, **kwargs)
 
+for args,kwargs in poly.args_and_kwargs:
+    poly_sub.add_argument(*args, **kwargs)
+
+for group in groups:
+    if group.name is not None and group.description is not None:
+        mono_group = mono_sub.add_argument_group(group.name, group.description)
+        poly_group = poly_sub.add_argument_group(group.name, group.description)
+    elif group.name is not None:
+        mono_group = mono_sub.add_argument_group(group.name)
+        poly_group = poly_sub.add_argument_group(group.name)
+    else:
+        mono_group = mono_sub
+        poly_group = poly_sub
+    for args,kwargs in group.args_and_kwargs:
+        mono_group.add_argument(*args, **kwargs)
+        poly_group.add_argument(*args, **kwargs)
 
