@@ -6,7 +6,7 @@ Options related to the neural network scaling model used for merging.
 
 args_and_kwargs = (
     (("--mlp-layers",), {
-        "help": "The number of dense neural network layers in the scaling model. The default is 20 units.",
+        "help": "The number of dense neural network layers in the scaling model. The default is 20 layers.",
         "type":int,
         "default":20,
     }),
