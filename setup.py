@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     description='Scaling and merging crystallographic data with TensorFlow and Variational Inference',
     install_requires=[
-        "reciprocalspaceship>=0.9.8",
+        "reciprocalspaceship>=0.9.15",
         "tqdm",
         "tensorflow>=2.6",
         "tensorflow-probability",
