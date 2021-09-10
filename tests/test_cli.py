@@ -66,3 +66,6 @@ def test_twofile(off_file, on_file, on_file_alt_sg, dmin, anomalous, isigi_cutof
     else:
         base_test_together(flags, [off_file, on_file])
 
+def test_crystfel(stream_file):
+    flags = f"mono --iterations={niter} --spacegroups=1 dHKL,image_id"
+    base_test_together(flags, [stream_file])

@@ -18,6 +18,13 @@ def cell_and_spacegroups():
     ]
     return [(gemmi.UnitCell(*i), gemmi.SpaceGroup(j)) for i,j in data]
 
+
+@pytest.fixture
+def stream_file():
+    datapath = "data/crystfel.stream"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
 @pytest.fixture
 def off_file():
     datapath = "data/pyp_off.mtz"
