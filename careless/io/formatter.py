@@ -1,9 +1,11 @@
 import numpy as np
 import tensorflow as tf
 import reciprocalspaceship as rs
+import gemmi
 from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
 from careless.utils.positional_encoding import positional_encoding
+from typing import Optional
 
 def get_first_key_of_dtype(ds, dtype):
     matches = ds.dtypes[ds.dtypes == dtype].keys()
@@ -18,6 +20,7 @@ class DataFormatter():
     method. `finalize(data, rac)` must accept a dataset and a reciprocal asu collection and return
     formatted model inputs 
     """
+    spacegroups = None
     def pack_inputs(self, inputs_dict):
         """
         inputs_dict : {k:v} where k corresponds to one of careless.models.base.BaseModel.input_index.keys()
@@ -31,7 +34,7 @@ class DataFormatter():
                 break
         return inputs
 
-    def prep_dataset(self, ds : rs.DataSet) -> rs.DataSet:
+    def prep_dataset(self, ds : rs.DataSet, spacegroup : Optional[gemmi.SpaceGroup] = None) -> rs.DataSet:
         raise NotImplementedError("Formatter classes should implement `prep_dataset`")
 
     def finalize(self, data : rs.DataSet, rac : ReciprocalASUCollection) -> (tuple, ReciprocalASUCollection):
@@ -55,7 +58,10 @@ class DataFormatter():
 
         reciprocal_asus = []
         for file_id, ds in enumerate(datasets):
-            ds = self.prep_dataset(ds)
+            sg = None
+            if self.spacegroups is not None:
+                sg = self.spacegroups[file_id]
+            ds = self.prep_dataset(ds, sg)
 
             if self.separate_outputs:
                 asu_id = file_id
@@ -117,7 +123,6 @@ class DataFormatter():
 
         return self((load(f) for f in files))
 
-
 class MonoFormatter(DataFormatter):
     """
     Formatter for careless inputs. 
@@ -134,6 +139,7 @@ class MonoFormatter(DataFormatter):
             isigi_cutoff=None,
             positional_encoding_keys=None,
             encoding_bit_depth=5,
+            spacegroups = None,
         ):
         """
         TODO: fix this
@@ -151,6 +157,8 @@ class MonoFormatter(DataFormatter):
             If this is not supplied, the function will look for the intensity_key
             prepended by "Sig" or "SIG". If neither  exist, this method will
             raise a ValueError.
+        spacegroups : list (optional)
+            Optional list of spacegroups. 1 Per input file
         """
         self.intensity_key = intensity_key
         self.uncertainty_key = uncertainty_key
@@ -163,6 +171,7 @@ class MonoFormatter(DataFormatter):
         self.isigi_cutoff = isigi_cutoff
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
+        self.spacegroups = spacegroups
 
     @classmethod
     def from_parser(cls, parser):
@@ -170,6 +179,18 @@ class MonoFormatter(DataFormatter):
         pe_keys = parser.positional_encoding_keys
         if pe_keys is not None:
             pe_keys = pe_keys.split(',')
+
+        spacegroups = None
+        if parser.spacegroups is not None:
+            spacegroups = [gemmi.SpaceGroup(i) for i in parser.spacegroups.split(",")]
+            if len(spacegroups) == 1:
+                spacegroups = [spacegroups[0] for i in range(len(parser.reflection_files))]
+            elif len(spacegroups) != len(parser.reflection_files):
+                raise ValueError(
+                    "Multiple values provided for --spacegroups=, but the number of provided values does not match the number of reflection files. "
+                    "Either provide a single spacegroup or one per reflection file as a comma-separated list. " 
+                )
+
         return cls(
             parser.intensity_key,
             None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
@@ -181,9 +202,10 @@ class MonoFormatter(DataFormatter):
             parser.isigi_cutoff,
             pe_keys,
             parser.positional_encoding_frequencies,
+            spacegroups,
         )
 
-    def prep_dataset(self, ds, inplace=True):
+    def prep_dataset(self, ds, spacegroup=None, inplace=True):
         """
         Format a single data set.
          - Apply resolution cutoff (dHKL >= dmin)
@@ -197,6 +219,8 @@ class MonoFormatter(DataFormatter):
         ----------
         ds : rs.DataSet
             The rs DataSet instance to be standardized
+        spacegroup : gemmi.SpaceGroup
+            Optionally override ds.spacegroup with this object.
         inplace : bool (optional)
             By default this method operators inplace on the passed dataset.
             Set this parameter to False in order to operate on a copy.
@@ -207,6 +231,9 @@ class MonoFormatter(DataFormatter):
         """
         if not inplace:
             ds = ds.copy()
+
+        if spacegroup is not None:
+            ds.spacegroup = spacegroup
 
         # Avoid non-unique MultiIndex complications
         ds.reset_index(inplace=True)
@@ -242,6 +269,12 @@ class MonoFormatter(DataFormatter):
                 for k in ds:
                     if k == prefix + intensity_key:
                         uncertainty_key = k
+        # TODO: this is a temporary fix for an older version of the crystfel parser
+        # please remove this upon the next rs release (2021-09-10)
+        if uncertainty_key is None:
+            if 'sigmaI' in ds:
+                uncertainty_key = 'sigmaI'
+
         if uncertainty_key is None:
             raise ValueError(
                 f"No matching uncertainty key found for intensity key {intensity_key}"
@@ -314,6 +347,7 @@ class LaueFormatter(DataFormatter):
             isigi_cutoff=None,
             positional_encoding_keys=None,
             encoding_bit_depth=5,
+            spacegroups=None,
         ):
 
         """
@@ -339,6 +373,8 @@ class LaueFormatter(DataFormatter):
             If this is not supplied, the function will look for the intensity_key
             prepended by "Sig" or "SIG". If neither  exist, this method will
             raise a ValueError.
+        spacegroups : list (optional)
+            Optional list of spacegroups. 1 Per input file.
         """
         self.wavelength_key = wavelength_key
         self.lam_min = lam_min
@@ -354,6 +390,7 @@ class LaueFormatter(DataFormatter):
         self.isigi_cutoff = isigi_cutoff
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
+        self.spacegroups = spacegroups
 
     @classmethod
     def from_parser(cls, parser):
@@ -363,6 +400,18 @@ class LaueFormatter(DataFormatter):
         pe_keys = parser.positional_encoding_keys
         if pe_keys is not None:
             pe_keys = pe_keys.split(',')
+
+        spacegroups = None
+        if parser.spacegroups is not None:
+            spacegroups = [gemmi.SpaceGroup(i) for i in parser.spacegroups.split(",")]
+            if len(spacegroups) == 1:
+                spacegroups = [spacegroups[0] for i in range(len(parser.reflection_files))]
+            elif len(spacegroups) != len(parser.reflection_files):
+                raise ValueError(
+                    "Multiple values provided for --spacegroups=, but the number of provided values does not match the number of reflection files. "
+                    "Either provide a single spacegroup or one per reflection file as a comma-separated list. " 
+                )
+
         return cls(
             parser.wavelength_key,
             parser.intensity_key,
@@ -377,9 +426,10 @@ class LaueFormatter(DataFormatter):
             parser.isigi_cutoff,
             pe_keys,
             parser.positional_encoding_frequencies,
+            spacegroups=None,
         )
 
-    def prep_dataset(self, ds):
+    def prep_dataset(self, ds, spacegroup=None):
         """
         Standardized set of transformations to apply to input unmerged data sets.
          - Apply resolution cutoff (dHKL >= dmin)
@@ -393,11 +443,16 @@ class LaueFormatter(DataFormatter):
         ----------
         ds : rs.DataSet
             The rs DataSet instance to be standardized
+        spacegroup : gemmi.SpaceGroup
+            Optionally override ds.spacegroup with this object.
 
         Returns
         -------
         standardized : rs.DataSet
         """
+        if spacegroup is not None:
+            ds.spacegroup = spacegroup
+
         # Avoid non-unique MultiIndex complications
         ds.reset_index(inplace=True)
 
@@ -452,6 +507,12 @@ class LaueFormatter(DataFormatter):
                 for k in ds:
                     if k == prefix + intensity_key:
                         uncertainty_key = k
+        # TODO: this is a temporary fix for an older version of the crystfel parser
+        # please remove this upon the next rs release (2021-09-10)
+        if uncertainty_key is None:
+            if 'sigmaI' in ds:
+                uncertainty_key = 'sigmaI'
+
         if uncertainty_key is None:
             raise ValueError(
                 f"No matching uncertainty key found for intensity key {intensity_key}"

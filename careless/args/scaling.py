@@ -16,4 +16,11 @@ args_and_kwargs = (
         "type": int,
         "default": 10,
     }),
+
+    (("--disable-image-scales",), {
+        "help": "Do not learn a local scale param for each image.",
+        "action": "store_false",
+        "dest" : "use_image_scales",
+        "default": True,
+    }),
 )

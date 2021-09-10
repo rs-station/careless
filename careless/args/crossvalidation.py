@@ -2,7 +2,7 @@ name = "Crossvalidation"
 description = """
 Careless supports two sorts of crossvalidation. The first is used to assess the validity of a particular merging
 strategy (see Model Selection). The second is meant to assess the quality of a data set (see Data Consistency). 
-By default, careless will run the latter. However, You can use any combination of these strategies using the provided flags. \n
+By default, careless will run neither. However, You can use any combination of these strategies using the provided flags. \n
 
   Model Selection\n
   ---------------\n
@@ -32,9 +32,9 @@ args_and_kwargs = (
     (("--merge-half-datasets", ),  {
         "help":"After training, split the data in half randomly by image and merge each half using the scaling model learned on the training fraction. "
                "The output of each half will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
-               " always be used to generate half data sets irrespective of the test fraction. This parameter defaults to True.",
-        "type" : bool,
-        "default" : True,
+               " always be used to generate half data sets irrespective of the test fraction. ",
+        "action" : 'store_true',
+        "default" : False,
     }),
 )
 
