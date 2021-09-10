@@ -48,9 +48,13 @@ def run_careless(parser):
     mlp_width = parser.mlp_width
     if mlp_width is None:
         mlp_width = BaseModel.get_metadata(inputs).shape[-1]
+
     mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
-    image_scaler = ImageScaler(n_images)
-    scaler = HybridImageScaler(mlp_scaler, image_scaler)
+    if parser.use_image_scales:
+        image_scaler = ImageScaler(n_images)
+        scaler = HybridImageScaler(mlp_scaler, image_scaler)
+    else:
+        scaler = mlp_scaler
 
     model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
 
@@ -108,7 +112,6 @@ def run_careless(parser):
 
 
     if parser.embed:
-        from matplotlib import pyplot as plt
         from IPython import embed
         embed(colors='Linux')
 

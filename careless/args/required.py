@@ -10,7 +10,9 @@ args_and_kwargs = (
 
     (("reflection_files", ), { 
         "metavar":"reflections.{mtz,stream}", 
-        "help":"Mtz or stream file(s) containing unmerged reflection observations.", 
+        "help":"Mtz or stream file(s) containing unmerged reflection observations. If you are supplying"
+               " stream files, you must also use the --spacegroups option to supply the symmetry for "
+               "merging.", 
         "type":str, 
         "nargs":'+',
     }),
