@@ -78,31 +78,29 @@ def run_careless(parser):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)
 
-
     predictions_data = None
-    for i,ds in enumerate(dm.get_predictions(model, train)):
-        ds['file_id'] = rs.DataSeries(i, index=ds.index, dtype='I')
-        ds['test'] = rs.DataSeries(0, index=ds.index, dtype='I')
-        if predictions_data is None:
-            predictions_data = ds
-        else:
-            predictions_data = predictions_data.append(ds, check_isomorphous=False)
-
-
     if test is not None:
-        for i,ds in enumerate(dm.get_predictions(model, test)):
-            ds['file_id'] = rs.DataSeries(i, index=ds.index, dtype='I')
-            ds['test'] = rs.DataSeries(0, index=ds.index, dtype='I')
-            predictions_data = predictions_data.append(ds, check_isomorphous=False)
+        for file_id, (ds_train, ds_test) in enumerate(zip(
+                dm.get_predictions(model, train),
+                dm.get_predictions(model, test),
+                )):
+            ds_train['test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
+            ds_test['test']  = rs.DataSeries(1, index=ds_test.index, dtype='I')
 
-    filename = parser.output_base + f'_predictions.mtz'
-    predictions_data.write_mtz(filename)
+            filename = parser.output_base + f'_predictions_{file_id}.mtz'
+            ds_train.append(ds_test).write_mtz(filename)
+    else:
+        for file_id, ds_train in enumerate(dm.get_predictions(model, train)):
+            ds_train['test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
+
+            filename = parser.output_base + f'_predictions_{file_id}.mtz'
+            ds_train.write_mtz(filename)
 
     if parser.merge_half_datasets:
-        xval_data = None
+        xval_data = [None] * len(dm.asu_collection)
         for repeat in range(parser.half_dataset_repeats):
             scaler.trainable = False
-            for i, half in enumerate(dm.split_data_by_image()):
+            for half_id, half in enumerate(dm.split_data_by_image()):
                 surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
                 model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
 
@@ -119,17 +117,17 @@ def run_careless(parser):
 
                 model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
-                for j,ds in enumerate(dm.get_results(surrogate_posterior, inputs=half)):
+                for file_id,ds in enumerate(dm.get_results(surrogate_posterior, inputs=half)):
                     ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')
-                    ds['half'] = rs.DataSeries(i, index=ds.index, dtype='I')
-                    ds['file_id'] = rs.DataSeries(j, index=ds.index, dtype='I')
-                    if xval_data is None:
-                        xval_data = ds
+                    ds['half'] = rs.DataSeries(half_id, index=ds.index, dtype='I')
+                    if xval_data[file_id] is None:
+                        xval_data[file_id] = ds
                     else:
-                        xval_data = xval_data.append(ds, check_isomorphous=False)
+                        xval_data[file_id] = xval_data[file_id].append(ds)
 
-        filename = parser.output_base + f'_xval.mtz'
-        xval_data.write_mtz(filename)
+        for file_id, ds in enumerate(xval_data):
+            filename = parser.output_base + f'_xval_{file_id}.mtz'
+            ds.write_mtz(filename)
 
     if parser.embed:
         from IPython import embed
