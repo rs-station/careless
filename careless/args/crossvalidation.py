@@ -31,10 +31,17 @@ args_and_kwargs = (
 
     (("--merge-half-datasets", ),  {
         "help":"After training, split the data in half randomly by image and merge each half using the scaling model learned on the training fraction. "
-               "The output of each half will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
+               "The output of the halves will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
                " always be used to generate half data sets irrespective of the test fraction. ",
         "action" : 'store_true',
         "default" : False,
     }),
+    
+    (("--half-dataset-repeats", ),  {
+        "help": "Number of times to Repeat the half dataset crossvalidation. By default this is one.",
+        "type" : int,
+        "default" : 1,
+    }),
+
 )
 

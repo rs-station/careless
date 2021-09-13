@@ -10,6 +10,7 @@ def run_careless(parser):
     # We defer all inputs to make sure the parser has priority in modifying tf parameters
     import tensorflow as tf
     import numpy as np
+    import reciprocalspaceship as rs
     from careless.io.manager import DataManager
     from careless.io.formatter import MonoFormatter,LaueFormatter
     from careless.models.base import BaseModel
@@ -78,38 +79,57 @@ def run_careless(parser):
         ds.write_mtz(filename)
 
 
+    predictions_data = None
+    for i,ds in enumerate(dm.get_predictions(model, train)):
+        ds['file_id'] = rs.DataSeries(i, index=ds.index, dtype='I')
+        ds['test'] = rs.DataSeries(0, index=ds.index, dtype='I')
+        if predictions_data is None:
+            predictions_data = ds
+        else:
+            predictions_data = predictions_data.append(ds)
+
+
     if test is not None:
         for i,ds in enumerate(dm.get_predictions(model, test)):
-            filename = parser.output_base + f'_test_{i}.mtz'
-            ds.write_mtz(filename)
-        for i,ds in enumerate(dm.get_predictions(model, train)):
-            filename = parser.output_base + f'_train_{i}.mtz'
-            ds.write_mtz(filename)
+            ds['file_id'] = rs.DataSeries(i, index=ds.index, dtype='I')
+            ds['test'] = rs.DataSeries(0, index=ds.index, dtype='I')
+            predictions_data = predictions_data.append(ds)
 
+    filename = parser.output_base + f'_predictions.mtz'
+    predictions_data.write_mtz(filename)
 
     if parser.merge_half_datasets:
-        scaler.trainable = False
-        for i, half in enumerate(dm.split_data_by_image()):
-            surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
-            model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
+        xval_data = None
+        for repeat in range(parser.half_dataset_repeats):
+            scaler.trainable = False
+            for i, half in enumerate(dm.split_data_by_image()):
+                surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
+                model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
 
-            opt = tf.keras.optimizers.Adam(
-                parser.learning_rate,
-                parser.beta_1,
-                parser.beta_2,
-            )
+                opt = tf.keras.optimizers.Adam(
+                    parser.learning_rate,
+                    parser.beta_1,
+                    parser.beta_2,
+                )
 
-            model.compile(opt)
-            callbacks = [
-                ProgressBar(),
-            ]
+                model.compile(opt)
+                callbacks = [
+                    ProgressBar(),
+                ]
 
-            model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+                model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
-            for j,ds in enumerate(dm.get_results(surrogate_posterior, inputs=half)):
-                filename = parser.output_base + f'_half{i+1}_{j}.mtz'
-                ds.write_mtz(filename)
+                for j,ds in enumerate(dm.get_results(surrogate_posterior, inputs=half)):
+                    ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')
+                    ds['half'] = rs.DataSeries(i, index=ds.index, dtype='I')
+                    ds['file_id'] = rs.DataSeries(j, index=ds.index, dtype='I')
+                    if xval_data is None:
+                        xval_data = ds
+                    else:
+                        xval_data = xval_data.append(ds)
 
+        filename = parser.output_base + f'_xval.mtz'
+        xval_data.write_mtz(filename)
 
     if parser.embed:
         from IPython import embed
