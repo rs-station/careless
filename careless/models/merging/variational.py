@@ -83,6 +83,11 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         #This is <F**2.>
         f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
         iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
+
+        # This is required for laue predictions
+        if hasattr(likelihood, 'convolve'):
+            iexp = likelihood.convolve(iexp)
+
         return iexp
 
 
