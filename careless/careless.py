@@ -72,7 +72,7 @@ def run_careless(parser):
         ProgressBar(),
     ]
 
-    model.fit(train, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+    hist = model.fit(train, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
     for i,ds in enumerate(dm.get_results(surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
@@ -86,14 +86,14 @@ def run_careless(parser):
         if predictions_data is None:
             predictions_data = ds
         else:
-            predictions_data = predictions_data.append(ds)
+            predictions_data = predictions_data.append(ds, check_isomorphous=False)
 
 
     if test is not None:
         for i,ds in enumerate(dm.get_predictions(model, test)):
             ds['file_id'] = rs.DataSeries(i, index=ds.index, dtype='I')
             ds['test'] = rs.DataSeries(0, index=ds.index, dtype='I')
-            predictions_data = predictions_data.append(ds)
+            predictions_data = predictions_data.append(ds, check_isomorphous=False)
 
     filename = parser.output_base + f'_predictions.mtz'
     predictions_data.write_mtz(filename)
@@ -126,7 +126,7 @@ def run_careless(parser):
                     if xval_data is None:
                         xval_data = ds
                     else:
-                        xval_data = xval_data.append(ds)
+                        xval_data = xval_data.append(ds, check_isomorphous=False)
 
         filename = parser.output_base + f'_xval.mtz'
         xval_data.write_mtz(filename)
