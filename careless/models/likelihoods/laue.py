@@ -5,6 +5,33 @@ import tensorflow_probability as tfp
 import tensorflow as tf
 import numpy as np
 
+class ConvolvedLikelihood():
+    """
+    Convolved log probability object for Laue data.
+    """
+    def __init__(self, distribution, harmonic_id):
+        self.harmonic_id = harmonic_id
+        self.distribution = distribution
+
+    def convolve(self, value):
+        """
+        Takes a set of sample points at which to compute the log prob. 
+        values can either be a bare vector or it may have a batch
+        dimension for mc samples, ie shape=(b, n_predictions). 
+        """
+        tv = tf.transpose(value)
+        tr = tf.scatter_nd(self.harmonic_id, tv, tv.shape)
+        return tf.transpose(tr)
+
+    def mean(self, *args, **kwargs):
+        return self.distribution.mean(*args, **kwargs)
+
+    def stddev(self, *args, **kwargs):
+        return self.distribution.stddev(*args, **kwargs)
+
+    def log_prob(self, value):
+        return self.distribution.log_prob(self.convolve(value))
+
 
 class LaueBase(Likelihood):
     def dist(self, loc, scale):
@@ -18,33 +45,6 @@ class LaueBase(Likelihood):
         uncertainties = self.get_uncertainties(inputs)
 
         likelihood = self.dist(intensities, uncertainties)
-
-        class ConvolvedLikelihood():
-            """
-            Convolved log probability object for Laue data.
-            """
-            def __init__(self, distribution, harmonic_id):
-                self.harmonic_id = harmonic_id
-                self.distribution = distribution
-
-            def convolve(self, value):
-                """
-                Takes a set of sample points at which to compute the log prob. 
-                values can either be a bare vector or it may have a batch
-                dimension for mc samples, ie shape=(b, n_predictions). 
-                """
-                tv = tf.transpose(value)
-                tr = tf.scatter_nd(self.harmonic_id, tv, tv.shape)
-                return tf.transpose(tr)
-
-            def mean(self, *args, **kwargs):
-                return self.distribution.mean(*args, **kwargs)
-
-            def stddev(self, *args, **kwargs):
-                return self.distribution.stddev(*args, **kwargs)
-
-            def log_prob(self, value):
-                return self.distribution.log_prob(self.convolve(value))
 
         return ConvolvedLikelihood(likelihood, harmonic_id)
 
