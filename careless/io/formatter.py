@@ -481,7 +481,7 @@ class LaueFormatter(DataFormatter):
         ds = expand_harmonics(ds, dmin, wavelength_key)
 
         # Filter by wavelength
-        idx = (ds[wavelength_key] < lam_min) | (ds[wavelength_key] > lam_max)
+        idx = (ds[wavelength_key] <= lam_min) | (ds[wavelength_key] >= lam_max)
         ds.drop(ds.index[idx], inplace=True)
 
         # Systematic absences
