@@ -84,7 +84,7 @@ class TruncatedNormal(tfd.TruncatedNormal):
             scale,
             tfb.Chain([
                 tfb.Softplus(),
-                tfb.Shift(1e-7),
+                tfb.Shift(scale_shift),
             ]),
         )
         return cls(loc, scale, low, high)
