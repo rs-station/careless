@@ -23,6 +23,7 @@ setup(
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     license="MIT",
+    include_package_data=True,
     packages=find_packages(),
     long_description=LONG_DESCRIPTION,
     description='Merging crystallography data without much physics.',
