@@ -27,13 +27,13 @@ setup(
     long_description=LONG_DESCRIPTION,
     description='Merging crystallography data without much physics.',
     project_urls=PROJECT_URLS,
-    python_requires=">=3.7,<=3.9",
+    python_requires=">=3.7,<3.10",
     url="https://github.com/Hekstra-Lab/careless",
     install_requires=[
         "reciprocalspaceship>=0.9.8,<=0.9.15",
         "tqdm",
-        "tensorflow==2.6",
-        "tensorflow-probability",
+        "tensorflow==2.5.1",
+        "tensorflow-probability==0.13.0",
         "matplotlib",
     ],
     scripts = [
