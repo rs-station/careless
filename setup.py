@@ -2,16 +2,17 @@ from setuptools import setup, find_packages
 
 setup(
     name='careless',
-    version='0.1.5',
+    version='0.1.6',
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     packages=find_packages(),
     description='Scaling and merging crystallographic data with TensorFlow and Variational Inference',
     install_requires=[
-        "reciprocalspaceship>=0.9.8",
+        "reciprocalspaceship>=0.9.8,<=0.9.15",
         "tqdm",
-        "tensorflow==2.5.1",
+        "tensorflow==2.6",
         "tensorflow-probability",
+        "matplotlib",
     ],
     scripts = [
             'careless/careless',
