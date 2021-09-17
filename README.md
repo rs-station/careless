@@ -4,17 +4,17 @@ Merging crystallography data without much physics.
 
 ![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/master/graph/badge.svg)](https://codecov.io/gh/Hekstra-Lab/careless)
-
+[![PyPI](https://img.shields.io/pypi/v/careless?color=blue)](https://pypi.org/project/careless/)
 
 
 ## Installation
-    pip install -U pip
-    git clone https://github.com/Hekstra-Lab/careless
-    cd careless
-    pip install -e .
+```bash
+pip install --upgrade pip
+pip install careless
+```
 
 ## Dependencies
-`careless` currently supports __Python 3.7 or 3.8__. 
+`careless` currently supports __Python 3.7 - 3.9__. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
