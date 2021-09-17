@@ -19,7 +19,7 @@ merged structure factor amplitudes under a Wilson prior.
 
 setup(
     name='careless',
-    version='0.1.6',
+    version='0.1.7',
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     license="MIT",
