@@ -13,7 +13,7 @@ data from x-ray crystallography experiments. It
 can be used to simultaneously scale and merge integrated
 reflection intensities from conventional, laue, 
 and free-electron laser experiments. It uses approximate 
-Bayesian inference and deep learning in to estimate
+Bayesian inference and deep learning to estimate
 merged structure factor amplitudes under a Wilson prior.
 """
 
