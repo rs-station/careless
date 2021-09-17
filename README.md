@@ -3,7 +3,7 @@ Merging crystallography data without much physics.
 
 
 ![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
-[![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/master/graph/badge.svg)](https://codecov.io/gh/Hekstra-Lab/careless)
+[![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/main/graph/badge.svg)](https://codecov.io/gh/Hekstra-Lab/careless)
 [![PyPI](https://img.shields.io/pypi/v/careless?color=blue)](https://pypi.org/project/careless/)
 
 
