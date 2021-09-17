@@ -72,6 +72,7 @@ ticks = []
 from tqdm import tqdm
 for binnumber, (i,j) in tqdm(enumerate(zip(*bins))):
     idx = (half1.dHKL >= j) & (half1.dHKL <= i)
+    idx = idx.to_numpy('bool')
     colors[idx] = binnumber / nbins
     cc.append(np.corrcoef(half1[idx][ikey], half2[idx][ikey])[0,1])
     ticks.append(f'{i:0.2f}-{j:0.2f}')
@@ -91,11 +92,11 @@ plt.tight_layout()
 plt.figure()
 cmap = plt.get_cmap()
 plt.errorbar(
-    half1[ikey],
-    half2[ikey],
-    xerr=half1[sigkey],
-    yerr=half2[sigkey],
-    color=cmap(colors),
+    half1[ikey].to_numpy('float32'),
+    half2[ikey].to_numpy('float32'),
+    xerr=half1[sigkey].to_numpy('float32'),
+    yerr=half2[sigkey].to_numpy('float32'),
+    ecolor=cmap(colors),
     ls='none',
     alpha=0.2,
 )
