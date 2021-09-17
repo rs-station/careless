@@ -1,3 +1,5 @@
+name = "Laue"
+description = None
 
 args_and_kwargs = (
     (("-l", "--wavelength-range"), {
@@ -9,6 +11,7 @@ args_and_kwargs = (
         "nargs":2, 
         "metavar": ('lambda_min', 'lambda_max'),
     }),
+
     (("-w", "--wavelength-key"),  {
         "help":f"Mtz column name corresponding to the reflections' peak wavelength.", 
         "type":str, 

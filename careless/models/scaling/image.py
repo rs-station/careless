@@ -1,87 +1,62 @@
 import tensorflow as tf
+from careless.models.base import BaseModel
 import tensorflow_probability as tfp
-from careless.models.base import PerGroupModel
-from careless.models.scaling.base import Scaler
 import numpy as np
 
 
-class ImageScaler(PerGroupModel, Scaler, tf.Module):
+class ImageScaler(BaseModel):
     """
     Simple linear image scales. Average value pegged at 1.
     """
-    def __init__(self, image_number):
+    def __init__(self, max_images):
         """
         Parameters
         ----------
-        image_number : array 
-            array of zero indexed image ids. One for each reflection observation.
+        max_images : int
+            The maximum number of image variables to be learned
         """
-        super().__init__(image_number)
-
-        self._scales = tf.Variable(tf.ones(self.num_groups - 1))
+        super().__init__()
+        self._scales = tf.Variable(tf.ones(max_images - 1))
 
     @property
     def scales(self):
         return tf.concat(([1.], self._scales), axis=-1)
 
-    def sample(self, return_kl_term=False, *args, **kwargs):
-        """ This is not a real distribution per se. """
-        w = self.expand(self.scales)
-        if return_kl_term:
-            return w , 0.
-        else:
-            return w  
-
-class VariationalImageScaler(PerGroupModel, Scaler, tf.Module):
-    """
-    Variational image scaling model with a prior distribution for scales. 
-    """
-    def __init__(self, image_number, prior, surrogate_posterior=None):
+    def call(self, inputs):
         """
         Parameters
         ----------
-        image_number : array 
-            array of zero indexed image ids. One for each reflection observation.
-        prior : tfd.Distribution 
-            tensorflow probability distribution with `batch_shape == image_number.max() + 1`
-        surrogate_posterior : tfd.Distribution (optional)
-            tensorflow probability distribution with `batch_shape == image_number.max() + 1`.
-            If None, a Normal surrogate will be initialized as:
-            ```
-            self.surrogate_posterior = tfd.Normal(prior.mean(), prior.stddev())
-            ```
+        inputs : list or tf.data.DataSet
+            A list of tensor inputs or a DataSet in the standard 
+            careless format.
+
+        Returns
+        -------
+        scales : tf.Tensor(float32)
+            A tensor the same shape as image_ids.
         """
-        image_number = tf.convert_to_tensor(image_number, dtype=tf.int64)
-        super().__init__(image_number)
+        image_ids = self.get_image_id(inputs)
+        w = self.scales
+        return tf.squeeze(tf.gather(w, image_ids))
 
-        self.prior = prior
-        if surrogate_posterior is None:
-            loc = tf.Variable(self.prior.mean()*tf.ones(self.num_groups))
-            scale = tfp.util.TransformedVariable(
-                tf.Variable(self.prior.stddev()*tf.ones(self.num_groups)),
-                tfp.bijectors.Softplus(),
-            )
-            self.surrogate_posterior = tfp.distributions.Normal(loc, scale)
-        else:
-            self.surrogate_posterior = surrogate_posterior
+class HybridImageScaler(BaseModel):
+    """
+    A scaler that combines an `ImageScaler` with an `MLPScaler`
+    """
+    def __init__(self, mlp_scaler, image_scaler):
+        super().__init__()
+        self.mlp_scaler = mlp_scaler
+        self.image_scaler = image_scaler
 
-        self._use_gather = True
-
-    @property
-    def trainable_variables(self):
-        return self.surrogate_posterior.trainable_variables
-
-    def sample(self, return_kl_term=False, *args, **kwargs):
-        """ 
-        This will return a sample of the variational image weights. 
-        Right now, this will use the slower gather operation instead of the sparse
-        matmul for expansion. This is in order to support arbitrary sample sizes.
+    def call(self, inputs):
         """
-        z = self.surrogate_posterior.sample(*args, **kwargs)
-        if return_kl_term:
-            log_q = self.surrogate_posterior.log_prob(z)
-            log_p = self.prior.log_prob(z)
-            return self.expand(z),tf.reduce_sum(log_q - log_p)
-        else:
-            return self.expand(z)
+        Parameters
+        ----------
+        """
+        q = self.mlp_scaler(inputs)
+        a = self.image_scaler(inputs)
+        return tfp.distributions.TransformedDistribution(
+            q,
+            tfp.bijectors.Scale(scale=a),
+        )
 

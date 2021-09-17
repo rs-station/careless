@@ -19,7 +19,7 @@ merged structure factor amplitudes under a Wilson prior.
 
 setup(
     name='careless',
-    version='0.1.7',
+    version='0.2.0',
     author='Kevin M. Dalton',
     author_email='kmdalton@fas.harvard.edu',
     license="MIT",
@@ -31,18 +31,22 @@ setup(
     python_requires=">=3.7,<3.10",
     url="https://github.com/Hekstra-Lab/careless",
     install_requires=[
-        "reciprocalspaceship>=0.9.8,<=0.9.15",
+        "reciprocalspaceship>=0.9.15",
         "tqdm",
-        "tensorflow==2.5.1",
-        "tensorflow-probability==0.13.0",
+        "tensorflow>=2.6",
+        "tensorflow-probability",
         "matplotlib",
     ],
     scripts = [
-            'careless/careless',
             'scripts/ccplot',
             'scripts/ccanom_plot',
             'scripts/make_difference_map',
     ],
+    entry_points={
+        "console_scripts": [
+            "careless=careless.careless:main",
+        ]
+    },
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'pytest-cov', 'pytest-xdist'],
 )

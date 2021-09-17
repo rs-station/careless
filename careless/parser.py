@@ -10,7 +10,12 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         parser = super().parse_args(*args, **kwargs)
 
         from os import environ
-        environ['TF_CPP_MIN_LOG_LEVEL'] = str(parser.tf_log_level)
+        if parser.tf_debug:
+            # This is very noisy
+            environ['TF_CPP_MIN_LOG_LEVEL'] = "1"
+        else:
+            # This is very quiet
+            environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
         import tensorflow as tf
         np.random.seed(parser.seed)
@@ -41,63 +46,63 @@ class CustomParser(EnvironmentSettingsMixin):
      - Detect conflicting arguments and raise an informative error
     """
     def _validate_input_files(self, parser):
-        for inFN in parser.mtzinput:
+        for inFN in parser.reflection_files:
             if not exists(inFN):
-                self.error(f"Unmerged Mtz file {inFN} does not exist")
-
-        if parser.prior_mtz:
-            if not exists(parser.prior_mtz):
-                self.error(f"Prior Mtz file {parser.prior_mtz} does not exist")
-
-    def _validate_priors(self, parser):
-        if parser.studentt_prior_dof:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--studentt-prior-dof requires --prior-mtz")
-        if parser.laplace_prior:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--laplace-prior requires --prior-mtz")
-        if parser.normal_prior:
-            if not parser.prior_mtz:
-                print(parser.studentt_prior_dof)
-                self.error("--normal-prior requires --prior-mtz")
+                self.error(f"Unmerged reflection file {inFN} does not exist")
+            elif inFN.endswith(".mtz") or inFN.endswith(".stream"):
+                continue
+            self.error(
+                f"Could not determine filetype for reflection file, {inFN}." 
+                 "Please make sure your files end in '.mtz' or '.stream' as"
+                 " appropriate."
+                )
 
     def parse_args(self, *args, **kwargs):
         parser = super().parse_args(*args, **kwargs)
         self._validate_input_files(parser)
-        self._validate_priors(parser)
         return parser
 
+import re
+import textwrap
+class CustomFormatter(argparse.HelpFormatter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._whitespace_matcher=re.compile("\n(?!\n)")
+
+    def _fill_text(self, text, width, indent):
+        #First replace single newlines with a space
+        text = re.sub(r'(?!>\n)\n(?!\n)', '', text)
+        return textwrap.fill(text, width, initial_indent=indent, subsequent_indent=indent, replace_whitespace=False, drop_whitespace=False)
 
 description = """
-Scale and merge crystallographic data by approximate inference.
+Scale and merge crystallographic data by \n\n\n approximate inference.
 """
+parser = CustomParser(description=description, formatter_class=CustomFormatter)
 
-parser = CustomParser(description=description)
 subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
-mono = subs.add_parser("mono", help="Process monochromatic diffraction data.")
-poly = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.")
+mono_sub = subs.add_parser("mono", help="Process monochromatic diffraction data.", formatter_class=CustomFormatter)
+poly_sub = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.", formatter_class=CustomFormatter)
 
-from careless.args.common import args_and_kwargs
-for args,kwargs in args_and_kwargs:
-    mono.add_argument(*args, **kwargs)
-    poly.add_argument(*args, **kwargs)
+from careless.args import required,poly,groups
 
-from careless.args.poly import args_and_kwargs
-for args,kwargs in args_and_kwargs:
-    poly.add_argument(*args, **kwargs)
+for args,kwargs in required.args_and_kwargs:
+    mono_sub.add_argument(*args, **kwargs)
+    poly_sub.add_argument(*args, **kwargs)
 
-from careless.args.exclusive import groups
+for args,kwargs in poly.args_and_kwargs:
+    poly_sub.add_argument(*args, **kwargs)
+
 for group in groups:
-    mono_group = mono.add_mutually_exclusive_group()
-    poly_group = poly.add_mutually_exclusive_group()
-    for args,kwargs in group:
+    if group.name is not None and group.description is not None:
+        mono_group = mono_sub.add_argument_group(group.name, group.description)
+        poly_group = poly_sub.add_argument_group(group.name, group.description)
+    elif group.name is not None:
+        mono_group = mono_sub.add_argument_group(group.name)
+        poly_group = poly_sub.add_argument_group(group.name)
+    else:
+        mono_group = mono_sub
+        poly_group = poly_sub
+    for args,kwargs in group.args_and_kwargs:
         mono_group.add_argument(*args, **kwargs)
         poly_group.add_argument(*args, **kwargs)
 
-if __name__=="__main__":
-    #This makes debugging without running the full script easy
-    parser=parser.parse_args()
-    from IPython import embed
-    embed(colors="Linux")
