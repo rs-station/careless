@@ -5,12 +5,13 @@ from careless.models.base import BaseModel
 import numpy as np
 
 
+
 class MLPScaler(BaseModel):
     """
     Neural network based scaler with simple dense layers.
     This neural network outputs a normal distribution.
     """
-    def __init__(self, n_layers, width):
+    def __init__(self, n_layers, width, leakiness=0.01):
         """
         Parameters
         ----------
@@ -18,15 +19,24 @@ class MLPScaler(BaseModel):
             Number of layers
         width : int
             Width of layers
+        leakiness : float or None
+            If float, use LeakyReLU activation with provided parameter. Otherwise 
+            use a simple ReLU
         """
         super().__init__()
 
         layers = []
+
         for i in range(n_layers):
+            if leakiness is None:
+                activation = tf.keras.layers.ReLU()
+            else:
+                activation = tf.keras.layers.LeakyReLU(0.01)
+
             layers.append(
                 tf.keras.layers.Dense(
                     width, 
-                    activation=tf.keras.layers.LeakyReLU(), 
+                    activation=activation, 
                     use_bias=True, 
                     kernel_initializer='identity'
                     )
