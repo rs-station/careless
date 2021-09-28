@@ -78,6 +78,9 @@ def run_careless(parser):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)
 
+    filename = parser.output_base + f'_history.csv'
+    history = rs.DataSet(hist.history).to_csv(filename, index_label='step')
+
     predictions_data = None
     if test is not None:
         for file_id, (ds_train, ds_test) in enumerate(zip(
