@@ -27,13 +27,6 @@ class MLPScaler(BaseModel):
 
         layers = []
 
-        layers.append(
-            tf.keras.layers.Dense(
-                width, 
-                use_bias=False, 
-                kernel_initializer='identity'
-                )
-        )
         for i in range(n_layers):
             if leakiness is None:
                 activation = tf.keras.layers.ReLU()
