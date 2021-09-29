@@ -43,7 +43,7 @@ def ReferencePrior_test(p, ref, mc_samples):
     z = ref.sample(mc_samples)
     expected = ref.log_prob(z).numpy()[...,observed]
     result = p.log_prob(z).numpy()[...,observed]
-    assert np.allclose(expected, result)
+    assert np.allclose(expected, result, atol=1e-5)
 
 @pytest.mark.parametrize('mc_samples', [(), 3, 1])
 def test_LaplaceReferencePrior(mc_samples):
