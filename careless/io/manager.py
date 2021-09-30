@@ -84,7 +84,9 @@ class DataManager():
         iobs = BaseModel.get_intensities(inputs).flatten()
         sig_iobs = BaseModel.get_uncertainties(inputs).flatten()
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
-        ipred = model(inputs).numpy().flatten()
+        #ipred = model(inputs)
+        ipred,sigipred = model.prediction_mean_stddev(inputs)
+
         h,k,l = H.T
         results = ()
         for i,asu in enumerate(self.asu_collection):
@@ -97,6 +99,7 @@ class DataManager():
                 'Iobs' : iobs[idx],
                 'SigIobs' : sig_iobs[idx],
                 'Ipred' : ipred[idx],
+                'SigIpred' : sigipred[idx],
                 }, 
                 cell=asu.cell, 
                 spacegroup=asu.spacegroup,
