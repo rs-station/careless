@@ -21,51 +21,19 @@ def run_careless(parser):
 
     if parser.type == 'poly':
         df = LaueFormatter.from_parser(parser)
-        from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
     elif parser.type == 'mono':
-        from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
         df = MonoFormatter.from_parser(parser)
 
 
     inputs,rac = df.format_files(parser.reflection_files)
-    n_images = np.max(BaseModel.get_image_id(inputs)) + 1
-    dm = DataManager(inputs, rac)
+    dm = DataManager(inputs, rac, parser=parser)
 
     if parser.test_fraction is not None:
         train,test = dm.split_data_by_refl(parser.test_fraction)
     else:
         train,test = dm.inputs,None
 
-    prior = dm.get_wilson_prior(parser.wilson_prior_b)
-    loc,scale = prior.mean(),prior.stddev()/10.
-    low = (1e-32 * rac.centric).astype('float32')
-    surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
-    dof = parser.studentt_likelihood_dof
-    if dof is None:
-        likelihood = NormalLikelihood()
-    else:
-        likelihood = StudentTLikelihood(dof)
-
-    mlp_width = parser.mlp_width
-    if mlp_width is None:
-        mlp_width = BaseModel.get_metadata(inputs).shape[-1]
-
-    mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
-    if parser.use_image_scales:
-        image_scaler = ImageScaler(n_images)
-        scaler = HybridImageScaler(mlp_scaler, image_scaler)
-    else:
-        scaler = mlp_scaler
-
-    model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
-
-    opt = tf.keras.optimizers.Adam(
-        parser.learning_rate,
-        parser.beta_1,
-        parser.beta_2,
-    )
-
-    model.compile(opt)
+    model = dm.build_model()
 
     from careless.callbacks.progress_bar import ProgressBar
     callbacks = [
@@ -74,12 +42,17 @@ def run_careless(parser):
 
     hist = model.fit(train, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
-    for i,ds in enumerate(dm.get_results(surrogate_posterior, inputs=train)):
+    for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)
 
     filename = parser.output_base + f'_history.csv'
     history = rs.DataSet(hist.history).to_csv(filename, index_label='step')
+
+    model.save_weights(parser.output_base + '_weights')
+    import pickle
+    with open(parser.output_base + "_data_manager.pickle", "wb") as out:
+        pickle.dump(dm, out)
 
     predictions_data = None
     if test is not None:
@@ -100,27 +73,19 @@ def run_careless(parser):
             ds_train.write_mtz(filename)
 
     if parser.merge_half_datasets:
+        scaling_model = model.scaling_model
+        scaling_model.trainable = False
         xval_data = [None] * len(dm.asu_collection)
         for repeat in range(parser.half_dataset_repeats):
-            scaler.trainable = False
             for half_id, half in enumerate(dm.split_data_by_image()):
-                surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
-                model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaler, parser.mc_samples)
+                model = dm.build_model(scaling_model=scaling_model)
 
-                opt = tf.keras.optimizers.Adam(
-                    parser.learning_rate,
-                    parser.beta_1,
-                    parser.beta_2,
-                )
-
-                model.compile(opt)
                 callbacks = [
                     ProgressBar(),
                 ]
-
                 model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
-                for file_id,ds in enumerate(dm.get_results(surrogate_posterior, inputs=half)):
+                for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
                     ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')
                     ds['half'] = rs.DataSeries(half_id, index=ds.index, dtype='I')
                     if xval_data[file_id] is None:

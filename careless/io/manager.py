@@ -9,14 +9,26 @@ class DataManager():
     """
     This class comprises various data manipulation methods as well as methods to aid in model construction.
     """
-    def __init__(self, inputs, asu_collection):
+    parser = None
+    def __init__(self, inputs, asu_collection, parser=None):
         """
         Parameters
         ----------
         inputs : tuple
         asu_collection : ReciprocalASUCollection
+        parser : Namespace (optional)
+            A Namespace instance created by careless.parser.parser.parse_args()
         """
-        self.inputs,self.asu_collection = inputs,asu_collection
+        self.inputs = inputs
+        self.asu_collection = asu_collection
+        self.parser = parser
+
+    @classmethod
+    def from_pickle(cls, filename):
+        import pickle
+        with open(filename, 'rb') as f:
+            dm = pickle.load(f)
+        return dm
 
     @classmethod
     def from_mtz_files(cls, filenames, formatter):
@@ -84,7 +96,9 @@ class DataManager():
         iobs = BaseModel.get_intensities(inputs).flatten()
         sig_iobs = BaseModel.get_uncertainties(inputs).flatten()
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
-        ipred = model(inputs).numpy().flatten()
+        #ipred = model(inputs)
+        ipred,sigipred = model.prediction_mean_stddev(inputs)
+
         h,k,l = H.T
         results = ()
         for i,asu in enumerate(self.asu_collection):
@@ -97,6 +111,7 @@ class DataManager():
                 'Iobs' : iobs[idx],
                 'SigIobs' : sig_iobs[idx],
                 'Ipred' : ipred[idx],
+                'SigIpred' : sigipred[idx],
                 }, 
                 cell=asu.cell, 
                 spacegroup=asu.spacegroup,
@@ -302,3 +317,60 @@ class DataManager():
         return train, test
     # --> end xval data splitting methods
 
+    def build_model(self, parser=None, surrogate_posterior=None, prior=None, likelihood=None, scaling_model=None, mc_sample_size=None):
+        """
+        Build the model specified in parser, a careless.parser.parser.parse_args() result. Optionally override any of the 
+        parameters taken by the VariationalMergingModel constructor.
+        The `parser` parameter is required if self.parser is not set. 
+        """
+        from careless.models.merging.surrogate_posteriors import TruncatedNormal
+        from careless.models.merging.variational import VariationalMergingModel
+        from careless.models.scaling.image import HybridImageScaler,ImageScaler
+        from careless.models.scaling.nn import MLPScaler
+        if parser is None:
+            parser = self.parser
+        if parser is None:
+            raise ValueError("No parser supplied, but self.parser is unset")
+
+        if parser.type == 'poly':
+            from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
+        elif parser.type == 'mono':
+            from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
+
+        if prior is None:
+            prior = self.get_wilson_prior(parser.wilson_prior_b)
+        loc,scale = prior.mean(),prior.stddev()/10.
+        low = (1e-32 * self.asu_collection.centric).astype('float32')
+        if surrogate_posterior is None:
+            surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
+
+        if likelihood is None:
+            dof = parser.studentt_likelihood_dof
+            if dof is None:
+                likelihood = NormalLikelihood()
+            else:
+                likelihood = StudentTLikelihood(dof)
+
+        if scaling_model is None:
+            mlp_width = parser.mlp_width
+            if mlp_width is None:
+                mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
+
+            mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
+            if parser.use_image_scales:
+                n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
+                image_scaler = ImageScaler(n_images)
+                scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
+            else:
+                scaling_model = mlp_scaler
+
+        model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
+
+        opt = tf.keras.optimizers.Adam(
+            parser.learning_rate,
+            parser.beta_1,
+            parser.beta_2,
+        )
+
+        model.compile(opt)
+        return model

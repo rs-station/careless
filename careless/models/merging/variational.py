@@ -41,6 +41,43 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.scaling_model = scaling_model
         self.mc_sample_size = mc_sample_size
 
+    def prediction_mean_stddev(self, inputs):
+        """
+        Parameters
+        ----------
+        inputs : data
+            inputs is a data structure like [refl_id, image_id, metadata, intensity, uncertainty]. 
+            This can be a tf.DataSet, or a group of tensors. 
+
+        Returns
+        -------
+        mean : np.array
+            A numpy array containing the mean value predicted by the model for each input. 
+        stddev : np.array
+            A numpy array containing the standard deviation predicted by the model for each input. 
+            This is a reasonable estimate of the uncertainty of the model about each input.
+        """
+        refl_id = self.get_refl_id(inputs)
+        #Let's actually return the expected value of the data under the current model
+        #This is <F**2.>
+        scale_dist = self.scaling_model(inputs)
+        f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
+        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
+        iexp = iexp.numpy()
+
+        from scipy.stats import truncnorm
+        q = self.surrogate_posterior
+        low,high,loc,scale = q.low.numpy(),q.high.numpy(),q.loc.numpy(),q.scale.numpy()
+        low,high = np.ones_like(loc)*low,np.ones_like(loc)*high
+        # This moment function does not vectorize for some reason
+        f4 = np.array([truncnorm.moment(4, *i) for i in zip(low, high, loc, scale)])
+
+        s2 = np.square(scale_dist.mean().numpy()) + np.square(scale_dist.stddev().numpy())
+        # var(I) = <I^2> - <I>^2
+        # <I^2> = <F^4><Sigma^2>
+        ivar = f4[np.squeeze(refl_id)]*s2 - iexp*iexp
+        return iexp,np.sqrt(ivar)
+
     def call(self, inputs):
         """
         Parameters
@@ -79,15 +116,6 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.add_metric(-ll, name="NLL")
         self.add_metric(kl_div, name="KLDiv")
 
-        #Let's actually return the expected value of the data under the current model
-        #This is <F**2.>
-        f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
-        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
-
-        # This is required for laue predictions
-        if hasattr(likelihood, 'convolve'):
-            iexp = likelihood.convolve(iexp)
-
-        return iexp
+        return ipred
 
 
