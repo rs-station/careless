@@ -26,7 +26,6 @@ def run_careless(parser):
 
 
     inputs,rac = df.format_files(parser.reflection_files)
-    n_images = np.max(BaseModel.get_image_id(inputs)) + 1
     dm = DataManager(inputs, rac, parser=parser)
 
     if parser.test_fraction is not None:

@@ -354,10 +354,11 @@ class DataManager():
         if scaling_model is None:
             mlp_width = parser.mlp_width
             if mlp_width is None:
-                mlp_width = BaseModel.get_metadata(inputs).shape[-1]
+                mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
 
             mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
             if parser.use_image_scales:
+                n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
                 image_scaler = ImageScaler(n_images)
                 scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
             else:
