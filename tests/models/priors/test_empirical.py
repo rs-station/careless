@@ -66,6 +66,7 @@ def test_StudentTReferencePrior(mc_samples):
     ReferencePrior_test(p, q, mc_samples)
 
 
+@pytest.xfail
 @pytest.mark.parametrize('mc_samples', [(), 3, 1])
 @pytest.mark.parametrize('centrics', ['all', 'none', 'some'])
 def test_RiceWoolfsonReferencePrior(mc_samples, centrics):
