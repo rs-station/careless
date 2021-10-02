@@ -147,7 +147,7 @@ class DataManager():
         params = None
         if output_parameters:
             params = {}
-            for k in surrogate_posterior.parameter_properties():
+            for k in sorted(surrogate_posterior.parameter_properties()):
                 v = surrogate_posterior.parameters[k]
                 numpify = lambda x : tf.convert_to_tensor(x).numpy()
                 params[k] = numpify(v).flatten() * np.ones(len(F), dtype='float32')
