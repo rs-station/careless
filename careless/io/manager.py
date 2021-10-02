@@ -172,7 +172,8 @@ class DataManager():
                 merged=True,
             ).infer_mtz_dtypes().set_index(['H', 'K', 'L'])
             if params is not None:
-                for key,val in params.items():
+                for key in sorted(params.keys()):
+                    val = params[key]
                     output[key] = rs.DataSeries(val[idx], index=output.index, dtype='R')
 
             # Remove unobserved refls
