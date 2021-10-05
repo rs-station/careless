@@ -31,7 +31,7 @@ setup(
     python_requires=">=3.7,<3.10",
     url="https://github.com/Hekstra-Lab/careless",
     install_requires=[
-        "reciprocalspaceship>=0.9.15",
+        "reciprocalspaceship>=0.9.16",
         "tqdm",
         "tensorflow>=2.6",
         "tensorflow-probability",
