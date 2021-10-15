@@ -35,19 +35,17 @@ def run_careless(parser):
 
     model = dm.build_model()
 
-    from careless.callbacks.progress_bar import ProgressBar
-    callbacks = [
-        ProgressBar(),
-    ]
-
-    hist = model.fit(train, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+    history = model.train_model(
+        tuple(map(tf.convert_to_tensor, train)),
+        parser.iterations,
+    )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)
 
     filename = parser.output_base + f'_history.csv'
-    history = rs.DataSet(hist.history).to_csv(filename, index_label='step')
+    history = rs.DataSet(history).to_csv(filename, index_label='step')
 
     model.save_weights(parser.output_base + '_weights')
     import pickle
@@ -79,11 +77,10 @@ def run_careless(parser):
         for repeat in range(parser.half_dataset_repeats):
             for half_id, half in enumerate(dm.split_data_by_image()):
                 model = dm.build_model(scaling_model=scaling_model)
-
-                callbacks = [
-                    ProgressBar(),
-                ]
-                model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+                history = model.train_model(
+                    tuple(map(tf.convert_to_tensor, half)), 
+                    parser.iterations,
+                )
 
                 for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
                     ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')

@@ -118,4 +118,22 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
+    def train_model(self, data, steps):
+        """
+        Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
+        """
+        @tf.function
+        def train_step(model_and_inputs):
+            model, data = model_and_inputs
+            return model.train_step((data,))
 
+        history = {}
+        from tqdm import trange
+        for i in trange(steps):
+            _history = train_step((self, data))
+            for k,v in _history.items():
+                v = float(v)
+                if k not in history:
+                    history[k] = []
+                history[k].append(v)
+        return history
