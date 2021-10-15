@@ -38,6 +38,7 @@ def run_careless(parser):
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
         parser.iterations,
+        message="Training",
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
@@ -80,6 +81,7 @@ def run_careless(parser):
                 history = model.train_model(
                     tuple(map(tf.convert_to_tensor, half)), 
                     parser.iterations,
+                    message=f"Merging repeat {repeat+1} half {half_id+1}",
                 )
 
                 for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):

@@ -118,7 +118,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
-    def train_model(self, data, steps):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}"):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
@@ -129,11 +129,15 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         history = {}
         from tqdm import trange
-        for i in trange(steps):
+        bar = trange(steps, desc=message)
+        for i in bar:
             _history = train_step((self, data))
+            pf = {}
             for k,v in _history.items():
                 v = float(v)
+                pf[k] = format_string.format(v)
                 if k not in history:
                     history[k] = []
                 history[k].append(v)
+            bar.set_postfix(pf)
         return history
