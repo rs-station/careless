@@ -8,6 +8,12 @@ args_and_kwargs = (
         "default":False,
     }),
 
+    (("--multi-gpu",), {
+        "help":"Distribute training across multiple GPUs.", 
+        "action":'store_true', 
+        "default":False,
+    }),
+
     (("--disable-gpu",), {
         "help":"Disable GPU for high memory models.", 
         "action":'store_true', 

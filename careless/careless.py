@@ -33,14 +33,27 @@ def run_careless(parser):
     else:
         train,test = dm.inputs,None
 
-    model = dm.build_model()
+    # Create a MirroredStrategy.
+    strategy = tf.distribute.MirroredStrategy()
+    print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+    if parser.multi_gpu:
+        with strategy.scope():
+            model = dm.build_model()
+
+        train_dataset = tf.data.Dataset.from_tensors((
+            train, 
+            BaseModel.get_intensities(train),
+        ))
+    else:
+        model = dm.build_model()
+        train_dataset = train
 
     from careless.callbacks.progress_bar import ProgressBar
     callbacks = [
         ProgressBar(),
     ]
-
-    hist = model.fit(train, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+    hist = model.fit(train_dataset, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
@@ -78,12 +91,22 @@ def run_careless(parser):
         xval_data = [None] * len(dm.asu_collection)
         for repeat in range(parser.half_dataset_repeats):
             for half_id, half in enumerate(dm.split_data_by_image()):
-                model = dm.build_model(scaling_model=scaling_model)
+                if parser.multi_gpu:
+                    train_dataset = tf.data.Dataset.from_tensors((
+                        half , 
+                        BaseModel.get_intensities(half),
+                    ))
+
+                    with strategy.scope():
+                        model = dm.build_model(scaling_model=scaling_model)
+                else:
+                    model = dm.build_model(scaling_model=scaling_model)
+                    train_dataset = half
 
                 callbacks = [
                     ProgressBar(),
                 ]
-                model.fit(half, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
+                model.fit(train_dataset, epochs=parser.iterations, steps_per_epoch=1, verbose=0, callbacks=callbacks,  shuffle=False)
 
                 for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
                     ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')
