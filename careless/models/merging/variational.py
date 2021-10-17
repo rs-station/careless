@@ -82,7 +82,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         if isinstance(self.likelihood, LaueBase):
             likelihood = self.likelihood(inputs)
             iexp = likelihood.convolve(iexp)
-            ivar = likelihood.convolve(ivar*ivar)
+            ivar = likelihood.convolve(ivar)
             iexp,ivar = iexp.numpy(),ivar.numpy()
 
         return iexp,np.sqrt(ivar)
