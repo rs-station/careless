@@ -147,7 +147,7 @@ class DataManager():
         params = None
         if output_parameters:
             params = {}
-            for k in surrogate_posterior.parameter_properties():
+            for k in sorted(surrogate_posterior.parameter_properties()):
                 v = surrogate_posterior.parameters[k]
                 numpify = lambda x : tf.convert_to_tensor(x).numpy()
                 params[k] = numpify(v).flatten() * np.ones(len(F), dtype='float32')
@@ -172,7 +172,8 @@ class DataManager():
                 merged=True,
             ).infer_mtz_dtypes().set_index(['H', 'K', 'L'])
             if params is not None:
-                for key,val in params.items():
+                for key in sorted(params.keys()):
+                    val = params[key]
                     output[key] = rs.DataSeries(val[idx], index=output.index, dtype='R')
 
             # Remove unobserved refls
