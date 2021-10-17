@@ -76,6 +76,15 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         # var(I) = <I^2> - <I>^2
         # <I^2> = <F^4><Sigma^2>
         ivar = f4[np.squeeze(refl_id)]*s2 - iexp*iexp
+
+        # We need to convolve the predictions if this is laue data
+        from careless.models.likelihoods.laue import LaueBase
+        if isinstance(self.likelihood, LaueBase):
+            likelihood = self.likelihood(inputs)
+            iexp = likelihood.convolve(iexp)
+            ivar = likelihood.convolve(ivar*ivar)
+            iexp,ivar = iexp.numpy(),ivar.numpy()
+
         return iexp,np.sqrt(ivar)
 
     def call(self, inputs):
