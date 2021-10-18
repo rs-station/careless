@@ -31,7 +31,7 @@ class MLPScaler(BaseModel):
             if leakiness is None:
                 activation = tf.keras.layers.ReLU()
             else:
-                activation = tf.keras.layers.LeakyReLU(0.01)
+                activation = tf.keras.layers.LeakyReLU(leakiness)
 
             layers.append(
                 tf.keras.layers.Dense(
@@ -70,6 +70,6 @@ class MLPScaler(BaseModel):
             A tfp distribution instance.
         """
         metadata = self.get_metadata(inputs)
-        return self.network(metadata)
+        return self.network(metadata) 
 
 
