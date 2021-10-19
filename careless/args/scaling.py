@@ -12,9 +12,9 @@ args_and_kwargs = (
     }),
 
     (("--mlp-width",), {
-        "help": "The width of the hidden layers of the neural net. The default is 10 units.",
+        "help": "The width of the hidden layers of the neural net. This defaults to the dimensionality of the metadata array.",
         "type": int,
-        "default": 10,
+        "default": None,
     }),
 
     (("--disable-image-scales",), {
