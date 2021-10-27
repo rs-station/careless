@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import numpy as np
+import reciprocalspaceship as rs
+from argparse import ArgumentParser
+from scipy.stats import truncnorm
+from tqdm import trange
+
+
+parser = ArgumentParser("Add intensity columns to a careless mtz file")
+parser.add_argument("--anomalous", action='store_true')
+parser.add_argument("mtz")
+parser.add_argument("out")
+parser = parser.parse_args()
+
+anom_key_order = ['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'I(+)', 'SigI(+)', 'I(-)', 'SigI(-)', 'N(+)', 'N(-)']
+
+ds = rs.read_mtz(parser.mtz)
+
+if parser.anomalous:
+    ds = ds.stack_anomalous().dropna()
+
+
+ds['I'] = rs.DataSeries(ds['F']*ds['F'] + ds['SigF']*ds['SigF'], dtype='J')
+ds['SigI'] = rs.DataSeries(np.zeros(len(ds)), dtype='Q')
+
+
+for i in trange(len(ds)):
+    imean,low,high,loc,scale = ds.iloc[i][['I', 'low', 'high', 'loc', 'scale']]
+    f4 = truncnorm.moment(4, low, high, loc, scale)
+    ds.loc[ds.index[i], 'SigI'] = np.sqrt(f4 - imean * imean)
+
+if parser.anomalous:
+    ds = ds.unstack_anomalous()
+    ds = ds[anom_key_order + [k for k in ds if k not in anom_key_order]]
+
+ds.write_mtz(parser.out)
