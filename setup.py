@@ -33,7 +33,7 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.15",
         "tqdm",
-        "tensorflow>=2.6",
+        "tensorflow>=2.7.0rc1",
         "tensorflow-probability",
         "matplotlib",
     ],
