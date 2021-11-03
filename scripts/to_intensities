@@ -28,7 +28,8 @@ ds['SigI'] = rs.DataSeries(np.zeros(len(ds)), dtype='Q')
 for i in trange(len(ds)):
     imean,low,high,loc,scale = ds.iloc[i][['I', 'low', 'high', 'loc', 'scale']]
     f4 = truncnorm.moment(4, low, high, loc, scale)
-    ds.loc[ds.index[i], 'SigI'] = np.sqrt(f4 - imean * imean)
+    f2 = truncnorm.moment(2, low, high, loc, scale)
+    ds.loc[ds.index[i], 'SigI'] = np.sqrt(f4 - f2*f2)
 
 if parser.anomalous:
     ds = ds.unstack_anomalous()
