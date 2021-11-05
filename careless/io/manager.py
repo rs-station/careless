@@ -357,13 +357,23 @@ class DataManager():
             if mlp_width is None:
                 mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
 
-            mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
-            if parser.use_image_scales:
+            if parser.image_layers > 0:
+                from careless.models.scaling.image import NeuralImageScaler
                 n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                image_scaler = ImageScaler(n_images)
-                scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
+                scaling_model = NeuralImageScaler(
+                    parser.image_layers,
+                    n_images,
+                    parser.mlp_layers,
+                    mlp_width,
+                )
             else:
-                scaling_model = mlp_scaler
+                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
+                if parser.use_image_scales:
+                    n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
+                    image_scaler = ImageScaler(n_images)
+                    scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
+                else:
+                    scaling_model = mlp_scaler
 
         model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
 
