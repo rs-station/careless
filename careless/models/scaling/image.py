@@ -116,7 +116,9 @@ class NeuralImageScaler(BaseModel):
         image_id = self.get_image_id(inputs),
 
         result = self.metadata_scaler.network(result)
-        result = result + self.get_metadata(inputs)
+        # One could use this line to add a skip connection here
+        #result = result + self.get_metadata(inputs)
+
         for layer in self.image_layers:
             result = layer((result, image_id))
         result = self.metadata_scaler.distribution(result)
