@@ -28,14 +28,19 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         #Disable the GPU if requested. This can be useful for training multiple models at the same time
         if parser.disable_gpu:
             tf.config.set_visible_devices([], 'GPU')
+        #For multi-gpu machines allocate only the zeroth GPU.
+        else:
+            #Set active GPU
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            gpu_id = parser.gpu_id
 
-        physical_devices = tf.config.list_physical_devices('GPU')
-        if not parser.disable_memory_growth:
             try:
-                tf.config.experimental.set_memory_growth(physical_devices[0], True)
+                gpu = gpus.pop(gpu_id)
+                if not parser.disable_memory_growth:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                tf.config.experimental.set_visible_devices(gpu, 'GPU')
             except:
-                # Invalid device or cannot modify virtual devices once initialized.
-                pass
+                tf.config.experimental.set_visible_devices([], 'GPU')
 
         return parser
 
