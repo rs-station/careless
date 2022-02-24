@@ -349,7 +349,7 @@ class DataManager():
         if prior is None:
             prior = self.get_wilson_prior(parser.wilson_prior_b)
         loc,scale = prior.mean(),prior.stddev()/10.
-        low = (1e-32 * self.asu_collection.centric).astype('float32')
+        low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
 
