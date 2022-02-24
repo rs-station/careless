@@ -14,6 +14,14 @@ args_and_kwargs = (
         "default":False,
     }),
 
+    (("--gpu-id",), {
+        "help":"Specify the physical device used for acceleration. This is an integer from"
+               "0 to num accelerators - 1. The default is zero. If `--disable-gpu` is set,"
+               "this option is ignored.",
+        "type":int,
+        "default": 0,
+    }),
+
     (("--disable-memory-growth",), {
         "help":"Disable the experimental dynamic memory allocation.", 
         "action":'store_true', 

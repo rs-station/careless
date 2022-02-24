@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+
+import numpy as np
+import reciprocalspaceship as rs
+import pandas as pd
+import matplotlib as mpl
+from matplotlib import pyplot as plt
+import seaborn as sns
+from argparse import ArgumentParser
+
+desc = """
+Analyze fitting for rs output using correlation coefficients.
+"""
+
+parser = ArgumentParser(desc)
+parser.add_argument("-n","--resolution-bins", dest='resolution_bins', type=int, default=20)
+parser.add_argument("-r","--as-repeats", help='Treat files as repeats and use them calculate confidence intervals', action="store_true", default=False)
+parser.add_argument("-d", "--dmin", dest='dmin', type=float, default=None)
+parser.add_argument("-k", "--cc-keys", dest='cc_keys', type=str, default="Iobs,Ipred", 
+    help="Comma separated list of two keys for which to calculate correlation coeffecients. "
+    'The default is "Iobs,Ipred" which is the default for `careless` predictions output.',
+)
+parser.add_argument("predictions_mtz_file", nargs="+")
+parser = parser.parse_args()
+
+key_1,key_2 = parser.cc_keys.split(',')
+prediction_files = parser.predictions_mtz_file
+as_repeats = parser.as_repeats
+
+nbins = parser.resolution_bins
+dmin = parser.dmin
+
+# We need to do a first pass to get the 
+# resolutions for each input and compute bins
+dHKL = np.concatenate([rs.read_mtz(f).compute_dHKL(True).dHKL.to_numpy() for f in prediction_files])
+if dmin is not None:
+    dHKL = dHKL[dHKL >= dmin]
+bin_edges = np.percentile(dHKL, np.linspace(0., 100., nbins + 1))
+format_string="0.2f"
+bin_labels = [f"{i:{format_string}}-{j:{format_string}}" for i,j in zip(bin_edges[:-1], bin_edges[1:])]
+bin_labels.append(f"{bin_edges[0]:{format_string}}-{bin_edges[-1]:{format_string}}")
+
+def cc_func(ds):
+    from scipy.stats import pearsonr,spearmanr
+    return rs.DataSeries({
+        "Pearson" :  pearsonr(ds[key_1], ds[key_2])[0],
+        "Spearman": spearmanr(ds[key_1], ds[key_2])[0],
+    })
+
+data = None
+for file_name in prediction_files:
+    ds = rs.read_mtz(file_name)
+    ds.compute_dHKL(inplace=True)
+    if dmin is not None:
+        ds = ds[ds.dHKL >= dmin]
+
+    # Trust me, I'm a doctor
+    ds['bin'] =  np.maximum(
+        np.digitize(ds.dHKL, bins=bin_edges, right=True) - 1,
+        0,
+    )
+    ds['Set'] = np.array(['Work', 'Test'])[ds.test]
+
+    cc = ds.groupby(["bin", "Set"]).apply(cc_func)
+
+    cc['File'] = file_name
+    cc.reset_index(inplace=True)
+    overall = ds.groupby("Set").apply(cc_func).reset_index()
+    overall['bin'] = nbins
+    overall['File'] = file_name
+    data = pd.concat((data, cc, overall))
+
+def plot(data, title=None):
+    plt.figure()
+    sns.lineplot(data = data, x='bin', y='Correlation Coefficient', style='Set', hue='Method')
+    plt.title(title)
+    plt.xlabel("Resolution Range ($\AA$)")
+    plt.xticks(range(nbins+1), bin_labels, rotation=45, ha='right', rotation_mode='anchor')
+    plt.ylim([0., 1.])
+    plt.tight_layout()
+
+
+
+# Complicated melt thing
+data = data.melt(
+    id_vars=["bin", "File", 'Set'], 
+    value_vars=["Pearson", "Spearman"], 
+    value_name="Correlation Coefficient", 
+    var_name="Method"
+)
+if as_repeats:
+    plot(df)
+else:
+    for filename,df in data.groupby("File"):
+        plot(df, title=filename)
+
+plt.show()

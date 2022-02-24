@@ -60,3 +60,67 @@ class HybridImageScaler(BaseModel):
             tfp.bijectors.Scale(scale=a),
         )
 
+
+class ImageLayer(BaseModel):
+    def __init__(self, units, max_images, activation=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = tf.keras.activations.get(activation)
+        self.units = units
+        self.max_images = max_images
+
+    def build(self, input_shape):
+        def initializer(shape, dtype=tf.float32, **kwargs):
+            return tf.eye(shape[1], shape[2], (shape[0],), dtype=dtype)
+
+        self.w = self.add_weight(
+            name='kernel',
+            shape=(self.max_images, self.units, input_shape[0][-1]),
+            initializer=initializer,
+            trainable=True,
+        )
+        self.b = self.add_weight(
+            name='bias', 
+            shape=(self.max_images, self.units),
+            initializer='zeros',
+            trainable=True,
+        )
+
+    def call(self, metadata_and_image_id, *args, **kwargs):
+        data,image_id = metadata_and_image_id
+        image_id = tf.squeeze(image_id)
+        w = tf.gather(self.w, image_id, axis=0)
+        b = tf.gather(self.b, image_id, axis=0)
+        result = self.activation(tf.squeeze(tf.matmul(w, data[...,None]), axis=-1) + b)
+        return result
+
+class NeuralImageScaler(BaseModel):
+    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01):
+        super().__init__()
+        layers = []
+        if leakiness is None:
+            activation = 'ReLU'
+        else:
+            activation = tf.keras.layers.LeakyReLU(leakiness)
+
+        for i in range(image_layers):
+            layers.append(
+                ImageLayer(mlp_width, max_images, activation)
+            )
+
+        self.image_layers = layers
+        from careless.models.scaling.nn import MetadataScaler
+        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness)
+
+    def call(self, inputs):
+        result = self.get_metadata(inputs)
+        image_id = self.get_image_id(inputs),
+
+        result = self.metadata_scaler.network(result)
+        # One could use this line to add a skip connection here
+        #result = result + self.get_metadata(inputs)
+
+        for layer in self.image_layers:
+            result = layer((result, image_id))
+        result = self.metadata_scaler.distribution(result)
+        return result
+

@@ -6,7 +6,8 @@ import numpy as np
 
 
 
-class MLPScaler(BaseModel):
+
+class MetadataScaler(BaseModel):
     """
     Neural network based scaler with simple dense layers.
     This neural network outputs a normal distribution.
@@ -25,15 +26,16 @@ class MLPScaler(BaseModel):
         """
         super().__init__()
 
-        layers = []
+        mlp_layers = []
 
         for i in range(n_layers):
             if leakiness is None:
                 activation = tf.keras.layers.ReLU()
             else:
                 activation = tf.keras.layers.LeakyReLU(leakiness)
+                #activation = tf.keras.activations.exponential
 
-            layers.append(
+            mlp_layers.append(
                 tf.keras.layers.Dense(
                     width, 
                     activation=activation, 
@@ -43,7 +45,8 @@ class MLPScaler(BaseModel):
                 )
 
         #The last layer is linear and generates location/scale params
-        layers.append(
+        tfp_layers = []
+        tfp_layers.append(
             tf.keras.layers.Dense(
                 tfp.layers.IndependentNormal.params_size(), 
                 activation='linear', 
@@ -53,10 +56,26 @@ class MLPScaler(BaseModel):
         )
 
         #The final layer converts the output to a Normal distribution
-        layers.append(tfp.layers.IndependentNormal())
+        tfp_layers.append(tfp.layers.IndependentNormal())
 
-        self.network = tf.keras.Sequential(layers)
+        self.network = tf.keras.Sequential(mlp_layers)
+        self.distribution = tf.keras.Sequential(tfp_layers)
 
+    def call(self, metadata):
+        """
+        Parameters
+        ----------
+        metadata : tf.Tensor(float32)
+
+        Returns
+        -------
+        dist : tfp.distributions.Distribution
+            A tfp distribution instance.
+        """
+        return self.distribution(self.network(metadata))
+
+
+class MLPScaler(MetadataScaler):
     def call(self, inputs):
         """
         Parameters
@@ -70,6 +89,5 @@ class MLPScaler(BaseModel):
             A tfp distribution instance.
         """
         metadata = self.get_metadata(inputs)
-        return self.network(metadata) 
-
+        return super().call(metadata)
 
