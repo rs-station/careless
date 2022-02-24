@@ -51,7 +51,7 @@ def base_test_together(flags, filenames):
 def test_twofile(off_file, on_file, on_file_alt_sg, ev11, dmin, anomalous, isigi_cutoff, studentt_dof, separate, mode, change_sg):
     if change_sg:
         on_file = on_file_alt_sg
-    flags = f"{mode} --iterations={niter} dHKL,image_id"
+    flags = f"{mode} --disable-gpu --iterations={niter} dHKL,image_id"
     if ev11:
         flags += f" --refine-uncertainties "
     if dmin is not None:
