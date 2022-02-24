@@ -334,9 +334,17 @@ class DataManager():
             raise ValueError("No parser supplied, but self.parser is unset")
 
         if parser.type == 'poly':
-            from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
+            if parser.refine_uncertainties:
+                from careless.models.likelihoods.laue import NormalEv11Likelihood as NormalLikelihood
+                from careless.models.likelihoods.laue import StudentTEv11Likelihood as StudentTLikelihood
+            else:
+                from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
         elif parser.type == 'mono':
-            from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
+            if parser.refine_uncertainties:
+                from careless.models.likelihoods.mono import NormalEv11Likelihood as NormalLikelihood
+                from careless.models.likelihoods.mono import StudentTEv11Likelihood as StudentTLikelihood
+            else:
+                from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
 
         if prior is None:
             prior = self.get_wilson_prior(parser.wilson_prior_b)
