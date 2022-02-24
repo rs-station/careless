@@ -40,6 +40,7 @@ def base_test_together(flags, filenames):
         if parser.anomalous:
             assert 'F(+)' in out_ds
 
+@pytest.mark.parametrize("ev11", [True, False])
 @pytest.mark.parametrize("dmin", [None, 7.])
 @pytest.mark.parametrize("anomalous", [True, False])
 @pytest.mark.parametrize("isigi_cutoff", [None, 1.])
@@ -47,10 +48,12 @@ def base_test_together(flags, filenames):
 @pytest.mark.parametrize("separate", [True, False])
 @pytest.mark.parametrize("mode", ['mono', 'poly'])
 @pytest.mark.parametrize("change_sg", [True, False])
-def test_twofile(off_file, on_file, on_file_alt_sg, dmin, anomalous, isigi_cutoff, studentt_dof, separate, mode, change_sg):
+def test_twofile(off_file, on_file, on_file_alt_sg, ev11, dmin, anomalous, isigi_cutoff, studentt_dof, separate, mode, change_sg):
     if change_sg:
         on_file = on_file_alt_sg
     flags = f"{mode} --iterations={niter} dHKL,image_id"
+    if ev11:
+        flags += f" --refine-uncertainties "
     if dmin is not None:
         flags += f" --dmin={dmin} "
     if anomalous:
