@@ -8,5 +8,13 @@ args_and_kwargs = (
         "metavar":'DOF', 
         "default":None,
     }),
+
+    (("--refine-uncertainties",), { 
+        "help":"Use Evans' 2011 error model from SCALA to correct Uncertainties."
+               "This option is not compatible with `--studentt-likelihood-dof` "
+               "and will be ignored if combined. ",
+        "action":'store_true', 
+        "default":False,
+    }),
 )
 

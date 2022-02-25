@@ -334,14 +334,22 @@ class DataManager():
             raise ValueError("No parser supplied, but self.parser is unset")
 
         if parser.type == 'poly':
-            from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
+            if parser.refine_uncertainties:
+                from careless.models.likelihoods.laue import NormalEv11Likelihood as NormalLikelihood
+                from careless.models.likelihoods.laue import StudentTEv11Likelihood as StudentTLikelihood
+            else:
+                from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
         elif parser.type == 'mono':
-            from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
+            if parser.refine_uncertainties:
+                from careless.models.likelihoods.mono import NormalEv11Likelihood as NormalLikelihood
+                from careless.models.likelihoods.mono import StudentTEv11Likelihood as StudentTLikelihood
+            else:
+                from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
 
         if prior is None:
             prior = self.get_wilson_prior(parser.wilson_prior_b)
         loc,scale = prior.mean(),prior.stddev()/10.
-        low = (1e-32 * self.asu_collection.centric).astype('float32')
+        low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
 
@@ -357,13 +365,23 @@ class DataManager():
             if mlp_width is None:
                 mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
 
-            mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
-            if parser.use_image_scales:
+            if parser.image_layers > 0:
+                from careless.models.scaling.image import NeuralImageScaler
                 n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                image_scaler = ImageScaler(n_images)
-                scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
+                scaling_model = NeuralImageScaler(
+                    parser.image_layers,
+                    n_images,
+                    parser.mlp_layers,
+                    mlp_width,
+                )
             else:
-                scaling_model = mlp_scaler
+                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
+                if parser.use_image_scales:
+                    n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
+                    image_scaler = ImageScaler(n_images)
+                    scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
+                else:
+                    scaling_model = mlp_scaler
 
         model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
 

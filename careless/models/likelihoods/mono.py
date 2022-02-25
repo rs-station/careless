@@ -1,6 +1,8 @@
 from careless.models.likelihoods.base import Likelihood
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
+from tensorflow_probability import util as tfu
+from tensorflow_probability import bijectors as tfb
 import numpy as np
 
 class LocationScaleLikelihood(Likelihood):
@@ -31,6 +33,42 @@ class StudentTLikelihood(LocationScaleLikelihood):
 
     def call(self, inputs):
         return tfd.StudentT(self.dof, *self.get_loc_and_scale(inputs))
+
+class Ev11Likelihood(LocationScaleLikelihood):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.Sdfac = tfu.TransformedVariable(1., tfb.Softplus())
+        self.Sdadd = tfu.TransformedVariable(1., tfb.Softplus())
+        self.SdB = tfu.TransformedVariable(1., tfb.Softplus())
+        self.loc = None
+        self.scale = None
+
+    def call(self, inputs):
+        self.loc, self.scale = self.get_loc_and_scale(inputs)
+        return self
+
+    def corrected_sigiobs(self, ipred):
+        ipred = tf.math.softplus(ipred)
+        sigiobs = self.Sdfac * tf.math.sqrt(
+            tf.square(self.scale) + \
+            self.SdB * ipred + \
+            self.Sdadd * tf.square(ipred)
+        )
+        return sigiobs
+
+class NormalEv11Likelihood(Ev11Likelihood):
+    def log_prob(self, ipred):
+        scale = self.corrected_sigiobs(ipred)
+        return tfd.Normal(self.loc, scale).log_prob(ipred)
+
+class StudentTEv11Likelihood(Ev11Likelihood):
+    def __init__(self, dof, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dof = dof
+
+    def log_prob(self, ipred):
+        scale = self.corrected_sigiobs(ipred)
+        return tfd.StudentT(self.dof, self.loc, scale).log_prob(ipred)
 
 class NeuralLikelihood(Likelihood):
     def __init__(self, mlp_layers, mlp_width):

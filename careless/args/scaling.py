@@ -17,6 +17,13 @@ args_and_kwargs = (
         "default": None,
     }),
 
+    (("--image-layers",), {
+        "help": "Add additional layers with local image-specific parameters.",
+        "type":int,
+        "default": 0,
+    }),
+
+
     (("--disable-image-scales",), {
         "help": "Do not learn a local scale param for each image.",
         "action": "store_false",
