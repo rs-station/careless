@@ -10,9 +10,7 @@ args_and_kwargs = (
     }),
 
     (("--refine-uncertainties",), { 
-        "help":"Use Evans' 2011 error model from SCALA to correct Uncertainties."
-               "This option is not compatible with `--studentt-likelihood-dof` "
-               "and will be ignored if combined. ",
+        "help":"Use Evans' 2011 error model from SCALA to correct uncertainties."
         "action":'store_true', 
         "default":False,
     }),
