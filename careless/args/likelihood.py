@@ -10,7 +10,7 @@ args_and_kwargs = (
     }),
 
     (("--refine-uncertainties",), { 
-        "help":"Use Evans' 2011 error model from SCALA to correct uncertainties."
+        "help":"Use Evans' 2011 error model from SCALA to correct uncertainties.",
         "action":'store_true', 
         "default":False,
     }),
