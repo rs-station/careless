@@ -3,7 +3,7 @@ import tensorflow as tf
 import reciprocalspaceship as rs
 from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
-from careless.models.priors.wilson import WilsonPrior
+from careless.models.priors.wilson import WilsonPrior,DoubleWilsonPrior
 
 class DataManager():
     """
@@ -346,8 +346,15 @@ class DataManager():
             else:
                 from careless.models.likelihoods.mono import NormalLikelihood,StudentTLikelihood
 
-        if prior is None:
+        parents = parser.parents
+        r_values = parser.dwr
+        if prior is None and parents is None:
             prior = self.get_wilson_prior(parser.wilson_prior_b)
+        elif prior is None and parser.parents is not None:
+            parents = [None if i == 'None' else int(i) for i in parents.split(',')]
+            r_values = [float(i) for i in r_values.split(',')]
+            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values)
+
         loc,scale = prior.mean(),prior.stddev()/10.
         low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:

@@ -10,5 +10,24 @@ args_and_kwargs = (
         "type": float, 
         "default": None,
     }),
+
+    (("--double-wilson-r",), {
+        "help": "For each input mtz, designate a prior correlation coefficient with its parent. "
+                "Supply one float for each file separated by commas. Supply zero for each root node."
+                "for example, --double-wilson-r=0.,0.9. ",
+        "type": str, 
+        "default": None,
+        "dest" : "dwr"
+    }),
+
+    (("--double-wilson-parents",), {
+        "help": "For each input mtz, designate a parent upon which its prior is conditioned. "
+                "Supply one integer for each file separated by commas. Supply None for root nodes"
+                "which follow single Wilson priors. "
+                "for example, --double-wilson-parents=None,0 ",
+        "type": str, 
+        "default": None,
+        "dest" : "parents"
+    }),
 )
 
