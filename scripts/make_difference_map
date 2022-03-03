@@ -108,7 +108,7 @@ output['KDE'] = rs.DataSeries(k(X), dtype='W', index=output.index)
 
 output['ScaledDeltaF'] = output['DeltaF'] * mean_intensity_by_resolution(output['F-model'], output.compute_dHKL().dHKL) / mean_intensity_by_resolution(output['Foff'], output.compute_dHKL().dHKL)
 
-output.write_mtz(outFN)
+output.infer_mtz_dtypes().write_mtz(outFN)
 
 if parser.embed:
     from IPython import embed

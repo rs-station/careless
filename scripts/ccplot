@@ -10,7 +10,7 @@ ccplot <half1_dataset_filename> <half2_dataset_filename>
 """
 import reciprocalspaceship as rs
 import numpy as np
-from careless.merge.merge import get_first_key_of_type
+from careless.io.formatter import get_first_key_of_dtype
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from sys import argv
@@ -42,7 +42,7 @@ def get_isigi_keys(ds, dtype_preferences=None):
     if dtype_preferences is None:
         dtype_preferences = ['J', 'F']
     for dtype in dtype_preferences:
-        ikey = get_first_key_of_type(ds, dtype)
+        ikey = get_first_key_of_dtype(ds, dtype)
         if ikey is not None:
             break
     for k in overrides:

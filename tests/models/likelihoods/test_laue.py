@@ -1,61 +1,108 @@
+import pytest
 from careless.models.likelihoods.laue import *
+from careless.models.base import BaseModel
+from tensorflow_probability import distributions as tfd
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
+def fake_ipred(inputs):
+    harmonic_id = BaseModel.get_harmonic_id(inputs).flatten()
+    intensities = BaseModel.get_intensities(inputs).flatten()
+    result = intensities[harmonic_id] / np.bincount(harmonic_id)[harmonic_id]
+    return result[None,:].astype('float32')
+
+def test_laue_NormalLikelihood(laue_inputs):
+    likelihood = NormalLikelihood()(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.Normal(iobs, sigiobs)
+
+    iconv = likelihood.convolve(ipred)
+
+    test = likelihood.log_prob(ipred).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+    assert np.array_equal(expected.shape, test.T.shape)
+    assert np.allclose(expected, test.T)
+
+    #Test batches larger than 1
+    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
+    likelihood.convolve(ipred).numpy()
+    test = likelihood.log_prob(ipred).numpy()
+    assert np.array_equiv(expected, test.T)
+
+def test_laue_LaplaceLikelihood(laue_inputs):
+    likelihood = LaplaceLikelihood()(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.Laplace(iobs, sigiobs/np.sqrt(2.))
+
+    iconv = likelihood.convolve(ipred)
+
+    test = likelihood.log_prob(ipred).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+
+    nobs = BaseModel.get_harmonic_id(laue_inputs).max() + 1
+
+    test = likelihood.log_prob(ipred).numpy()
+    expected = l_true.log_prob(iobs).numpy().T
+
+    #The zero padded entries at the end of the input will disagree
+    #with the expected values. This is fine, because they will not
+    #contribute to the gradient
+    test = test[:,:nobs]
+    expected = expected[:,:nobs]
+
+    assert np.array_equal(expected.shape, test.shape)
+    assert np.allclose(expected, test)
+
+    #Test batches larger than 1
+    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
+    likelihood.convolve(ipred).numpy()
+    test = likelihood.log_prob(ipred).numpy()
+    test = test[:,:nobs]
+    assert np.array_equiv(expected, test)
 
 
-# This is a bit tricky, but we need to test that all the dimensions for harmonic deconvolutions work out
-# We're going to have a certain number of observed reflections `n_refls`. We're going to have a larger number
-# of harmonics that need predicting, `n_harmonics`. 
+
+@pytest.mark.parametrize('dof', [1., 2., 4.])
+def test_laue_StudentTLikelihood(dof, laue_inputs):
+    likelihood = StudentTLikelihood(dof)(laue_inputs)
+    iobs = BaseModel.get_intensities(laue_inputs)
+    sigiobs = BaseModel.get_uncertainties(laue_inputs)
+    ipred = fake_ipred(laue_inputs)
+
+    l_true = tfd.StudentT(dof, iobs, sigiobs)
+
+    iconv = likelihood.convolve(ipred)
+
+    test = likelihood.log_prob(ipred).numpy()
+    expected = l_true.log_prob(iobs).numpy()
+
+    nobs = BaseModel.get_harmonic_id(laue_inputs).max() + 1
+
+    test = likelihood.log_prob(ipred).numpy()
+    expected = l_true.log_prob(iobs).numpy().T
+
+    #The zero padded entries at the end of the input will disagree
+    #with the expected values. This is fine, because they will not
+    #contribute to the gradient
+    test = test[:,:nobs]
+    expected = expected[:,:nobs]
+
+    assert np.array_equal(expected.shape, test.shape)
+    assert np.allclose(expected, test)
+
+    #Test batches larger than 1
+    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
+    likelihood.convolve(ipred).numpy()
+    test = likelihood.log_prob(ipred).numpy()
+    test = test[:,:nobs]
+    assert np.array_equiv(expected, test)
 
 
-n_refls = 10
-n_harmonics = 77
-n_samples = 13
-
-iobs, sigiobs = np.random.random((2, n_refls))
-
-#Convenient way to make sure we have at least one of every refl_id
-harmonic_index = np.concatenate((np.arange(n_refls), np.random.randint(0, n_refls, n_harmonics - n_refls))) 
-
-predictions = np.random.random(n_harmonics).astype(np.float32)
-n_predictions = np.random.random((n_samples, n_harmonics)).astype(np.float32)
-
-def test_NormalLikelihood():
-    likelihood = NormalLikelihood(iobs, sigiobs, harmonic_index)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)
-
-def test_LaplaceLikelihood():
-    likelihood = LaplaceLikelihood(iobs, sigiobs, harmonic_index)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)
-
-def test_StudentTLikelihood():
-    dof = 4.
-    likelihood = StudentTLikelihood(iobs, sigiobs, harmonic_index, dof)
-
-    probs = likelihood.prob(predictions)
-    assert probs.shape == n_refls
-    log_probs = likelihood.log_prob(predictions)
-    assert log_probs.shape == n_refls
-    probs = likelihood.prob(n_predictions)
-    assert probs.shape == (n_samples, n_refls)
-    log_probs = likelihood.log_prob(n_predictions)
-    assert log_probs.shape == (n_samples, n_refls)

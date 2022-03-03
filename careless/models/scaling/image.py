@@ -1,87 +1,126 @@
 import tensorflow as tf
+from careless.models.base import BaseModel
 import tensorflow_probability as tfp
-from careless.models.base import PerGroupModel
-from careless.models.scaling.base import Scaler
 import numpy as np
 
 
-class ImageScaler(PerGroupModel, Scaler, tf.Module):
+class ImageScaler(BaseModel):
     """
     Simple linear image scales. Average value pegged at 1.
     """
-    def __init__(self, image_number):
+    def __init__(self, max_images):
         """
         Parameters
         ----------
-        image_number : array 
-            array of zero indexed image ids. One for each reflection observation.
+        max_images : int
+            The maximum number of image variables to be learned
         """
-        super().__init__(image_number)
-
-        self._scales = tf.Variable(tf.ones(self.num_groups - 1))
+        super().__init__()
+        self._scales = tf.Variable(tf.ones(max_images - 1))
 
     @property
     def scales(self):
         return tf.concat(([1.], self._scales), axis=-1)
 
-    def sample(self, return_kl_term=False, *args, **kwargs):
-        """ This is not a real distribution per se. """
-        w = self.expand(self.scales)
-        if return_kl_term:
-            return w , 0.
-        else:
-            return w  
-
-class VariationalImageScaler(PerGroupModel, Scaler, tf.Module):
-    """
-    Variational image scaling model with a prior distribution for scales. 
-    """
-    def __init__(self, image_number, prior, surrogate_posterior=None):
+    def call(self, inputs):
         """
         Parameters
         ----------
-        image_number : array 
-            array of zero indexed image ids. One for each reflection observation.
-        prior : tfd.Distribution 
-            tensorflow probability distribution with `batch_shape == image_number.max() + 1`
-        surrogate_posterior : tfd.Distribution (optional)
-            tensorflow probability distribution with `batch_shape == image_number.max() + 1`.
-            If None, a Normal surrogate will be initialized as:
-            ```
-            self.surrogate_posterior = tfd.Normal(prior.mean(), prior.stddev())
-            ```
-        """
-        image_number = tf.convert_to_tensor(image_number, dtype=tf.int64)
-        super().__init__(image_number)
+        inputs : list or tf.data.DataSet
+            A list of tensor inputs or a DataSet in the standard 
+            careless format.
 
-        self.prior = prior
-        if surrogate_posterior is None:
-            loc = tf.Variable(self.prior.mean()*tf.ones(self.num_groups))
-            scale = tfp.util.TransformedVariable(
-                tf.Variable(self.prior.stddev()*tf.ones(self.num_groups)),
-                tfp.bijectors.Softplus(),
+        Returns
+        -------
+        scales : tf.Tensor(float32)
+            A tensor the same shape as image_ids.
+        """
+        image_ids = self.get_image_id(inputs)
+        w = self.scales
+        return tf.squeeze(tf.gather(w, image_ids))
+
+class HybridImageScaler(BaseModel):
+    """
+    A scaler that combines an `ImageScaler` with an `MLPScaler`
+    """
+    def __init__(self, mlp_scaler, image_scaler):
+        super().__init__()
+        self.mlp_scaler = mlp_scaler
+        self.image_scaler = image_scaler
+
+    def call(self, inputs):
+        """
+        Parameters
+        ----------
+        """
+        q = self.mlp_scaler(inputs)
+        a = self.image_scaler(inputs)
+        return tfp.distributions.TransformedDistribution(
+            q,
+            tfp.bijectors.Scale(scale=a),
+        )
+
+
+class ImageLayer(BaseModel):
+    def __init__(self, units, max_images, activation=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = tf.keras.activations.get(activation)
+        self.units = units
+        self.max_images = max_images
+
+    def build(self, input_shape):
+        def initializer(shape, dtype=tf.float32, **kwargs):
+            return tf.eye(shape[1], shape[2], (shape[0],), dtype=dtype)
+
+        self.w = self.add_weight(
+            name='kernel',
+            shape=(self.max_images, self.units, input_shape[0][-1]),
+            initializer=initializer,
+            trainable=True,
+        )
+        self.b = self.add_weight(
+            name='bias', 
+            shape=(self.max_images, self.units),
+            initializer='zeros',
+            trainable=True,
+        )
+
+    def call(self, metadata_and_image_id, *args, **kwargs):
+        data,image_id = metadata_and_image_id
+        image_id = tf.squeeze(image_id)
+        w = tf.gather(self.w, image_id, axis=0)
+        b = tf.gather(self.b, image_id, axis=0)
+        result = self.activation(tf.squeeze(tf.matmul(w, data[...,None]), axis=-1) + b)
+        return result
+
+class NeuralImageScaler(BaseModel):
+    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01):
+        super().__init__()
+        layers = []
+        if leakiness is None:
+            activation = 'ReLU'
+        else:
+            activation = tf.keras.layers.LeakyReLU(leakiness)
+
+        for i in range(image_layers):
+            layers.append(
+                ImageLayer(mlp_width, max_images, activation)
             )
-            self.surrogate_posterior = tfp.distributions.Normal(loc, scale)
-        else:
-            self.surrogate_posterior = surrogate_posterior
 
-        self._use_gather = True
+        self.image_layers = layers
+        from careless.models.scaling.nn import MetadataScaler
+        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness)
 
-    @property
-    def trainable_variables(self):
-        return self.surrogate_posterior.trainable_variables
+    def call(self, inputs):
+        result = self.get_metadata(inputs)
+        image_id = self.get_image_id(inputs),
 
-    def sample(self, return_kl_term=False, *args, **kwargs):
-        """ 
-        This will return a sample of the variational image weights. 
-        Right now, this will use the slower gather operation instead of the sparse
-        matmul for expansion. This is in order to support arbitrary sample sizes.
-        """
-        z = self.surrogate_posterior.sample(*args, **kwargs)
-        if return_kl_term:
-            log_q = self.surrogate_posterior.log_prob(z)
-            log_p = self.prior.log_prob(z)
-            return self.expand(z),tf.reduce_sum(log_q - log_p)
-        else:
-            return self.expand(z)
+        result = self.metadata_scaler.network(result)
+        # One could use this line to add a skip connection here
+        #result = result + self.get_metadata(inputs)
+
+        for layer in self.image_layers:
+            result = layer((result, image_id))
+        result = self.metadata_scaler.distribution(result)
+        return result
 

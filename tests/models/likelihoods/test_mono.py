@@ -1,26 +1,52 @@
+import pytest
 from careless.models.likelihoods.mono import *
+from careless.models.base import BaseModel
+from tensorflow_probability import distributions as tfd
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
 assert status
 
 
-iobs,sigiobs = np.random.random((2, 100)).astype(np.float32)
-samples = np.random.random(100).astype(np.float32)
+def test_mono_NormalLikelihood(mono_inputs):
+    likelihood = NormalLikelihood()(mono_inputs)
+    iobs = BaseModel.get_intensities(mono_inputs)
+    sigiobs = BaseModel.get_uncertainties(mono_inputs)
 
-def test_NormalLikelihood():
-    likelihood = NormalLikelihood(iobs, sigiobs)
-    likelihood.prob(samples)
-    likelihood.log_prob(samples)
+    l_true = tfd.Normal(
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs),
+    )
+    z = l_true.sample()
 
-def test_LaplaceLikelihood():
-    likelihood = LaplaceLikelihood(iobs, sigiobs)
-    likelihood.prob(samples)
-    likelihood.log_prob(samples)
+    assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))
 
-def test_StudentTLikelihood():
-    dof = 4.
-    likelihood = StudentTLikelihood(iobs, sigiobs, dof)
-    likelihood.prob(samples)
-    likelihood.log_prob(samples)
+def test_mono_LaplaceLikelihood(mono_inputs):
+    likelihood = LaplaceLikelihood()(mono_inputs)
+    iobs = BaseModel.get_intensities(mono_inputs)
+    sigiobs = BaseModel.get_uncertainties(mono_inputs)
+
+    l_true = tfd.Laplace(
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs)/np.sqrt(2.),
+    )
+    z = l_true.sample()
+
+    assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))
+
+@pytest.mark.parametrize('dof', [1., 2., 4.])
+def test_mono_StudentTLikelihood(dof, mono_inputs):
+    likelihood = StudentTLikelihood(dof)(mono_inputs)
+    iobs = BaseModel.get_intensities(mono_inputs)
+    sigiobs = BaseModel.get_uncertainties(mono_inputs)
+
+    l_true = tfd.StudentT(
+        dof, 
+        tf.squeeze(iobs), 
+        tf.squeeze(sigiobs),
+    )
+    z = l_true.sample()
+
+    assert np.allclose(likelihood.log_prob(z), l_true.log_prob(z))
+
 

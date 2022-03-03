@@ -1,73 +1,93 @@
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
-from careless.models.scaling.base import Scaler
+import tensorflow_probability as tfp
+from careless.models.base import BaseModel
 import numpy as np
 
 
-class SequentialScaler(tf.keras.models.Sequential, Scaler):
+
+
+class MetadataScaler(BaseModel):
     """
     Neural network based scaler with simple dense layers.
+    This neural network outputs a normal distribution.
     """
-    def __init__(self, metadata, layers=20, prior=None, width=None):
+    def __init__(self, n_layers, width, leakiness=0.01):
         """
         Parameters
         ----------
-        metadata : array 
-            m x d array of reflection metadata.
-        layers : int (optional)
-            How many dense layers to add. The default is 20 layers.
-        prior : tfd.Distribution (optional)
-            An optional prior distirubtion on the scaler output.
-        width : int (optional)
-            Optionally set the width of the hidden layers to be different than the dimensions of the
-            metadata. 
+        n_layers : int 
+            Number of layers
+        width : int
+            Width of layers
+        leakiness : float or None
+            If float, use LeakyReLU activation with provided parameter. Otherwise 
+            use a simple ReLU
         """
         super().__init__()
 
-        self.prior = prior
+        mlp_layers = []
 
-        self.metadata = np.array(metadata, dtype=np.float32)
-        n,d = metadata.shape
-        if width is None:
-            width = d
-
-        for i in range(layers):
-            self.add(tf.keras.layers.Dense(width, activation=tf.keras.layers.LeakyReLU(0.01), use_bias=True, kernel_initializer='identity'))
-
-        self.add(tf.keras.layers.Dense(2, activation='linear', use_bias=True, kernel_initializer='identity')) #TODO: <<<=====Is this better or worse??!?
-        #This is a hack to initialize the weights for this module
-        self(self.metadata[None,0])
-
-    @property
-    def loc(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        return loc
-
-    @property
-    def scale(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        scale = tf.math.softplus(scale)
-        return scale
-
-    def loc_and_scale(self):
-        loc, scale = tf.unstack(self(self.metadata), axis=-1)
-        scale = tf.math.softplus(scale)
-        return loc, scale
-
-    def sample(self, return_kl_term=False, sample_shape=(), seed=None, name='sample', **kwargs):
-        loc, scale = self.loc_and_scale()
-        scale = tf.math.softplus(scale)
-        dist = tfd.Normal(loc, scale)
-        sample = dist.sample(sample_shape, seed, name, **kwargs)
-        if return_kl_term:
-            if self.prior is None:
-                kl_div =  0.
+        for i in range(n_layers):
+            if leakiness is None:
+                activation = tf.keras.layers.ReLU()
             else:
-                log_q = dist.log_prob(sample)
-                log_p = self.prior.log_prob(sample)
-                kl_div =  tf.reduce_sum(log_q - log_p, axis=-1)
-            return sample, kl_div
-        else:
-            return sample
+                activation = tf.keras.layers.LeakyReLU(leakiness)
+                #activation = tf.keras.activations.exponential
 
+            mlp_layers.append(
+                tf.keras.layers.Dense(
+                    width, 
+                    activation=activation, 
+                    use_bias=True, 
+                    kernel_initializer='identity'
+                    )
+                )
+
+        #The last layer is linear and generates location/scale params
+        tfp_layers = []
+        tfp_layers.append(
+            tf.keras.layers.Dense(
+                tfp.layers.IndependentNormal.params_size(), 
+                activation='linear', 
+                use_bias=True, 
+                kernel_initializer='identity'
+            )
+        )
+
+        #The final layer converts the output to a Normal distribution
+        tfp_layers.append(tfp.layers.IndependentNormal())
+
+        self.network = tf.keras.Sequential(mlp_layers)
+        self.distribution = tf.keras.Sequential(tfp_layers)
+
+    def call(self, metadata):
+        """
+        Parameters
+        ----------
+        metadata : tf.Tensor(float32)
+
+        Returns
+        -------
+        dist : tfp.distributions.Distribution
+            A tfp distribution instance.
+        """
+        return self.distribution(self.network(metadata))
+
+
+class MLPScaler(MetadataScaler):
+    def call(self, inputs):
+        """
+        Parameters
+        ----------
+        inputs : tf.Tensor(float32)
+            An arbitrarily batched input tensor
+
+        Returns
+        -------
+        dist : tfp.distributions.Distribution
+            A tfp distribution instance.
+        """
+        metadata = self.get_metadata(inputs)
+        return super().call(metadata)
 

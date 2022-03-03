@@ -1,4 +1,7 @@
 from careless.models.priors.wilson import *
+import tensorflow_probability as tfp
+from tensorflow_probability import distributions as tfd
+import pytest
 import numpy as np
 
 from careless.utils.device import disable_gpu
@@ -25,7 +28,8 @@ def test_Acentric():
     assert np.all(np.isclose(p, acentric.prob(E)))
     assert np.all(np.isclose(np.log(p), acentric.log_prob(E)))
 
-def test_Wilson():
+@pytest.mark.parametrize('mc_samples', [(), 1, 3])
+def test_Wilson(mc_samples):
     centric = np.random.randint(0, 2, 100).astype(np.float32)
     epsilon = np.random.randint(1, 6, 100).astype(np.float32)
     prior = WilsonPrior(centric, epsilon)
@@ -34,3 +38,23 @@ def test_Wilson():
     log_probs = prior.log_prob(F)
     assert np.all(np.isfinite(probs))
     assert np.all(np.isfinite(log_probs))
+
+    #This part checks indexing and gradient numerics
+    q = tfd.TruncatedNormal( #<-- use this dist because wilson has positive support
+        tf.Variable(prior.mean()), 
+        tfp.util.TransformedVariable( 
+            prior.stddev(),
+            tfp.bijectors.Softplus(),
+        ),
+        low=1e-5,
+        high=1e10,
+    )
+    with tf.GradientTape() as tape:
+        z = q.sample(mc_samples)
+        log_probs = prior.log_prob(z)
+    grads = tape.gradient(log_probs, q.trainable_variables)
+
+    assert np.all(np.isfinite(log_probs))
+    for grad in grads:
+        assert np.all(np.isfinite(grad))
+
