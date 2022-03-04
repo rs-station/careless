@@ -22,26 +22,31 @@ By default, careless will run neither. However, You can use any combination of t
 
 
 args_and_kwargs = (
-    (("--test-fraction", ),  {
-        "help" : "Output model predictions for a held-out fraction of data. This should be used for model selection purposes. "
-                 "By default, no data will be held out during training, and predictions will not be written to file. " ,
-        "type" : float,
-        "default" : None,
-    }),
-
-    (("--merge-half-datasets", ),  {
-        "help":"After training, split the data in half randomly by image and merge each half using the scaling model learned on the training fraction. "
-               "The output of the halves will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
-               " always be used to generate half data sets irrespective of the test fraction. ",
-        "action" : 'store_true',
-        "default" : False,
-    }),
-    
-    (("--half-dataset-repeats", ),  {
-        "help": "Number of times to Repeat the half dataset crossvalidation. By default this is one.",
-        "type" : int,
-        "default" : 1,
-    }),
-
+    (
+        ("--test-fraction",),
+        {
+            "help": "Output model predictions for a held-out fraction of data. This should be used for model selection purposes. "
+            "By default, no data will be held out during training. ",
+            "type": float,
+            "default": None,
+        },
+    ),
+    (
+        ("--merge-half-datasets",),
+        {
+            "help": "After training, split the data in half randomly by image and merge each half using the scaling model learned on the training fraction. "
+            "The output of the halves will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
+            " always be used to generate half data sets irrespective of the test fraction. ",
+            "action": "store_true",
+            "default": False,
+        },
+    ),
+    (
+        ("--half-dataset-repeats",),
+        {
+            "help": "Number of times to Repeat the half dataset crossvalidation. By default this is one.",
+            "type": int,
+            "default": 1,
+        },
+    ),
 )
-
