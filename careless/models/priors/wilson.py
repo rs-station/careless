@@ -146,7 +146,7 @@ class DoubleWilsonPrior(Prior):
 
         rice_woolfson = RiceWoolfson(loc, scale, self.centric)
         willy = self.wilson_prior.log_prob(zg)
-        rdub = rice_woolfson.log_prob(zg)
+        rdub = rice_woolfson.log_prob(zf)
         log_p = tf.where(self.root, willy, rdub)
         return log_p
 
