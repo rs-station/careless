@@ -98,7 +98,7 @@ class DoubleWilsonPrior(Prior):
             for r_value,asu in zip(r_values, asu_collection):
                 r.append(r_value*np.ones(len(asu.lookup_table), dtype='float32'))
             self.r = np.concatenate(r)
-        elif len(r_value) == len(asu_collection.lookup_table):
+        elif len(r_values) == len(asu_collection.lookup_table):
             self.r = r_values
         else:
             raise ValueError("r_values must either one per asu or one per reflection in the collection")
