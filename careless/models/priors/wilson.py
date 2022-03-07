@@ -134,9 +134,9 @@ class DoubleWilsonPrior(Prior):
     def stddev(self):
         return self.wilson_prior.stddev()
 
-    def log_prob(self, zg):
-        zf = tf.gather(zg, self.reflids, axis=-1)
-        loc = zg * self.r
+    def log_prob(self, z):
+        z_parent = tf.gather(z, self.reflids, axis=-1)
+        loc = z_parent * self.r
         r2 = tf.square(self.r)
         scale = tf.where(
             self.centric,
@@ -145,8 +145,8 @@ class DoubleWilsonPrior(Prior):
         )
 
         rice_woolfson = RiceWoolfson(loc, scale, self.centric)
-        willy = self.wilson_prior.log_prob(zg)
-        rdub = rice_woolfson.log_prob(zf)
-        log_p = tf.where(self.root, willy, rdub)
+        p_wilson = self.wilson_prior.log_prob(z)
+        p_dw = rice_woolfson.log_prob(z)
+        log_p = tf.where(self.root, p_wilson, p_dw)
         return log_p
 
