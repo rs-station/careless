@@ -8,13 +8,16 @@ Merging crystallography data without much physics.
 [![DOI](http://img.shields.io/badge/bioRxiv-10.1101/2021.01.05.425510-BD2736.svg)](https://doi.org/10.1101/2021.01.05.425510)
 
 ## Installation
+Install `careless` in your active python environment using the following command.
 ```bash
 pip install --upgrade pip
 pip install careless
 ```
+Installation will take less than five minutes on a normal desktop computer. 
 
 ## Dependencies
-`careless` currently supports __Python 3.7 - 3.9__. 
+`careless` is likely to run on any operating system which is compatible with TensorFlow. 
+We currently supports __Python 3.7 - 3.9__. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
@@ -22,6 +25,10 @@ Pip will handle installation of all dependencies.
  - crystallographic computing resources from 
     - [ReciprocalSpaceship](https://hekstra-lab.github.io/reciprocalspaceship/)
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
+
+
+`careless` does not require but may take advantage of various accelator cards supported by TensorFlow. 
+It has been thoroughly tested with NVIDIA GPUs. 
 
 ## Examples
 For `careless` usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
