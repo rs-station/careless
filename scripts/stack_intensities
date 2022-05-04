@@ -26,7 +26,7 @@ for n,(ikey,sigikey) in enumerate(get_isigi_key_pairs(ds)):
     stack['SigI'] = stack[sigikey]
     out.append(stack)
 
-out = pd.concat(out)
+out = rs.concat(out)
 
 for ikey,sigikey in get_isigi_key_pairs(ds):
     if ikey not in ('I', 'SigI', 'icol_id'):
