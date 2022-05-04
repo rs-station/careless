@@ -18,16 +18,15 @@ def get_isigi_key_pairs(ds):
                 yield key, f'SIG{key}'
 
 ds = rs.read_mtz(p.input_mtz)
-out = None
+out = []
 for n,(ikey,sigikey) in enumerate(get_isigi_key_pairs(ds)):
     stack = ds.copy()
     stack['icol_id'] = n
     stack['I'] = stack[ikey]
     stack['SigI'] = stack[sigikey]
-    if out is None:
-        out = stack
-    else:
-        out = out.append(stack)
+    out.append(stack)
+
+out = pd.concat(out)
 
 for ikey,sigikey in get_isigi_key_pairs(ds):
     if ikey not in ('I', 'SigI', 'icol_id'):
