@@ -14,7 +14,7 @@ pip install careless
 ```
 
 ## Dependencies
-`careless` currently supports __Python 3.7 - 3.9__. 
+`careless` currently supports __Python 3.7 - 3.10__. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
