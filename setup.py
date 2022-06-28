@@ -49,6 +49,7 @@ setup(
         "scripts/ccplot",
         "scripts/ccanom_plot",
         "scripts/make_difference_map",
+        "scripts/stream2mtz",
     ],
     entry_points={
         "console_scripts": [
