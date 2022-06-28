@@ -30,8 +30,13 @@ Pip will handle installation of all dependencies.
 `careless` does not require but may take advantage of various accelator cards supported by TensorFlow. 
 It has been thoroughly tested with NVIDIA GPUs. 
 
-## Examples
-For `careless` usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
+## Get Help
+For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
+
+For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
+
+Still confused? File an [issue](https://github.com/Hekstra-Lab/careless/issues/new/choose)! Issues helps us improve our code base and leaves a public record for other users. 
+
 
 ## Core Model
 
