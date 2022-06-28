@@ -84,6 +84,10 @@ Scale and merge crystallographic data by \n\n\n approximate inference.
 """
 parser = CustomParser(description=description, formatter_class=CustomFormatter)
 
+# Add --version argument
+import careless
+parser.add_argument("--version", action="version", version=f"careless {careless.__version__}")
+
 subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
 mono_sub = subs.add_parser("mono", help="Process monochromatic diffraction data.", formatter_class=CustomFormatter)
 poly_sub = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.", formatter_class=CustomFormatter)
