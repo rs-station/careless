@@ -20,7 +20,7 @@ parser.add_argument(
     default=None,
 )
 parser.add_argument(
-    "-sg",
+    "-g",
     "--spacegroup",
     type=int,
     required=True,
