@@ -35,7 +35,7 @@ For help with command line arguments, type `careless mono --help` for monochroma
 
 For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
 
-Still confused? File an [issue](https://github.com/Hekstra-Lab/careless/issues/new/choose)! Issues help us improve our code base and leaves a public record for other users. 
+Still confused? File an [issue](https://github.com/Hekstra-Lab/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
 
 ## Core Model
