@@ -35,6 +35,12 @@ def run_careless(parser):
 
     model = dm.build_model()
 
+    if parser.scale_file is not None:
+        model.scaling_model.load_weights(parser.scale_file)
+    if parser.freeze_scales:
+        model.scaling_model.trainable = False
+
+
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
         parser.iterations,
@@ -49,6 +55,7 @@ def run_careless(parser):
     history = rs.DataSet(history).to_csv(filename, index_label='step')
 
     model.save_weights(parser.output_base + '_weights')
+    model.scaling_model.save_weights(parser.output_base + '_scale')
     import pickle
     with open(parser.output_base + "_data_manager.pickle", "wb") as out:
         pickle.dump(dm, out)
