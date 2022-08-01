@@ -1,13 +1,13 @@
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 import tensorflow_probability as tfp
-from careless.models.base import BaseModel
+from careless.models.scaling.base import Scaler
 import numpy as np
 
 
 
 
-class MetadataScaler(BaseModel):
+class MetadataScaler(Scaler):
     """
     Neural network based scaler with simple dense layers.
     This neural network outputs a normal distribution.
