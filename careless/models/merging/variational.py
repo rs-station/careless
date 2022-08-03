@@ -67,10 +67,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         from scipy.stats import truncnorm
         q = self.surrogate_posterior
-        low,high,loc,scale = q.low.numpy(),q.high.numpy(),q.loc.numpy(),q.scale.numpy()
-        low,high = np.ones_like(loc)*low,np.ones_like(loc)*high
-        # This moment function does not vectorize for some reason
-        f4 = np.array([truncnorm.moment(4, *i) for i in zip(low, high, loc, scale)])
+        f4 = q.moment_4().numpy()
 
         s2 = np.square(scale_dist.mean().numpy()) + np.square(scale_dist.stddev().numpy())
         # var(I) = <I^2> - <I>^2
