@@ -7,6 +7,9 @@ from tensorflow_probability.python.internal import tensor_util
 import tensorflow as tf
 import numpy as np
 
+class SurrogatePosterior(tf.keras.models.Model):
+    """ The base class for learnable variational distributions over structure factor amplitudes. """
+
 class RiceWoolfson(tfd.Distribution):
     def __init__(self, loc, scale, centric):
         """
@@ -54,7 +57,7 @@ class RiceWoolfson(tfd.Distribution):
 #
 #2020-11-01: On second thought, this may not be fixed unless they git rid of the current rejection sampler based 
 # implementation. See https://github.com/tensorflow/probability/issues/518, for additional issues.
-class TruncatedNormal(tfd.TruncatedNormal):
+class TruncatedNormal(SurrogatePosterior, tfd.TruncatedNormal):
     def sample(self, *args, **kwargs):
         s = super().sample(*args, **kwargs)
         low = self.low
