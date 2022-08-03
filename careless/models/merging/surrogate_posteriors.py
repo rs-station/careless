@@ -9,6 +9,94 @@ import numpy as np
 
 class SurrogatePosterior(tf.keras.models.Model):
     """ The base class for learnable variational distributions over structure factor amplitudes. """
+    def __init__(self, distribution, **kwargs):
+        super().__init__(self, **kwargs)
+        self.distribution = distribution
+
+    def sample(self, *args, **kwargs):
+        return self.distribution.sample(*args, **kwargs)
+
+    def log_prob(self, *args, **kwargs):
+        return self.distribution.log_prob(*args, **kwargs)
+
+    def mean(self, *args, **kwargs):
+        return self.distribution.mean(*args, **kwargs)
+
+    def stddev(self, *args, **kwargs):
+        return self.distribution.stddev(*args, **kwargs)
+
+    def parameter_properties(self, *args, **kwargs):
+        return self.distribution.parameter_properties(*args, **kwargs)
+
+    def moment_4(self):
+        raise NotImplementedError("The fourth moment of this distribution is not implemented yet.")
+
+    @property
+    def parameters(self):
+        return self.distribution.parameters
+
+
+#This is a temporary workaround for tfd.TruncatedNormal which has a bug in sampling
+#2020-10-30: This should be removed if this issue is fixed: https://github.com/tensorflow/probability/issues/1149
+#
+#2020-11-01: On second thought, this may not be fixed unless they git rid of the current rejection sampler based 
+# implementation. See https://github.com/tensorflow/probability/issues/518, for additional issues.
+class TruncatedNormal(SurrogatePosterior):
+    def __init__(self, loc, scale, low, high, validate_args=False, allow_nan_stats=True, name='TruncatedNormal', **kwargs):
+        distribution = tfd.TruncatedNormal(loc, scale, low, high, validate_args, allow_nan_stats, name)
+        super().__init__(distribution, **kwargs)
+
+    def sample(self, *args, **kwargs):
+        s = self.distribution.sample(*args, **kwargs)
+        low = self.distribution.low
+        return tf.maximum(low, s)
+
+    def moment_4(self, high=np.inf):
+        from tensorflow_probability.python.internal.special_math import ndtr
+        a,b = self.distribution.low,high
+        mu,sigma = self.distribution.loc, self.distribution.scale
+        z_b = (b-mu)/sigma
+        z_a = (a-mu)/sigma
+        
+        norm = tfd.Normal(0., 1.) #Standard Normal
+        if b==np.inf:
+            bterm=0.
+        else:
+            bterm = (b*b*b + b*b*mu + b*mu*mu + sigma*sigma*(3*b + 5*mu) + mu*mu*mu)*norm.prob(z_b) 
+        aterm = (a*a*a+a*a*mu+a*mu*mu+sigma*sigma*(3*a+5*mu)+mu*mu*mu)*norm.prob(z_a)
+
+        num = bterm - aterm
+        den = ndtr(z_b) - ndtr(z_a)
+        return mu*mu*mu*mu + 6*mu*mu*sigma*sigma + 3*sigma*sigma*sigma*sigma- sigma*num/den
+
+    @classmethod
+    def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
+        """
+        Instantiate a learnable distribution with good default bijectors.
+
+        loc : array
+            The initial location of the distribution
+        scale : array
+            The initial scale parameter of the distribution
+        low : float or array (optional)
+            The lower limit of the support for the distribution.
+        high : float or array (optional)
+            The upper limit of the support for the distribution.
+        scale_shift : float (optional)
+            A small constant added to the scale to increase numerical stability.
+        """
+        loc   = tfp.util.TransformedVariable(
+            loc,
+            tfb.Softplus(),
+        )
+        scale = tfp.util.TransformedVariable(
+            scale,
+            tfb.Chain([
+                tfb.Softplus(),
+                tfb.Shift(scale_shift),
+            ]),
+        )
+        return cls(loc, scale, low, high)
 
 class RiceWoolfson(tfd.Distribution):
     def __init__(self, loc, scale, centric):
@@ -51,45 +139,5 @@ class RiceWoolfson(tfd.Distribution):
     def prob(self, x):
         return tf.where(self._centric, self._woolfson.prob(x), self._rice.prob(x))
 
-
-#This is a temporary workaround for tfd.TruncatedNormal which has a bug in sampling
-#2020-10-30: This should be removed if this issue is fixed: https://github.com/tensorflow/probability/issues/1149
-#
-#2020-11-01: On second thought, this may not be fixed unless they git rid of the current rejection sampler based 
-# implementation. See https://github.com/tensorflow/probability/issues/518, for additional issues.
-class TruncatedNormal(SurrogatePosterior, tfd.TruncatedNormal):
-    def sample(self, *args, **kwargs):
-        s = super().sample(*args, **kwargs)
-        low = self.low
-        return tf.maximum(self.low, s)
-
-    @classmethod
-    def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
-        """
-        Instantiate a learnable distribution with good default bijectors.
-
-        loc : array
-            The initial location of the distribution
-        scale : array
-            The initial scale parameter of the distribution
-        low : float or array (optional)
-            The lower limit of the support for the distribution.
-        high : float or array (optional)
-            The upper limit of the support for the distribution.
-        scale_shift : float (optional)
-            A small constant added to the scale to increase numerical stability.
-        """
-        loc   = tfp.util.TransformedVariable(
-            loc,
-            tfb.Softplus(),
-        )
-        scale = tfp.util.TransformedVariable(
-            scale,
-            tfb.Chain([
-                tfb.Softplus(),
-                tfb.Shift(scale_shift),
-            ]),
-        )
-        return cls(loc, scale, low, high)
 
 
