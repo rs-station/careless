@@ -13,4 +13,16 @@ args_and_kwargs = (
         "type": int, 
         "default" : 1,
     }),
+
+    (("--structure-factor-file",), {
+        "help":"Weights file from a previous careless run to initialize the structure factors. " 
+               "This should be a string beginning with the [output_base] from a previous run (ie 'merge/hewl_structure_factor').",
+        "type": str, 
+        "default" : None,
+    }),
+
+    (("--freeze-structure-factors",), {
+        "help": "Do not optimize the structure factors.",
+        "action": "store_true"
+    }),
 )

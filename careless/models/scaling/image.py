@@ -1,10 +1,11 @@
 import tensorflow as tf
 from careless.models.base import BaseModel
+from careless.models.scaling.base import Scaler
 import tensorflow_probability as tfp
 import numpy as np
 
 
-class ImageScaler(BaseModel):
+class ImageScaler(Scaler):
     """
     Simple linear image scales. Average value pegged at 1.
     """
@@ -39,7 +40,7 @@ class ImageScaler(BaseModel):
         w = self.scales
         return tf.squeeze(tf.gather(w, image_ids))
 
-class HybridImageScaler(BaseModel):
+class HybridImageScaler(Scaler):
     """
     A scaler that combines an `ImageScaler` with an `MLPScaler`
     """
@@ -61,7 +62,7 @@ class HybridImageScaler(BaseModel):
         )
 
 
-class ImageLayer(BaseModel):
+class ImageLayer(Scaler):
     def __init__(self, units, max_images, activation=None, **kwargs):
         super().__init__(**kwargs)
         self.activation = tf.keras.activations.get(activation)
@@ -93,7 +94,7 @@ class ImageLayer(BaseModel):
         result = self.activation(tf.squeeze(tf.matmul(w, data[...,None]), axis=-1) + b)
         return result
 
-class NeuralImageScaler(BaseModel):
+class NeuralImageScaler(Scaler):
     def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01):
         super().__init__()
         layers = []

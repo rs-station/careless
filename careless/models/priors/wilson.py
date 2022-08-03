@@ -39,7 +39,7 @@ class WilsonPrior(Prior):
             like resolution. 
         """
         self.epsilon = np.array(epsilon, dtype=np.float32)
-        self.centric = np.array(centric, dtype=np.bool)
+        self.centric = np.array(centric, dtype=bool)
         self.sigma = np.array(sigma, dtype=np.float32)
         self.p_centric = Centric(self.epsilon, self.sigma)
         self.p_acentric = Acentric(self.epsilon, self.sigma)

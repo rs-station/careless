@@ -18,7 +18,7 @@ Installation will take less than five minutes on a normal desktop computer.
 ## Dependencies
 
 `careless` is likely to run on any operating system which is compatible with TensorFlow. 
-`careless` currently supports __Python 3.7 - 3.10__. 
+`careless` currently supports __Python 3.8 - 3.10__. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
