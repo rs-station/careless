@@ -97,3 +97,28 @@ def test_scale_weight_save_and_load(off_file):
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
+
+def test_structure_factor_save_and_load(off_file):
+    """
+    Test saving and loading weights. 
+    """
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
+        flags = flags + f" --structure-factor-file={out}_structure_factor"
+        out = td + '/out_reloaded'
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
