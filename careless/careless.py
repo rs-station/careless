@@ -40,6 +40,11 @@ def run_careless(parser):
     if parser.freeze_scales:
         model.scaling_model.trainable = False
 
+    if parser.structure_factor_file is not None:
+        model.surrogate_posterior.load_weights(parser.structure_factor_file)
+    if parser.freeze_structure_factors:
+        model.surrogate_posterior.trainable = False
+
 
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
@@ -54,7 +59,7 @@ def run_careless(parser):
     filename = parser.output_base + f'_history.csv'
     history = rs.DataSet(history).to_csv(filename, index_label='step')
 
-    model.save_weights(parser.output_base + '_weights')
+    model.surrogate_posterior.save_weights(parser.output_base + '_structure_factor')
     model.scaling_model.save_weights(parser.output_base + '_scale')
     import pickle
     with open(parser.output_base + "_data_manager.pickle", "wb") as out:
