@@ -120,7 +120,7 @@ class RiceWoolfson(tfd.Distribution):
         """
         self._loc   = tensor_util.convert_nonref_to_tensor(loc, dtype=tf.float32)
         self._scale = tensor_util.convert_nonref_to_tensor(scale, dtype=tf.float32)
-        self._centric = np.array(centric, dtype=np.bool)
+        self._centric = np.array(centric, dtype=bool)
         self._woolfson = FoldedNormal(self._loc, self._scale)
         self._rice = Rice(self._loc, self._scale)
         self.eps = np.finfo(np.float32).eps
