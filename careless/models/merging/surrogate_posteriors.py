@@ -52,6 +52,10 @@ class TruncatedNormal(SurrogatePosterior):
         return tf.maximum(low, s)
 
     def moment_4(self, high=np.inf):
+        """
+        Calculate the fourth moment of this distribution. This is based on the formula here: 
+        https://people.smp.uq.edu.au/YoniNazarathy/teaching_projects/studentWork/EricOrjebin_TruncatedNormalMoments.pdf
+        """
         from tensorflow_probability.python.internal.special_math import ndtr
         a,b = self.distribution.low,high
         mu,sigma = self.distribution.loc, self.distribution.scale
