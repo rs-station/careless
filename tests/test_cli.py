@@ -122,3 +122,29 @@ def test_structure_factor_save_and_load(off_file):
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
+def test_freeze_structure_factor(off_file):
+    """ Test `--freeze-structure-factors` for execution """
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        flags = f"mono --disable-gpu --iterations={niter} --freeze-structure-factors dHKL,image_id"
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
+def test_freeze_scales(off_file):
+    """ Test `--freeze-scales` for execution """
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        flags = f"mono --disable-gpu --iterations={niter} --freeze-scales dHKL,image_id"
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
