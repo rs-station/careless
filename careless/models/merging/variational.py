@@ -12,7 +12,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
-    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1):
+    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1, kl_weight=None):
         """"
         Parameters
         ----------
@@ -40,6 +40,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.likelihood = likelihood
         self.scaling_model = scaling_model
         self.mc_sample_size = mc_sample_size
+        self.kl_weight = kl_weight
 
     def prediction_mean_stddev(self, inputs):
         """
@@ -67,7 +68,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         from scipy.stats import truncnorm
         q = self.surrogate_posterior
-        f4 = q.moment_4().numpy()
+        f4 = q.moment_4(method='scipy')
 
         s2 = np.square(scale_dist.mean().numpy()) + np.square(scale_dist.stddev().numpy())
         # var(I) = <I^2> - <I>^2
@@ -102,7 +103,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         scale_dist = self.scaling_model(inputs)
         z_scale = scale_dist.sample(self.mc_sample_size)
 
-        kl_div = tf.reduce_sum(self.surrogate_posterior.log_prob(z_f) - self.prior.log_prob(z_f))
+        kl_div = self.surrogate_posterior.log_prob(z_f) - self.prior.log_prob(z_f)
 
         refl_id = self.get_refl_id(inputs)
 
@@ -110,15 +111,19 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         likelihood = self.likelihood(inputs)
 
-        ll = tf.reduce_sum(likelihood.log_prob(ipred))
-
-        #just to make things consistent across mc_samples
-        ll     /= self.mc_sample_size
-        kl_div /= self.mc_sample_size
+        ll = likelihood.log_prob(ipred)
+        if self.kl_weight is None:
+            kl_div = tf.reduce_sum(kl_div) / self.mc_sample_size
+            ll = tf.reduce_sum(ll) / self.mc_sample_size
+            kl_weight = 1.
+        else:
+            kl_div = tf.reduce_mean(kl_div) 
+            ll = tf.reduce_mean(ll) 
+            kl_weight = self.kl_weight
 
         #Do some keras-y stuff
         self.add_loss(-ll)
-        self.add_loss(kl_div)
+        self.add_loss(kl_weight * kl_div)
         self.add_metric(-ll, name="NLL")
         self.add_metric(kl_div, name="KLDiv")
 

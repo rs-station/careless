@@ -51,12 +51,10 @@ class TruncatedNormal(SurrogatePosterior):
         low = self.distribution.low
         return tf.maximum(low, s)
 
-    def moment_4(self, high=np.inf):
-        """
-        Calculate the fourth moment of this distribution. This is based on the formula here: 
-        https://people.smp.uq.edu.au/YoniNazarathy/teaching_projects/studentWork/EricOrjebin_TruncatedNormalMoments.pdf
-        """
+    def _tf_moment_4(self, high=None):
         from tensorflow_probability.python.internal.special_math import ndtr
+        if high is None:
+            high = self.distribution.high
         a,b = self.distribution.low,high
         mu,sigma = self.distribution.loc, self.distribution.scale
         z_b = (b-mu)/sigma
@@ -72,6 +70,35 @@ class TruncatedNormal(SurrogatePosterior):
         num = bterm - aterm
         den = ndtr(z_b) - ndtr(z_a)
         return mu*mu*mu*mu + 6*mu*mu*sigma*sigma + 3*sigma*sigma*sigma*sigma- sigma*num/den
+
+    def _scipy_moment_4(self, high):
+        from scipy.stats import truncnorm
+        loc,scale = self.distribution.loc, self.distribution.scale
+        low = self.distribution.low.numpy()
+        if high is None:
+            high = self.distribution.high.numpy()
+        a, b = (low - loc) / scale, (high - loc) / scale
+        mom4 = truncnorm.moment(4, a, b, loc, scale)
+        return mom4
+
+    def moment_4(self, high=np.inf, method='scipy'):
+        """
+        Calculate the fourth moment of this distribution. This is based on the formula here: 
+        https://people.smp.uq.edu.au/YoniNazarathy/teaching_projects/studentWork/EricOrjebin_TruncatedNormalMoments.pdf
+
+        Parameters
+        ----------
+        high : float (optional)
+            The high parameter to use for the distribution. By default use inf.
+        method : str (optional)
+            Either 'scipy' or 'tf'
+        """
+        if method=='scipy':
+            return self._scipy_moment_4(high)
+        elif method == 'tf':
+            return self._tf_moment_4(high)
+        else:
+            raise ValueError(f"Unknown method {method} for computing moment_4")
 
     @classmethod
     def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
