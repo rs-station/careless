@@ -101,7 +101,7 @@ class TruncatedNormal(SurrogatePosterior):
             raise ValueError(f"Unknown method {method} for computing moment_4")
 
     @classmethod
-    def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-7):
+    def from_loc_and_scale(cls, loc, scale, low=0., high=1e10, scale_shift=1e-32):
         """
         Instantiate a learnable distribution with good default bijectors.
 
@@ -118,12 +118,12 @@ class TruncatedNormal(SurrogatePosterior):
         """
         loc   = tfp.util.TransformedVariable(
             loc,
-            tfb.Softplus(),
+            tfb.Exp(),
         )
         scale = tfp.util.TransformedVariable(
             scale,
             tfb.Chain([
-                tfb.Softplus(),
+                tfb.Exp(),
                 tfb.Shift(scale_shift),
             ]),
         )

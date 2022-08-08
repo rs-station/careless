@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import keras as tfk
 from careless.models.base import BaseModel
 from careless.models.scaling.base import Scaler
 import tensorflow_probability as tfp
@@ -50,8 +51,7 @@ class HybridImageScaler(Scaler):
         self.image_scaler = image_scaler
 
     def call(self, inputs):
-        """
-        Parameters
+        """ Parameters
         ----------
         """
         q = self.mlp_scaler(inputs)
@@ -63,49 +63,81 @@ class HybridImageScaler(Scaler):
 
 
 class ImageLayer(Scaler):
-    def __init__(self, units, max_images, activation=None, **kwargs):
+    def __init__(self, units, max_images, activation='ReLU', kernel_initializer='identity', bias_initializer='zeros', **kwargs):
         super().__init__(**kwargs)
-        self.activation = tf.keras.activations.get(activation)
+        self.activation_1 = tf.keras.activations.get(activation)
+        self.activation_2 = tf.keras.activations.get(activation)
+        self.kernel_initializer = kernel_initializer
+        self.bias_initializer = bias_initializer
+
         self.units = units
+
         self.max_images = max_images
 
     def build(self, input_shape):
-        def initializer(shape, dtype=tf.float32, **kwargs):
-            return tf.eye(shape[1], shape[2], (shape[0],), dtype=dtype)
+        if self.kernel_initializer == 'identity':
+            def kernel_initializer(shape, dtype=tf.float32, **kwargs):
+                return tf.eye(shape[1], shape[2], (shape[0],), dtype=dtype)
+        else:
+            kernel_initializer = self.kernel_initializer
 
-        self.w = self.add_weight(
-            name='kernel',
+        self.w_1 = self.add_weight(
+            name='kernel_1',
             shape=(self.max_images, self.units, input_shape[0][-1]),
-            initializer=initializer,
+            initializer=kernel_initializer,
             trainable=True,
         )
-        self.b = self.add_weight(
-            name='bias', 
+        self.b_1 = self.add_weight(
+            name='bias_1', 
             shape=(self.max_images, self.units),
-            initializer='zeros',
+            initializer=self.bias_initializer,
+            trainable=True,
+        )
+        self.w_2 = self.add_weight(
+            name='kernel_2',
+            shape=(self.max_images, input_shape[0][-1], self.units),
+            initializer=kernel_initializer,
+            trainable=True,
+        )
+        self.b_2 = self.add_weight(
+            name='bias_2', 
+            shape=(self.max_images, input_shape[0][-1]),
+            initializer=self.bias_initializer,
             trainable=True,
         )
 
     def call(self, metadata_and_image_id, *args, **kwargs):
         data,image_id = metadata_and_image_id
         image_id = tf.squeeze(image_id)
-        w = tf.gather(self.w, image_id, axis=0)
-        b = tf.gather(self.b, image_id, axis=0)
-        result = self.activation(tf.squeeze(tf.matmul(w, data[...,None]), axis=-1) + b)
-        return result
+
+        out = data
+
+        out = self.activation_1(out)
+        w_1 = tf.gather(self.w_1, image_id, axis=0)
+        b_1 = tf.gather(self.b_1, image_id, axis=0)
+        out = tf.squeeze(tf.matmul(w_1, out[...,None]), axis=-1) + b_1
+
+        out = self.activation_2(out)
+        w_2 = tf.gather(self.w_2, image_id, axis=0)
+        b_2 = tf.gather(self.b_2, image_id, axis=0)
+        out = tf.squeeze(tf.matmul(w_2, out[...,None]), axis=-1) + b_2
+
+        return out + data
 
 class NeuralImageScaler(Scaler):
     def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01):
         super().__init__()
         layers = []
-        if leakiness is None:
-            activation = 'ReLU'
-        else:
-            activation = tf.keras.layers.LeakyReLU(leakiness)
+
+        def kernel_initializer(shape, dtype=None, **kwargs):
+            fan_mean = 0.5*shape[-1] + 0.5*shape[-2]
+            scale = tf.sqrt(1. / 5. / mlp_layers / fan_mean)
+            tnorm = tfk.initializers.TruncatedNormal(0., scale)
+            return tnorm(shape, dtype=dtype, **kwargs)
 
         for i in range(image_layers):
             layers.append(
-                ImageLayer(mlp_width, max_images, activation)
+                ImageLayer(mlp_width, max_images, kernel_initializer=kernel_initializer)
             )
 
         self.image_layers = layers

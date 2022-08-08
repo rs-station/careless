@@ -38,7 +38,7 @@ class DataManager():
     def from_stream_files(cls, filenames, formatter):
         return cls.from_datasets((rs.read_crystfel(i) for i in filenames), formatter)
 
-    def get_wilson_prior(self, b=None):
+    def get_wilson_prior(self, b=None, k=1.):
         """ Construct a wilson prior with an optional temperature factor, b, appropriate for self.asu_collection. """
         if b is None:
             sigma = 1.
@@ -46,6 +46,7 @@ class DataManager():
             sigma = np.exp(-0.25 * b * self.asu_collection.dHKL**-2.)
         else:
             raise ValueError(f"parameter b has type{type(b)} but float was expected")
+        sigma = sigma * k
 
         return WilsonPrior(
             self.asu_collection.centric,
@@ -355,7 +356,7 @@ class DataManager():
             r_values = [float(i) for i in r_values.split(',')]
             prior = DoubleWilsonPrior(self.asu_collection, parents, r_values)
 
-        loc,scale = prior.mean(),prior.stddev()/10.
+        loc,scale = prior.mean(),prior.stddev()
         low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
@@ -390,7 +391,8 @@ class DataManager():
                 else:
                     scaling_model = mlp_scaler
 
-        model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
+        from tensorflow_probability import distributions as tfd
+        model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples, parser.kl_weight, scale_kl_weight=1., scale_prior=None)
 
         opt = tf.keras.optimizers.Adam(
             parser.learning_rate,

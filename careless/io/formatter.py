@@ -320,13 +320,18 @@ class MonoFormatter(DataFormatter):
             data['asu_id'].to_numpy('int64')[:,None],
             data.get_hkls(),
             )
+        iobs    = data['intensity'].to_numpy('float32')[:,None]
+        sigiobs = data['uncertainty'].to_numpy('float32')[:,None]
+        scale = 1. / iobs.mean()
+        iobs *= scale
+        sigiobs *= scale
 
         inputs = {
             'refl_id'   : refl_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
-            'intensities'   : data['intensity'].to_numpy('float32')[:,None],
-            'uncertainties' : data['uncertainty'].to_numpy('float32')[:,None],
+            'intensities'   : iobs,
+            'uncertainties' : sigiobs,
         }
 
         return self.pack_inputs(inputs), rac

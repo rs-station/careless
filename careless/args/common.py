@@ -25,4 +25,11 @@ args_and_kwargs = (
         "help": "Do not optimize the structure factors.",
         "action": "store_true"
     }),
+
+    (("--kl-weight",), {
+        "help": "Optionally set an explicit weight for the kl divergence. This will change the reduction of likelihood and kl_divergence"
+                " from summation to means. ",
+        "type": float,
+        "default" : None,
+    })
 )
