@@ -31,5 +31,5 @@ args_and_kwargs = (
                "the standard deviation of the prior distribution. The default is 0.1. ",
         "type": float, 
         "default" : 0.1,
-    }
+    }),
 )
