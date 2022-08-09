@@ -357,6 +357,7 @@ class DataManager():
             prior = DoubleWilsonPrior(self.asu_collection, parents, r_values)
 
         loc,scale = prior.mean(),prior.stddev()
+        scale = scale * parser.structure_factor_init_scale
         low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)

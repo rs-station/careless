@@ -26,10 +26,10 @@ args_and_kwargs = (
         "action": "store_true"
     }),
 
-    (("--kl-weight",), {
-        "help": "Optionally set an explicit weight for the kl divergence. This will change the reduction of likelihood and kl_divergence"
-                " from summation to means. ",
-        "type": float,
-        "default" : None,
-    })
+    (("--structure-factor-init-scale",), {
+        "help":"A floating point number usually between 0 and 1. The width of the initial structure factor distribution is this times" 
+               "the standard deviation of the prior distribution. The default is 0.1. ",
+        "type": float, 
+        "default" : 0.1,
+    }
 )
