@@ -167,8 +167,9 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 step_data = [tf.gather(d, batch_idx) for d in data]
             else:
                 step_data = data
-            _history = train_step((self, step_data))
+            _history = self.train_on_batch(step_data, return_dict=True)
             if validation_data is not None:
+                self.train_on_batch
                 validation_metrics = self.test_on_batch(validation_data, return_dict=True)
                 _history.update({
                     k+'_val':v for k,v in validation_metrics.items()
