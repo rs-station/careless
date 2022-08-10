@@ -28,8 +28,8 @@ args_and_kwargs = (
 
     (("--structure-factor-init-scale",), {
         "help":"A floating point number usually between 0 and 1. The width of the initial structure factor distribution is this times" 
-               "the standard deviation of the prior distribution. The default is 0.1. ",
+               "the standard deviation of the prior distribution. The default is 1.0. ",
         "type": float, 
-        "default" : 0.1,
+        "default" : 1.0,
     }),
 )
