@@ -50,6 +50,7 @@ def run_careless(parser):
         tuple(map(tf.convert_to_tensor, train)),
         parser.iterations,
         message="Training",
+        validation_data=test,
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):

@@ -26,13 +26,14 @@ def test_truncated_normal():
     assert np.all(np.isfinite(grads[0]))
     assert np.all(np.isfinite(grads[1]))
 
-def test_moment_4(npoints=100, eps=1e-3, rtol=1e-5):
+@pytest.mark.parametrize("method", ["scipy", "tf"])
+def test_moment_4(method, npoints=100, eps=1e-3, rtol=1e-5):
     """ Test truncated normal 4th moment against scipy.stats.truncnorm.moment """
     loc,scale = np.random.random((2, npoints)).astype('float32')
     scale = scale + eps
 
     q = TruncatedNormal.from_loc_and_scale(loc, scale)
-    mom4 = q.moment_4().numpy()
+    mom4 = q.moment_4(method=method)
 
     from scipy.stats import truncnorm
     low,high = 0., np.inf

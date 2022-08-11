@@ -321,12 +321,15 @@ class MonoFormatter(DataFormatter):
             data.get_hkls(),
             )
 
+        iobs    = data['intensity'].to_numpy('float32')[:,None]
+        sigiobs = data['uncertainty'].to_numpy('float32')[:,None]
+
         inputs = {
             'refl_id'   : refl_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
-            'intensities'   : data['intensity'].to_numpy('float32')[:,None],
-            'uncertainties' : data['uncertainty'].to_numpy('float32')[:,None],
+            'intensities'   : iobs,
+            'uncertainties' : sigiobs,
         }
 
         return self.pack_inputs(inputs), rac

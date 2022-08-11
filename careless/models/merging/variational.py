@@ -12,7 +12,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
     """
-    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1):
+    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1, kl_weight=None, scale_kl_weight=None, scale_prior=None):
         """"
         Parameters
         ----------
@@ -40,6 +40,9 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.likelihood = likelihood
         self.scaling_model = scaling_model
         self.mc_sample_size = mc_sample_size
+        self.kl_weight = kl_weight
+        self.scale_kl_weight = scale_kl_weight
+        self.scale_prior = scale_prior
 
     def prediction_mean_stddev(self, inputs):
         """
@@ -67,7 +70,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         from scipy.stats import truncnorm
         q = self.surrogate_posterior
-        f4 = q.moment_4().numpy()
+        f4 = q.moment_4(method='scipy')
 
         s2 = np.square(scale_dist.mean().numpy()) + np.square(scale_dist.stddev().numpy())
         # var(I) = <I^2> - <I>^2
@@ -83,6 +86,24 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             iexp,ivar = iexp.numpy(),ivar.numpy()
 
         return iexp,np.sqrt(ivar)
+
+    def add_kl_div(self, posterior, prior, samples=None, weight=1., reduction='sum', name="KLDiv"):
+        try:
+            kl_div = posterior.kl_divergence(prior)
+        except:
+            NotImplementedError
+            kl_div = posterior.log_prob(samples) - prior.log_prob(samples)
+
+        if reduction == 'sum':
+            kl_div = tf.reduce_sum(kl_div) / self.mc_sample_size
+        elif reduction == 'mean':
+            kl_div = tf.reduce_mean(kl_div) 
+        else:
+            kl_div = reduction(kl_div)
+
+        self.add_loss(weight * kl_div)
+        self.add_metric(kl_div, name=name)
+        return kl_div
 
     def call(self, inputs):
         """
@@ -102,7 +123,11 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         scale_dist = self.scaling_model(inputs)
         z_scale = scale_dist.sample(self.mc_sample_size)
 
-        kl_div = tf.reduce_sum(self.surrogate_posterior.log_prob(z_f) - self.prior.log_prob(z_f))
+        if self.scale_prior is not None:
+            if self.scale_kl_weight is None:
+                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=self.scale_kl_weight, reduction='sum', name="Σ KLDiv")
+            else:
+                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=1., reduction='mean', name="Σ KLDiv")
 
         refl_id = self.get_refl_id(inputs)
 
@@ -110,21 +135,21 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         likelihood = self.likelihood(inputs)
 
-        ll = tf.reduce_sum(likelihood.log_prob(ipred))
-
-        #just to make things consistent across mc_samples
-        ll     /= self.mc_sample_size
-        kl_div /= self.mc_sample_size
+        ll = likelihood.log_prob(ipred)
+        if self.kl_weight is None:
+            self.add_kl_div(self.surrogate_posterior, self.prior, z_f, name='F KLDiv', reduction='sum')
+            ll = tf.reduce_sum(ll) / self.mc_sample_size
+        else:
+            self.add_kl_div(self.surrogate_posterior, self.prior, z_f, weight=self.kl_weight, name='F KLDiv', reduction='mean')
+            ll = tf.reduce_mean(ll) 
 
         #Do some keras-y stuff
         self.add_loss(-ll)
-        self.add_loss(kl_div)
         self.add_metric(-ll, name="NLL")
-        self.add_metric(kl_div, name="KLDiv")
 
         return ipred
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}"):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", batch_size=None, validation_data=None):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
@@ -137,7 +162,19 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         from tqdm import trange
         bar = trange(steps, desc=message)
         for i in bar:
-            _history = train_step((self, data))
+            if batch_size is not None:
+                batch_idx = np.sort(np.random.choice(batch_size, batch_size, replace=False)) 
+                step_data = [tf.gather(d, batch_idx) for d in data]
+            else:
+                step_data = data
+            _history = self.train_on_batch(step_data, return_dict=True)
+            if validation_data is not None:
+                self.train_on_batch
+                validation_metrics = self.test_on_batch(validation_data, return_dict=True)
+                _history.update({
+                    k+'_val':v for k,v in validation_metrics.items()
+                })
+
             pf = {}
             for k,v in _history.items():
                 v = float(v)
@@ -145,5 +182,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 if k not in history:
                     history[k] = []
                 history[k].append(v)
+
             bar.set_postfix(pf)
         return history
+
