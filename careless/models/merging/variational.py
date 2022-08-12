@@ -149,31 +149,30 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", batch_size=None, validation_data=None):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
-        @tf.function
-        def train_step(model_and_inputs):
-            model, data = model_and_inputs
-            return model.train_step((data,))
+        def train_step(model_and_data):
+            model, data = model_and_data
+            model.reset_metrics()
+            history = model.train_step((data,))
+            return history
+
+        if self._run_eagerly:
+            train_step = tf.function(train_step, reduce_retracing=True)
+
+        if validation_data is not None:
+            val_scale = len(data[0]) / len(validation_data[0])
 
         history = {}
         from tqdm import trange
         bar = trange(steps, desc=message)
         for i in bar:
-            if batch_size is not None:
-                batch_idx = np.sort(np.random.choice(batch_size, batch_size, replace=False)) 
-                step_data = [tf.gather(d, batch_idx) for d in data]
-            else:
-                step_data = data
-            _history = self.train_on_batch(step_data, return_dict=True)
+            _history = train_step((self, data))
             if validation_data is not None:
-                self.train_on_batch
                 validation_metrics = self.test_on_batch(validation_data, return_dict=True)
-                _history.update({
-                    k+'_val':v for k,v in validation_metrics.items()
-                })
+                _history['NLL_val'] = val_scale * validation_metrics['NLL']
 
             pf = {}
             for k,v in _history.items():

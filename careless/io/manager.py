@@ -401,5 +401,8 @@ class DataManager():
             parser.beta_2,
         )
 
-        model.compile(opt)
+        model.compile(
+            opt,
+            run_eagerly=parser.run_eagerly,
+        )
         return model
