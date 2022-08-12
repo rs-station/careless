@@ -2,6 +2,8 @@
 
 
 def main():
+    from . import __version__
+    print(f"Careless version {__version__}")
     from careless.parser import parser
     parser = parser.parse_args()
     run_careless(parser)
