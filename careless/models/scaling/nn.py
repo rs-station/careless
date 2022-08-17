@@ -7,7 +7,7 @@ import numpy as np
 
 
 class NormalLayer(tf.keras.layers.Layer):
-    def __init__(self, scale_bijector=None, epsilon=1e-32, **kwargs): 
+    def __init__(self, scale_bijector=None, epsilon=1e-7, **kwargs): 
         super().__init__(**kwargs)
         self.epsilon = epsilon
         if scale_bijector is None:
