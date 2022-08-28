@@ -360,7 +360,7 @@ class DataManager():
         scale = scale * parser.structure_factor_init_scale
         low = (1e-32 * ~self.asu_collection.centric).astype('float32')
         if surrogate_posterior is None:
-            surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low)
+            surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
 
         if likelihood is None:
             dof = parser.studentt_likelihood_dof
@@ -382,9 +382,10 @@ class DataManager():
                     n_images,
                     parser.mlp_layers,
                     mlp_width,
+                    epsilon=parser.epsilon,
                 )
             else:
-                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width)
+                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon)
                 if parser.use_image_scales:
                     n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
                     image_scaler = ImageScaler(n_images)
