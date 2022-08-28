@@ -32,4 +32,10 @@ args_and_kwargs = (
         "type": float, 
         "default" : 1.0,
     }),
+
+    (("--epsilon",), {
+        "help":"A small constant added to the scale parameters of variational distributions  for numerical stability. The default is 1e-7." ,
+        "type": float, 
+        "default" : 1e-7,
+    }),
 )
