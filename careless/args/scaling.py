@@ -6,8 +6,9 @@ Options related to the neural network scaling model used for merging.
 
 args_and_kwargs = (
     (("--scale-file",), {
-        "help": "Load scaling model weights from previous careless output. This should be a string beginning with the [output_base]"
-        "from a previous run (ie 'merge/hewl_scale').",
+        "help": "Initialize the scale model weights from the ouput of a previous run. This argument should be a string beginning with the "
+                "base filename used in the previous run and ending in _scale.  For instance, if the previous run "
+                "was called with `careless mono [...] merge/hewl`, the appropriate file name would be merge/hewl_scale. ",
         "type": str,
         "default": None,
     }),
