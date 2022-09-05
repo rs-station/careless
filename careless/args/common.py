@@ -15,11 +15,13 @@ args_and_kwargs = (
     }),
 
     (("--structure-factor-file",), {
-        "help":"Weights file from a previous careless run to initialize the structure factors. " 
-               "This should be a string beginning with the [output_base] from a previous run (ie 'merge/hewl_structure_factor').",
+        "help": "Initialize the structure factors from the ouput of a previous run. This argument should be a string beginning with the "
+                "base filename used in the previous run and ending in _structure_factor.  For instance, if the previous run "
+                "was called with `careless mono [...] merge/hewl`, the appropriate filename to use would be merge/hewl_structure_factor. ",
         "type": str, 
         "default" : None,
     }),
+
 
     (("--freeze-structure-factors",), {
         "help": "Do not optimize the structure factors.",
