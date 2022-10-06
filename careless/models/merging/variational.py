@@ -1,4 +1,5 @@
 from careless.models.base import BaseModel
+from careless.models.scaling.pooling import PoolingScaler
 from careless.utils.shame import sanitize_tensor
 from careless.models.merging.surrogate_posteriors import TruncatedNormal
 from tqdm.autonotebook import tqdm
@@ -63,7 +64,15 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         refl_id = self.get_refl_id(inputs)
         #Let's actually return the expected value of the data under the current model
         #This is <F**2.>
-        scale_dist = self.scaling_model(inputs)
+        if isinstance(self.scaling_model, PoolingScaler):
+            imodel = tf.concat([
+                self.surrogate_posterior.mean(),
+                self.surrogate_posterior.stddev(),
+            ], axis=-1)
+            imodel = tf.gather(imodel, refl_id)
+            scale_dist = self.scaling_model(inputs, imodel)
+        else:
+            scale_dist = self.scaling_model(inputs)
         f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
         iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
         iexp = iexp.numpy()
@@ -118,9 +127,18 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         predictions : tf.Tensor
             Values predicted by the model for this sample. 
         """
+        refl_id = self.get_refl_id(inputs)
         z_f = self.surrogate_posterior.sample(self.mc_sample_size)
 
-        scale_dist = self.scaling_model(inputs)
+        if isinstance(self.scaling_model, PoolingScaler):
+            imodel = tf.concat([
+                self.surrogate_posterior.mean(),
+                self.surrogate_posterior.stddev(),
+            ], axis=-1)
+            imodel = tf.gather(imodel, refl_id)
+            scale_dist = self.scaling_model(inputs, imodel)
+        else:
+            scale_dist = self.scaling_model(inputs)
         z_scale = scale_dist.sample(self.mc_sample_size)
 
         if self.scale_prior is not None:
@@ -129,7 +147,6 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             else:
                 self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=1., reduction='mean', name="Σ KLDiv")
 
-        refl_id = self.get_refl_id(inputs)
 
         ipred = z_scale * tf.square(tf.gather(z_f, tf.squeeze(refl_id, axis=-1), axis=-1))
 
@@ -159,7 +176,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             history = model.train_step((data,))
             return history
 
-        if self._run_eagerly:
+        if not self._run_eagerly:
             train_step = tf.function(train_step, reduce_retracing=True)
 
         if validation_data is not None:
