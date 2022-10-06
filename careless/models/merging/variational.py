@@ -159,7 +159,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             history = model.train_step((data,))
             return history
 
-        if self._run_eagerly:
+        if not self._run_eagerly:
             train_step = tf.function(train_step, reduce_retracing=True)
 
         if validation_data is not None:
