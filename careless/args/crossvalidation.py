@@ -16,7 +16,8 @@ By default, careless will run neither. However, You can use any combination of t
   `--merge-half-datasets` flag will first train the model on the full training set of data. Afterwards, the data will
   be split into two halves by randomly partitioning the images. With the model weights frozen, structure factors 
   are estimated by optimizing the loss function for each half dataset. The half dataset merging results will be written
-  to a pair of files which can be analyzed to estimate conventional statistics such as CChalf.
+  to a file which can be analyzed to estimate conventional statistics such as CChalf. One file will be written for each
+  merged `mtz`. These files have the suffix *_xval_#.mtz 
 
 """
 
@@ -36,7 +37,8 @@ args_and_kwargs = (
         {
             "help": "After training, split the data in half randomly by image and merge each half using the scaling model learned on the training fraction. "
             "The output of the halves will be written to a file which can be used to estimate traditional CChalf type measures. The full data set will"
-            " always be used to generate half data sets irrespective of the test fraction. ",
+            " always be used to generate half data sets irrespective of the test fraction. One file is written for each merged mtz. The files have the "
+            "*_xval_#.mtz suffix. ",
             "action": "store_true",
             "default": False,
         },
