@@ -41,7 +41,7 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.16",
         "tqdm",
-        "tensorflow>=2.7.0rc1",
+        "tensorflow>=2.8",
         "tensorflow-probability",
         "matplotlib",
     ],
@@ -57,5 +57,5 @@ setup(
         ]
     },
     setup_requires=["pytest-runner"],
-    tests_require=["pytest", "pytest-cov", "pytest-xdist"],
+    tests_require=["pytest", "pytest-cov", "pytest-xdist>=3"],
 )
