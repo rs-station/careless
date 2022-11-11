@@ -2,8 +2,8 @@
 Merging crystallography data without much physics. 
 
 
-![Build](https://github.com/Hekstra-Lab/careless/workflows/Build/badge.svg)
-[![codecov](https://codecov.io/gh/Hekstra-Lab/careless/branch/main/graph/badge.svg)](https://codecov.io/gh/Hekstra-Lab/careless)
+![Build](https://github.com/rs-station/careless/workflows/Build/badge.svg)
+[![codecov](https://codecov.io/gh/rs-station/careless/branch/main/graph/badge.svg)](https://codecov.io/gh/rs-station/careless)
 [![PyPI](https://img.shields.io/pypi/v/careless?color=blue)](https://pypi.org/project/careless/)
 [![DOI](http://img.shields.io/badge/bioRxiv-10.1101/2021.01.05.425510-BD2736.svg)](https://doi.org/10.1101/2021.01.05.425510)
 
@@ -34,9 +34,9 @@ It has been thoroughly tested with NVIDIA GPUs.
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
 
-For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/Hekstra-Lab/careless-examples)
+For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/rs-station/careless-examples)
 
-Still confused? File an [issue](https://github.com/Hekstra-Lab/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
+Still confused? File an [issue](https://github.com/rs-station/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
 
 ## Core Model

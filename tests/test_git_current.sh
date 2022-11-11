@@ -1,5 +1,5 @@
 NAME=careless
-URL=github.com/hekstra-lab/careless
+URL=github.com/rs-station/careless
 PYTHON_VERSION=3.8
 
 eval "$(conda shell.bash hook)"

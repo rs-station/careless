@@ -10,8 +10,8 @@ def getVersionNumber():
 __version__ = getVersionNumber()
 
 PROJECT_URLS = {
-    "Bug Tracker": "https://github.com/Hekstra-Lab/careless/issues",
-    "Source Code": "https://github.com/Hekstra-Lab/careless",
+    "Bug Tracker": "https://github.com/rs-station/careless/issues",
+    "Source Code": "https://github.com/rs-station/careless",
 }
 
 
@@ -37,7 +37,7 @@ setup(
     description="Merging crystallography data without much physics.",
     project_urls=PROJECT_URLS,
     python_requires=">=3.8,<3.11",
-    url="https://github.com/Hekstra-Lab/careless",
+    url="https://github.com/rs-station/careless",
     install_requires=[
         "reciprocalspaceship>=0.9.16",
         "tqdm",
