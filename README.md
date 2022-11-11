@@ -24,7 +24,7 @@ Pip will handle installation of all dependencies.
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
  - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)
  - crystallographic computing resources from 
-    - [ReciprocalSpaceship](https://hekstra-lab.github.io/reciprocalspaceship/)
+    - [ReciprocalSpaceship](https://rs-station.github.io/reciprocalspaceship/)
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 
