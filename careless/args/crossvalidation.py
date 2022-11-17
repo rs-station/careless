@@ -51,4 +51,12 @@ args_and_kwargs = (
             "default": 1,
         },
     ),
+    (
+        ("--validation-frequency",),
+        {
+            "help": "During training, set how frequently to evaluate the model on the test set. This is an integer >= 1 which defaults to 10 for once every 10 steps.",
+            "type": int,
+            "default": 10,
+        },
+    ),
 )

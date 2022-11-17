@@ -149,7 +149,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
@@ -171,7 +171,8 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         for i in bar:
             _history = train_step((self, data))
             if validation_data is not None:
-                validation_metrics = self.test_on_batch(validation_data, return_dict=True)
+                if i%validation_frequency==0:
+                    validation_metrics = self.test_on_batch(validation_data, return_dict=True)
                 _history['NLL_val'] = val_scale * validation_metrics['NLL']
 
             pf = {}
