@@ -47,12 +47,14 @@ def run_careless(parser):
     if parser.freeze_structure_factors:
         model.surrogate_posterior.trainable = False
 
+    validation_frequency = parser.validation_frequency
 
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
         parser.iterations,
         message="Training",
         validation_data=test,
+        validation_frequency=validation_frequency,
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
