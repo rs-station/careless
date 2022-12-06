@@ -50,11 +50,13 @@ def run_careless(parser):
     validation_frequency = parser.validation_frequency
 
     history = model.train_model(
-        tuple(map(tf.convert_to_tensor, train)),
+        #tuple(map(tf.convert_to_tensor, train)),
+        train,
         parser.iterations,
         message="Training",
         validation_data=test,
         validation_frequency=validation_frequency,
+        batch_size=parser.batch_size,
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):

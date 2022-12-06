@@ -88,7 +88,7 @@ subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type"
 mono_sub = subs.add_parser("mono", help="Process monochromatic diffraction data.", formatter_class=CustomFormatter)
 poly_sub = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.", formatter_class=CustomFormatter)
 
-from careless.args import required,poly,groups
+from careless.args import required,mono,poly,groups
 
 for args,kwargs in required.args_and_kwargs:
     mono_sub.add_argument(*args, **kwargs)
@@ -96,6 +96,9 @@ for args,kwargs in required.args_and_kwargs:
 
 for args,kwargs in poly.args_and_kwargs:
     poly_sub.add_argument(*args, **kwargs)
+
+for args,kwargs in mono.args_and_kwargs:
+    mono_sub.add_argument(*args, **kwargs)
 
 for group in groups:
     if group.name is not None and group.description is not None:
