@@ -8,6 +8,8 @@ import tensorflow as tf
 from tensorflow import keras as tfk
 import numpy as np
 
+def noop(*args):
+    return args
 
 class VariationalMergingModel(tfk.Model, BaseModel):
     """
@@ -150,20 +152,6 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
-    def _get_batch(self, data, size):
-        """
-        Get a random, contiguous block of reflections from a monochromatic data set
-        """
-        length = len(data[0])
-        start = np.random.choice(length)
-        idx = np.arange(start, start + size) % length
-        #batch = tuple((tf.convert_to_tensor(i[idx]) for i in data))
-        batch = tuple((i[idx] for i in data))
-        return batch
-        #idx = tf.range(start, start + size) % length
-        #batch = tuple((tf.gather(i, idx, axis=0) for i in data))
-        #return batch
-
 
     def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, batch_size=None):
         """
@@ -172,15 +160,21 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         if batch_size is not None and isinstance(self.likelihood, LaueBase):
             raise ValueError("Batched training not compatible with Laue data.")
 
-        if batch_size is None:
-            batch_size = len(data[0])
-        data = tf.data.Dataset.from_tensor_slices(data).cache().repeat().batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
         def train_step(model_and_data):
             model, data = model_and_data
             model.reset_metrics()
             history = model.train_step((data,))
             return history
+
+        def get_batch(data, size):
+            """
+            Get a random, contiguous block of reflections from a monochromatic data set
+            """
+            length = len(data[0])
+            start = np.random.choice(length)
+            idx = np.arange(start, start + size) % length
+            batch = tuple((tf.convert_to_tensor(i[idx]) for i in data))
+            return batch
 
         if not self._run_eagerly:
             train_step = tf.function(train_step, reduce_retracing=True)
@@ -191,26 +185,27 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         history = {}
         from tqdm import trange,tqdm
         bar = trange(steps, desc=message)
-        with tqdm(total=steps, desc=message) as bar:
-            for i,batch in enumerate(data):
-                if i == steps:
-                    break
-                    print("Should be stopping...!!!")
-                bar.update(1)
-                _history = train_step((self, batch))
-                if validation_data is not None:
-                    if i%validation_frequency==0:
-                        validation_metrics = self.test_on_batch(validation_data, return_dict=True)
-                    _history['NLL_val'] = val_scale * validation_metrics['NLL']
 
-                pf = {}
-                for k,v in _history.items():
-                    v = float(v)
-                    pf[k] = format_string.format(v)
-                    if k not in history:
-                        history[k] = []
-                    history[k].append(v)
+        if batch_size is None:
+            batch = tuple((tf.convert_to_tensor(i) for i in data))
 
-                bar.set_postfix(pf)
+        for i in bar:
+            if batch_size is not None:
+                batch = get_batch(data, batch_size)
+            _history = train_step((self, batch))
+            if validation_data is not None:
+                if i%validation_frequency==0:
+                    validation_metrics = self.test_on_batch(validation_data, return_dict=True)
+                _history['NLL_val'] = val_scale * validation_metrics['NLL']
+
+            pf = {}
+            for k,v in _history.items():
+                v = float(v)
+                pf[k] = format_string.format(v)
+                if k not in history:
+                    history[k] = []
+                history[k].append(v)
+
+            bar.set_postfix(pf)
         return history
 
