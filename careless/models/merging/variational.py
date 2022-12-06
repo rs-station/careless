@@ -8,9 +8,6 @@ import tensorflow as tf
 from tensorflow import keras as tfk
 import numpy as np
 
-def noop(*args):
-    return args
-
 class VariationalMergingModel(tfk.Model, BaseModel):
     """
     Merge data with a posterior parameterized by a surrogate distribution.
