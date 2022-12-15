@@ -44,16 +44,19 @@ setup(
         "tensorflow>=2.8",
         "tensorflow-probability",
         "matplotlib",
+        "seaborn",
     ],
     scripts=[
-        "scripts/ccplot",
-        "scripts/ccanom_plot",
         "scripts/make_difference_map",
         "scripts/stream2mtz",
     ],
     entry_points={
         "console_scripts": [
             "careless=careless.careless:main",
+            "careless.ccanom=careless.stats.ccanom:main",
+            "careless.cchalf=careless.stats.cchalf:main",
+            "careless.ccpred=careless.stats.ccpred:main",
+            "careless.rsplit=careless.stats.rsplit:main",
         ]
     },
     setup_requires=["pytest-runner"],
