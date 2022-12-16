@@ -120,7 +120,7 @@ def run_analysis(args, show=True):
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
     if show:
-        print(results)
+        print(results.to_string())
         plt.show()
 
 
