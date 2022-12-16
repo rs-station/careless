@@ -117,7 +117,7 @@ def run_analysis(args, show=True):
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{1/2}}$ " + f"({args.method})")
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
-    plt.grid()
+    plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
     if show:
         print(results)

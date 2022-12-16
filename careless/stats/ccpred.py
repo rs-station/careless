@@ -115,7 +115,7 @@ def run_analysis(args, show=True):
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
-    plt.grid()
+    plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
     if show:
         print(results)

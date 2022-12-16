@@ -129,12 +129,12 @@ def run_analysis(args, show=True):
         results.to_csv(args.output)
     
     sns.lineplot(
-        data=results, x="bin", y="Rsplit", hue="filename", palette="viridis"
+        data=results, x="bin", y="Rsplit", hue="filename", palette="Dark2"
     )
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{R_{split}}$ ")
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
-    plt.grid()
+    plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
     if show:
         print(results)

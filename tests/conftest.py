@@ -31,6 +31,11 @@ def predictions_mtz():
     filename = abspath(join(dirname(__file__), datapath))
     return filename
 
+@pytest.fixture
+def merged_mtz():
+    datapath = "data/output/pyp_0.mtz"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
 
 @pytest.fixture
 def stream_file():
