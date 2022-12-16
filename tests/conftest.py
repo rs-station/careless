@@ -20,6 +20,24 @@ def cell_and_spacegroups():
 
 
 @pytest.fixture
+def xval_mtz():
+    datapath = "data/output/pyp_xval_0.mtz"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
+@pytest.fixture
+def predictions_mtz():
+    datapath = "data/output/pyp_predictions_0.mtz"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
+@pytest.fixture
+def merged_mtz():
+    datapath = "data/output/pyp_0.mtz"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
+@pytest.fixture
 def stream_file():
     datapath = "data/crystfel.stream"
     filename = abspath(join(dirname(__file__), datapath))
