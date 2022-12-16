@@ -39,7 +39,7 @@ class ArgumentParser(argparse.ArgumentParser):
             "--bins",
             default=10,
             type=int,
-            help="Number of resolution bins to use, the default is 12.",
+            help="Number of resolution bins to use, the default is 10.",
         )
 
         self.add_argument(
