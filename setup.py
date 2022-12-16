@@ -56,6 +56,7 @@ setup(
             "careless.ccanom=careless.stats.ccanom:main",
             "careless.cchalf=careless.stats.cchalf:main",
             "careless.ccpred=careless.stats.ccpred:main",
+            "careless.completeness=careless.stats.completeness:main",
             "careless.rsplit=careless.stats.rsplit:main",
         ]
     },
