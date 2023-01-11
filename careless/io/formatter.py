@@ -154,6 +154,7 @@ class MonoFormatter(DataFormatter):
             positional_encoding_keys=None,
             encoding_bit_depth=5,
             spacegroups = None,
+            standardize = True,
         ):
         """
         TODO: fix this
@@ -173,6 +174,8 @@ class MonoFormatter(DataFormatter):
             raise a ValueError.
         spacegroups : list (optional)
             Optional list of spacegroups. 1 Per input file
+        standardize : bool (optional)
+            Whether to standardize the metadata columns. The default is True.
         """
         self.intensity_key = intensity_key
         self.uncertainty_key = uncertainty_key
@@ -186,6 +189,7 @@ class MonoFormatter(DataFormatter):
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
         self.spacegroups = spacegroups
+        self.standardize = standardize
 
     @classmethod
     def from_parser(cls, parser):
@@ -217,6 +221,7 @@ class MonoFormatter(DataFormatter):
             pe_keys,
             parser.positional_encoding_frequencies,
             spacegroups,
+            standardize=parser.standardize_metadata,
         )
 
     def prep_dataset(self, ds, spacegroup=None, inplace=True):
@@ -323,7 +328,9 @@ class MonoFormatter(DataFormatter):
         """
         data['dHKL'] = data.dHKL**-2.
         metadata = data[self.metadata_keys].to_numpy('float32')
-        metadata = standardize_metadata(metadata)
+
+        if self.standardize:
+            metadata = standardize_metadata(metadata)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')
@@ -365,6 +372,7 @@ class LaueFormatter(DataFormatter):
             positional_encoding_keys=None,
             encoding_bit_depth=5,
             spacegroups=None,
+            standardize=True,
         ):
 
         """
@@ -392,6 +400,8 @@ class LaueFormatter(DataFormatter):
             raise a ValueError.
         spacegroups : list (optional)
             Optional list of spacegroups. 1 Per input file.
+        standardize : bool (optional)
+            Whether to standardize the metadata columns. The default is True.
         """
         self.wavelength_key = wavelength_key
         self.lam_min = lam_min
@@ -408,6 +418,7 @@ class LaueFormatter(DataFormatter):
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
         self.spacegroups = spacegroups
+        self.standardize = standardize
 
     @classmethod
     def from_parser(cls, parser):
@@ -444,6 +455,7 @@ class LaueFormatter(DataFormatter):
             pe_keys,
             parser.positional_encoding_frequencies,
             spacegroups=None,
+            standardize=parser.standardize_metadata,
         )
 
     def prep_dataset(self, ds, spacegroup=None):
@@ -568,7 +580,9 @@ class LaueFormatter(DataFormatter):
 
         data['dHKL'] = data.dHKL**-2.
         metadata = data[self.metadata_keys].to_numpy('float32')
-        metadata = standardize_metadata(metadata)
+
+        if self.standardize:
+            metadata = standardize_metadata(metadata)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')

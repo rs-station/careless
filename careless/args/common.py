@@ -40,4 +40,10 @@ args_and_kwargs = (
         "type": float, 
         "default" : 1e-7,
     }),
+
+    (("--disable-metadata-standardization",), {
+        "help": "By default careless will convert metadata to z-scores. This flag disables that behavior. In general, unstandardized metadata will lead to unstable optimization. However, this flag might be useful if the user wants to use their own normalization scheme." ,
+        "action": "store_false", 
+        "dest" : "standardize_metadata", 
+    }),
 )
