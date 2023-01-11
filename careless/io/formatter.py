@@ -13,6 +13,20 @@ def get_first_key_of_dtype(ds, dtype):
         return match
     return None
 
+def standardize_metadata(metadata):
+    """
+    Standardize metadata ignoring columns with zero std deviation. 
+    """
+    std = metadata.std(0)
+    zeros = (std == 0.)
+    if np.any(zeros):
+        import warnings
+        warnings.warn("Metadata column with zero standard deviation will not be standardized.")
+
+    metadata[:,~zeros] = (metadata[:,~zeros] - metadata[:,~zeros].mean(0)) / metadata[:,~zeros].std(0)
+    return metadata
+    
+
 class DataFormatter():
     """
     Base class for formatting inputs. This class should not be used directly. To extend this class,
@@ -309,7 +323,7 @@ class MonoFormatter(DataFormatter):
         """
         data['dHKL'] = data.dHKL**-2.
         metadata = data[self.metadata_keys].to_numpy('float32')
-        metadata = (metadata - metadata.mean(0)) / metadata.std(0)
+        metadata = standardize_metadata(metadata)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')
@@ -554,7 +568,7 @@ class LaueFormatter(DataFormatter):
 
         data['dHKL'] = data.dHKL**-2.
         metadata = data[self.metadata_keys].to_numpy('float32')
-        metadata = (metadata - metadata.mean(0)) / metadata.std(0)
+        metadata = standardize_metadata(metadata)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')
