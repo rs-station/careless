@@ -13,7 +13,16 @@ Install `careless` in your active python environment using the following command
 pip install --upgrade pip
 pip install careless
 ```
-Installation will take less than five minutes on a normal desktop computer. 
+
+## Installation with GPU Support
+Careless supports GPU acceleration on NVIDIA GPUs. Prior to installing careless, install the 
+ - NVIDIA driver, 
+ - CUDA Toolkit, and 
+ - cuDNN. 
+
+For these dependencies, you can determine the versions required by the latest TensorFlow release from the [TensorFlow docs](https://www.tensorflow.org/install/pip#software_requirements). The driver is usually installed through the system package manager and will require root privileges. In a cluster computing environment, a suitable version of the NVIDIA driver will usually be provided by your system administrators. The two libraries, CUDA toolkit and cuDNN, may either be installed through the system package manager or using the Anaconda python distribution as described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions). 
+
+You may confirm GPU acceleration is active using the `nvidia-smi` command to monitor GPU usage during model training. If you are having trouble enabling GPU support, you may want to use the `--tf-debug` flag during training for verbose logging of TensorFlow issues. 
 
 ## Dependencies
 
@@ -28,8 +37,7 @@ Pip will handle installation of all dependencies.
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 
-`careless` does not require but may take advantage of various accelator cards supported by TensorFlow. 
-It has been thoroughly tested with NVIDIA GPUs. 
+`careless` does not require but may take advantage of various accelator cards supported by TensorFlow. To 
 
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
