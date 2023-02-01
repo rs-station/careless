@@ -18,6 +18,12 @@ args_and_kwargs = (
         "action": "store_true"
     }),
 
+    (("--dropout",), {
+        "help": "The dropout rate used during training. The default is 0.3.",
+        "type": float,
+        "default": 0.3,
+    }),
+
     (("--mlp-layers",), {
         "help": "The number of dense neural network layers in the scaling model. The default is 20 layers.",
         "type":int,

@@ -7,6 +7,12 @@ import tensorflow as tf
 from tensorflow import keras as tfk
 import numpy as np
 
+def spearman_cc(yobs, ypred):
+    x = tf.cast(tf.argsort(tf.argsort( yobs)), 'float32')
+    y = tf.cast(tf.argsort(tf.argsort(ypred)), 'float32')
+
+    cc = tfp.stats.correlation(x[:,None], y[:,None])
+    return cc
 
 class VariationalMergingModel(tfk.Model, BaseModel):
     """
@@ -63,7 +69,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         refl_id = self.get_refl_id(inputs)
         #Let's actually return the expected value of the data under the current model
         #This is <F**2.>
-        scale_dist = self.scaling_model(inputs)
+        scale_dist = self.scaling_model(inputs, surrogate_posterior=self.surrogate_posterior)
         f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
         iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
         iexp = iexp.numpy()
@@ -120,7 +126,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         """
         z_f = self.surrogate_posterior.sample(self.mc_sample_size)
 
-        scale_dist = self.scaling_model(inputs)
+        scale_dist = self.scaling_model(inputs, surrogate_posterior=self.surrogate_posterior)
         z_scale = scale_dist.sample(self.mc_sample_size)
 
         if self.scale_prior is not None:
@@ -146,6 +152,21 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         #Do some keras-y stuff
         self.add_loss(-ll)
         self.add_metric(-ll, name="NLL")
+
+        #CCpred is nice
+        # We need to convolve the predictions if this is laue data
+        from careless.models.likelihoods.laue import LaueBase
+        if isinstance(self.likelihood, LaueBase):
+            ipred =  likelihood.convolve(ipred)
+
+        ipred = tf.reduce_mean(ipred, axis=0)
+        iobs = self.get_intensities(inputs)
+
+        cc = spearman_cc(
+            tf.squeeze(iobs, axis=-1),
+            ipred,
+        )
+        self.add_metric(cc, name='CCpred')
 
         return ipred
 
@@ -174,6 +195,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 if i%validation_frequency==0:
                     validation_metrics = self.test_on_batch(validation_data, return_dict=True)
                 _history['NLL_val'] = val_scale * validation_metrics['NLL']
+                _history['CCpred_val'] = validation_metrics['CCpred']
 
             pf = {}
             for k,v in _history.items():

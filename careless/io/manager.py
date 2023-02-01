@@ -327,20 +327,20 @@ class DataManager():
         """
         from careless.models.merging.surrogate_posteriors import TruncatedNormal
         from careless.models.merging.variational import VariationalMergingModel
-        from careless.models.scaling.image import HybridImageScaler,ImageScaler
-        from careless.models.scaling.nn import MLPScaler
         if parser is None:
             parser = self.parser
         if parser is None:
             raise ValueError("No parser supplied, but self.parser is unset")
 
         if parser.type == 'poly':
+            from careless.models.scaling.nn import LaueScaleModel as ScaleModel
             if parser.refine_uncertainties:
                 from careless.models.likelihoods.laue import NormalEv11Likelihood as NormalLikelihood
                 from careless.models.likelihoods.laue import StudentTEv11Likelihood as StudentTLikelihood
             else:
                 from careless.models.likelihoods.laue import NormalLikelihood,StudentTLikelihood
         elif parser.type == 'mono':
+            from careless.models.scaling.nn import ScaleModel
             if parser.refine_uncertainties:
                 from careless.models.likelihoods.mono import NormalEv11Likelihood as NormalLikelihood
                 from careless.models.likelihoods.mono import StudentTEv11Likelihood as StudentTLikelihood
@@ -373,25 +373,7 @@ class DataManager():
             mlp_width = parser.mlp_width
             if mlp_width is None:
                 mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
-
-            if parser.image_layers > 0:
-                from careless.models.scaling.image import NeuralImageScaler
-                n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                scaling_model = NeuralImageScaler(
-                    parser.image_layers,
-                    n_images,
-                    parser.mlp_layers,
-                    mlp_width,
-                    epsilon=parser.epsilon,
-                )
-            else:
-                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon)
-                if parser.use_image_scales:
-                    n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                    image_scaler = ImageScaler(n_images)
-                    scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
-                else:
-                    scaling_model = mlp_scaler
+            scaling_model = ScaleModel(parser.mlp_layers, mlp_width, epsilon=parser.epsilon, seed=parser.seed, dropout=parser.dropout)
 
         from tensorflow_probability import distributions as tfd
         model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
