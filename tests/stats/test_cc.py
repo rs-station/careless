@@ -60,13 +60,18 @@ def test_ccanom(xval_mtz, method, bins):
 @pytest.mark.parametrize("bins", [1, 10])
 @pytest.mark.parametrize("overall", [True, False])
 @pytest.mark.parametrize("method", ["spearman", "pearson"])
-def test_ccpred(predictions_mtz, method, bins, overall):
+@pytest.mark.parametrize("multi", [False, True])
+def test_ccpred(predictions_mtz, method, bins, overall, multi):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
     command = f"-o {csv} -b {bins} "
     if overall:
         command = command + ' --overall '
-    command = command + f" {predictions_mtz}"
+    command = command + f" {predictions_mtz} "
+
+    if multi:
+        command = command + f" {predictions_mtz} "
+        command = command + f" {predictions_mtz} "
 
     parser = ccpred.ArgumentParser().parse_args(command.split())
 
@@ -75,5 +80,9 @@ def test_ccpred(predictions_mtz, method, bins, overall):
     assert exists(csv)
 
     df = pd.read_csv(csv)
-    assert len(df) == 2*bins + 1
+
+    if multi and not overall:
+        assert len(df) == 6*bins + 1
+    else:
+        assert len(df) == 2*bins + 1
 
