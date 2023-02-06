@@ -43,28 +43,38 @@ class ArgumentParser(argparse.ArgumentParser):
         )
 
         self.add_argument(
+            '--overall',
+            action="store_true",
+            help="Pool all prediction mtz files into a single calculation rather than treating each file individually.",
+        )
+
+        self.add_argument(
             "-o",
             "--output",
             type=str,
             default=None,
-            help=("Optionally save CCpred values to this file in csv format."),
+            help="Optionally save CCpred values to this file in csv format.",
+        )
+
+        self.add_argument(
+            "--plot",
+            action="store_true",
+            help="Make a plot of the results with seaborn and display it using matplotlib.",
         )
 
 
 def compute_ccpred(
-    mtzpath, overall=False, bins=10, return_labels=True, method="spearman"
+    dataset, overall=False, bins=10, return_labels=True, method="spearman"
 ):
     """Compute CCpred from cross-validation"""
 
-    mtz = rs.read_mtz(mtzpath)
-
     if overall:
         labels = ['Overall']
-        mtz['bin'] = -1
-        grouper = mtz.groupby(["test"])[["Iobs", "Ipred"]]
+        dataset['bin'] = -1
+        grouper = dataset.groupby(["test"])[["Iobs", "Ipred"]]
     else:
-        mtz, labels = mtz.assign_resolution_bins(bins)
-        grouper = mtz.groupby(["bin", "test"])[["Iobs", "Ipred"]]
+        dataset, labels = dataset.assign_resolution_bins(bins)
+        grouper = dataset.groupby(["bin", "test"])[["Iobs", "Ipred"]]
 
     result = (
         grouper.corr(method=method)
@@ -73,27 +83,35 @@ def compute_ccpred(
         .reset_index()
     )
 
-    result["file"] = mtzpath.split("/")[0]
-    result["spacegroup"] = mtz.spacegroup.xhm()
+    result["spacegroup"] = dataset.spacegroup.xhm()
 
     return result, labels
 
 
-def run_analysis(args, show=True):
+def run_analysis(args):
     results = []
     labels = None
 
     overall = False
 
-    for m in args.mtzs:
-        result,labels = compute_ccpred(m, overall=overall, bins=args.bins, method=args.method)
-        if isinstance(result, tuple):
-            results.append(result)
-            labels = result
-        else:
-            results.append(result)
+    if args.overall:
+        ds = []
+        for m in args.mtzs:
+            ds.append(rs.read_mtz(m))
+        ds = rs.concat(ds)
+        results,labels = compute_ccpred(ds, overall=overall, bins=args.bins, method=args.method)
+    else:
+        for m in args.mtzs:
+            ds = rs.read_mtz(m)
+            result,labels = compute_ccpred(ds, overall=overall, bins=args.bins, method=args.method)
+            result['file'] = m
+            if isinstance(result, tuple):
+                results.append(result)
+                labels = result
+            else:
+                results.append(result)
+        results = rs.concat(results, check_isomorphous=False)
 
-    results = rs.concat(results, check_isomorphous=False)
     results = results.reset_index(drop=True)
     results["CCpred"] = results[("Iobs", "Ipred")]
     results.drop(columns=[("Iobs", "Ipred")], inplace=True)
@@ -117,7 +135,7 @@ def run_analysis(args, show=True):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    if show:
+    if args.plot:
         print(results.to_string())
         plt.show()
 
