@@ -141,5 +141,5 @@ def run_analysis(args):
 
 def main():
     parser = ArgumentParser().parse_args()
-    run_analysis(parser, True)
+    run_analysis(parser)
 
