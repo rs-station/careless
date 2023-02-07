@@ -135,11 +135,11 @@ def run_analysis(args):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
+    print(results.to_string())
     if args.plot:
-        print(results.to_string())
         plt.show()
 
 def main():
     parser = ArgumentParser().parse_args()
-    run_analysis(parser, True)
+    run_analysis(parser)
 
