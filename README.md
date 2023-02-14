@@ -8,8 +8,12 @@ Merging crystallography data without much physics.
 [![DOI](http://img.shields.io/badge/bioRxiv-10.1101/2021.01.05.425510-BD2736.svg)](https://doi.org/10.1101/2021.01.05.425510)
 
 ## Installation
-Install `careless` in your active python environment using the following command.
+As described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions), it is best practice to install `careless` in a fresh [anaconda](https://www.anaconda.com/products/distribution) environment to avoid conflicts with previously installed dependencies. 
+
+Create a new environment and install `careless` using the following commands.
 ```bash
+conda create -yn careless python
+conda activate careless
 pip install --upgrade pip
 pip install careless
 ```
