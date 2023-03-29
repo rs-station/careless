@@ -121,7 +121,7 @@ class DataManager():
             results += (output, )
         return results
 
-    def get_results(self, surrogate_posterior, inputs=None, output_parameters=True):
+    def get_results(self, surrogate_posterior, inputs=None, output_parameters=True, max_intensity_snr=1e-5):
         """ 
         Extract results from a surrogate_posterior.
 
@@ -134,6 +134,8 @@ class DataManager():
         output_parameters : bool (optional)
             If True, output the parameters of the surrogate distribution in addition to the 
             moments. 
+        max_intensity_snr : float (optional)
+            The maximum value which will be assigned to I / SigI. 
 
         Returns
         -------
@@ -145,6 +147,15 @@ class DataManager():
             inputs = self.inputs
         F = surrogate_posterior.mean().numpy()
         SigF = surrogate_posterior.stddev().numpy()
+        I = SigF * SigF + F * F
+        # <I^2> = <F^4>
+        f4 = surrogate_posterior.moment_4(method='scipy')
+        # var(I) = <I^2> - <I>^2 
+        #        = <F^4> - <I>^2
+        ivar = np.square(I * max_intensity_snr)
+        ivar = np.maximum(ivar, f4 - I * I)
+        SigI = np.sqrt(ivar)
+
         params = None
         if output_parameters:
             params = {}
@@ -166,6 +177,8 @@ class DataManager():
                 'L' : l[idx],
                 'F' : F[idx],
                 'SigF' : SigF[idx],
+                'I' : I[idx],
+                'SigI' : SigI[idx],
                 'N' : N[idx],
                 }, 
                 cell=asu.cell, 
@@ -184,7 +197,11 @@ class DataManager():
             if asu.anomalous:
                 output = output.unstack_anomalous()
                 # PHENIX will expect the sf / error keys in a particular order.
-                anom_keys = ['F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 'N(+)', 'N(-)']
+                anom_keys = [
+                    'F(+)', 'SigF(+)', 'F(-)', 'SigF(-)', 
+                    'I(+)', 'SigI(+)', 'I(-)', 'SigI(-)', 
+                    'N(+)', 'N(-)'
+                ]
                 reorder = anom_keys + [key for key in output if key not in anom_keys]
                 output = output[reorder]
 
