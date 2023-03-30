@@ -48,7 +48,7 @@ def run_analysis(args, show=True):
     results = results.iloc[np.roll(np.arange(len(results)), 1)]
 
     ax = sns.lineplot(
-        results.reset_index().melt('index'),
+        data=results.reset_index().melt('index'),
         x='index',
         y='value',
         hue='variable_1',
