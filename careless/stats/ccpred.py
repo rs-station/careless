@@ -122,14 +122,21 @@ def run_analysis(args):
     if args.output is not None:
         results.to_csv(args.output)
 
-    sns.lineplot(
-        data = results,
-        x = 'bin',
-        y = 'CCpred',
-        style = 'test',
-        hue='file',
-        palette="Dark2",
-    )
+    plot_kwargs = {
+        'data' : results,
+        'x' : 'bin',
+        'y' : 'CCpred',
+        'style' : 'test',
+    }
+
+    if 'file' in results:
+        plot_kwargs['hue'] = 'file'
+        plot_kwargs['palette'] = "Dark2"
+    else:
+        plot_kwargs['color'] = 'k'
+
+    sns.lineplot(**plot_kwargs)
+
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
