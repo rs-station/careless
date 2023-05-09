@@ -127,7 +127,8 @@ def run_analysis(args):
         x = 'bin',
         y = 'CCpred',
         style = 'test',
-        color="k",
+        hue='file',
+        palette="Dark2",
     )
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
