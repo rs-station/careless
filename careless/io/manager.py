@@ -38,12 +38,18 @@ class DataManager():
     def from_stream_files(cls, filenames, formatter):
         return cls.from_datasets((rs.read_crystfel(i) for i in filenames), formatter)
 
+    def get_wilson_sigma(self, b=None):
+        if b is None:
+            return 1.
+        sigma = np.exp(-0.25 * b * self.asu_collection.dHKL**-2.)
+        return sigma
+
     def get_wilson_prior(self, b=None, k=1.):
         """ Construct a wilson prior with an optional temperature factor, b, appropriate for self.asu_collection. """
         if b is None:
             sigma = 1.
         elif isinstance(b, float):
-            sigma = np.exp(-0.25 * b * self.asu_collection.dHKL**-2.)
+            sigma = self.get_wilson_sigma(b)
         else:
             raise ValueError(f"parameter b has type{type(b)} but float was expected")
         sigma = sigma * k
@@ -371,7 +377,8 @@ class DataManager():
         elif prior is None and parser.parents is not None:
             parents = [None if i == 'None' else int(i) for i in parents.split(',')]
             r_values = [float(i) for i in r_values.split(',')]
-            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values)
+            sigma = self.get_wilson_sigma(parser.wilson_prior_b)
+            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, sigma=sigma)
 
         loc,scale = prior.mean(),prior.stddev()
         scale = scale * parser.structure_factor_init_scale
