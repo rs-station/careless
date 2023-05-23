@@ -36,7 +36,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     description="Merging crystallography data without much physics.",
     project_urls=PROJECT_URLS,
-    python_requires=">=3.8,<3.11",
+    python_requires=">=3.8,<3.12",
     url="https://github.com/rs-station/careless",
     install_requires=[
         "reciprocalspaceship>=0.9.16",
