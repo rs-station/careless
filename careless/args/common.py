@@ -46,4 +46,10 @@ args_and_kwargs = (
         "action": "store_false", 
         "dest" : "standardize_metadata", 
     }),
+
+    (("--disable-progress-bar", ),  {
+        "help":"Disable the progress bar. This is helpful if you're logging stderr.",
+        "action" : "store_true",
+        "default" : False,
+    }),
 )

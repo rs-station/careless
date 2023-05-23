@@ -48,6 +48,7 @@ def run_careless(parser):
         model.surrogate_posterior.trainable = False
 
     validation_frequency = parser.validation_frequency
+    progress = not parser.disable_progress_bar
 
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
@@ -55,6 +56,7 @@ def run_careless(parser):
         message="Training",
         validation_data=test,
         validation_frequency=validation_frequency,
+        progress=progress,
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
@@ -102,6 +104,7 @@ def run_careless(parser):
                     tuple(map(tf.convert_to_tensor, half)), 
                     parser.iterations,
                     message=f"Merging repeat {repeat+1} half {half_id+1}",
+                    progress=progress,
                 )
 
                 for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
