@@ -47,6 +47,7 @@ class ArgumentParser(argparse.ArgumentParser):
             "--cell", 
             default=None,
             nargs=6,
+            metavar=("a", "b", "c", "alpha", "beta", "gamma"),
             type=float,
             help="Override the unit cell. Supply six numbers (e.g. --cell 10 20 30 90 90 90).",
         )
