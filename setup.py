@@ -58,6 +58,7 @@ setup(
             "careless.ccpred=careless.stats.ccpred:main",
             "careless.completeness=careless.stats.completeness:main",
             "careless.rsplit=careless.stats.rsplit:main",
+            "careless.xds2mtz=careless.io.xds:main",
         ]
     },
     setup_requires=["pytest-runner"],
