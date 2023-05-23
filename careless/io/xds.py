@@ -31,7 +31,7 @@ class ArgumentParser(argparse.ArgumentParser):
             default=None,
             type=str,
             help="Override the type of HKL file. This argument can be one of 'ascii' or 'integrate'. "
-                 "The default is None which will try to use the file name to infer the type.",
+                 "The default is None which will try to use the header to infer the type.",
         )
 
         self.add_argument(
@@ -86,7 +86,7 @@ def _read_hkl(file_name, cell=None, spacegroup=None, names=None):
 def read_integrate_hkl(file_name, cell=None, spacegroup=None):
     cols = [
         "H", "K", "L",
-        "I", "SIGI",
+        "IOBS","SIGMA",
         "XCAL", "YCAL", "ZCAL",
         "RLP", "PEAK", "CORR", "MAXC", 
         "XOBS", "YOBS", "ZOBS", 
@@ -96,23 +96,41 @@ def read_integrate_hkl(file_name, cell=None, spacegroup=None):
     ds['BATCH'] = ds.ZOBS.round().astype("B")
     return ds
 
-def read_ascii_hkl(file_name, cell=None, spacegroup=None):
-    cols = [
-        "H", "K", "L",
-        "I", "SIGI",
-        "XDET", "YDET", "ZDET",
-        "RLP", "PEAK", "CORR", 
-        "PSI",
-    ]
+def get_column_names(file_name):
+    cols = None
+    for line in open(file_name):
+        if line.startswith("!NUMBER_OF_ITEMS_IN_EACH_DATA_RECORD="):
+            num_cols = int(line.split('=')[1])
+            cols = [str(i) for i in range(num_cols)]
+        if line.startswith("!ITEM"):
+            name = line.split('_')[1].split("=")[0]
+            index = int(line.split("=")[1])
+            cols[index - 1] = name
+        if line.startswith("!END_OF_HEADER"):
+            break
+    return cols
+
+def read_ascii_hkl(file_name, cell=None, spacegroup=None, zkey='ZD'):
+    cols = get_column_names(file_name)
     ds = _read_hkl(file_name, cell, spacegroup, cols)
-    ds['BATCH'] = ds.ZDET.round().astype("B")
+    if zkey in ds:
+        ds['BATCH'] = ds[zkey].round().astype("B")
     return ds
 
+def get_format_field(file_name):
+    for line in open(file_name):
+        if line.startswith("!FORMAT="):
+            return line.split()[0].split('=')[1]
+        if line.startswith('!END_OF_HEADER'):
+            break
+    return None
+
 def infer_file_type(file_name):
-    if file_name.lower().endswith("integrate.hkl"):
-        return 'integrate'
-    elif file_name.lower().endswith("xds_ascii.hkl"):
+    format_name = get_format_field(file_name)
+    if format_name == 'XDS_ASCII':
         return 'ascii'
+    elif format_name is None:
+        return 'integrate'
     else:
         raise ValueError(f"Could not determine filetype for file_name: {file_name}")
 
