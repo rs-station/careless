@@ -288,11 +288,9 @@ class MonoFormatter(DataFormatter):
                 for k in ds:
                     if k == prefix + intensity_key:
                         uncertainty_key = k
-        # TODO: this is a temporary fix for an older version of the crystfel parser
-        # please remove this upon the next rs release (2021-09-10)
         if uncertainty_key is None:
-            if 'sigmaI' in ds:
-                uncertainty_key = 'sigmaI'
+            uncertainty_key = get_first_key_of_dtype(ds, 'Q')
+
 
         if uncertainty_key is None:
             raise ValueError(
@@ -536,11 +534,8 @@ class LaueFormatter(DataFormatter):
                 for k in ds:
                     if k == prefix + intensity_key:
                         uncertainty_key = k
-        # TODO: this is a temporary fix for an older version of the crystfel parser
-        # please remove this upon the next rs release (2021-09-10)
         if uncertainty_key is None:
-            if 'sigmaI' in ds:
-                uncertainty_key = 'sigmaI'
+            uncertainty_key = get_first_key_of_dtype(ds, 'Q')
 
         if uncertainty_key is None:
             raise ValueError(
