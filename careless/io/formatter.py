@@ -211,7 +211,7 @@ class MonoFormatter(DataFormatter):
 
         return cls(
             parser.intensity_key,
-            None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
+            parser.uncertainty_key,
             parser.image_key,
             parser.metadata_keys.split(','),
             parser.separate_files,
@@ -443,7 +443,7 @@ class LaueFormatter(DataFormatter):
         return cls(
             parser.wavelength_key,
             parser.intensity_key,
-            None, #<-- uncertainty key has to match {SIG,Sig}intensity_key
+            parser.uncertainty_key,
             parser.image_key,
             parser.metadata_keys.split(','),
             parser.separate_files,

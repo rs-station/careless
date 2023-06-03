@@ -27,6 +27,15 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--uncertainty-key", ),  {
+        "help":"What key to use for reflection error estimates. "
+               "If no key is given, careless will first check for a key beginning with 'SIG' or 'Sig' "
+               "which matches the intensity key (e.g. Iobs -> SigIobs). "
+               "Failing that, careless will ust first key with the StdDev dtype.",
+        "type":str, 
+        "default" : None,
+    }),
+
     (("--anomalous",), { 
         "help":f"If this flag is supplied, Friedel mates will be kept separate.", 
         "action":'store_true', 
