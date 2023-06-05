@@ -117,13 +117,14 @@ class DoubleWilsonPrior(Prior):
                 h = child_asu.Hall
                 h,_ = rs.utils.hkl_to_asu(h, parent_asu.spacegroup)
                 pid = parent*np.ones((len(h), 1), dtype='int32')
-                reflids.append(asu_collection.to_refl_id(pid, h))
+                reflids.append(asu_collection.to_refl_id(pid, h, allow_missing=True))
 
         self.centric = asu_collection.centric
         self.multiplicity = asu_collection.multiplicity
 
         self.sigma = sigma
         self.reflids = np.concatenate(reflids)
+        self.absent = tf.convert_to_tensor(self.reflids == -1)
         self.r = np.concatenate(r)
         self.root = np.concatenate(root)
         self.wilson_prior = WilsonPrior(asu_collection.centric, asu_collection.multiplicity, sigma)
@@ -136,7 +137,11 @@ class DoubleWilsonPrior(Prior):
 
     def log_prob(self, z):
         z_parent = tf.gather(z, self.reflids, axis=-1)
-        loc = z_parent * self.r
+        loc = tf.where(
+            self.absent, 
+            0.,
+            z_parent * self.r
+        )
         r2 = tf.square(self.r)
         scale = tf.where(
             self.centric,
