@@ -51,13 +51,23 @@ class ArgumentParser(argparse.ArgumentParser):
             help="Number of bins into which to divide the data.",
         )
 
+        resolution_group = self.add_mutually_exclusive_group()
 
-        self.add_argument(
+        resolution_group.add_argument(
+            "-c",
+            "--isigi-cutoff",
+            type=float,
+            default=1.5,
+            help="If this option is supplied, the script tries to estimate an appropriate resolution" 
+                 "cutoff from the signal to noise in resolution bins. The default value is 1.5 (I/SigI).",
+        )
+
+        resolution_group.add_argument(
             "-d",
             "--dmin",
             type=float,
-            default=0.,
-            help="Minimum resolution cutoff in (Å) which defaults to 0.",
+            default=None,
+            help="Minimum resolution cutoff in (Å) which overrides the more automated --isigi-cutoff.",
         )
 
         self.add_argument(
@@ -69,41 +79,20 @@ class ArgumentParser(argparse.ArgumentParser):
         )
 
         self.add_argument(
-            "-c",
-            "--isigi-cutoff",
-            type=float,
-            default=0.,
-            help="Minimum I over SigI cutoff which defaults to 0.",
-        )
-
-
-        self.add_argument(
             "--plot",
             action="store_true",
             help="Make a plot of the results and display it using matplotlib.",
         )
 
-
-def estimate_b_factor(intensity, sigma, dHKL, bins=20):
-    """
-    log(<I>) ~ -2B * dHKL**-2.
-
-    We can estimate the B factor by taking the slope of the 
-    regression of log(<I>) vs 1/d^2. We do this by dividing
-    the data into resolution bins and taking the average 
-    intensity in each bin. 
-    """
-    import pandas as pd
-    df = pd.DataFrame({
-        'inv_d2' : np.reciprocal(dHKL * dHKL),
-        'I' : intensity,
-        'SigI' : sigma,
-    })
-
-    bin_id,edges = rs.utils.bin_by_percentile(dHKL, bins)
-    bin_center = edges[np.tile(np.arange(bins), 2)[1:-1].reshape((2,bins-1))].mean(0)
-
-    x = np.reciprocal(np.square(dHKL))
+def estimate_dmin(ds, ikey, sigkey, isigi_cutoff, bins=20):
+    if 'dHKL' not in ds:
+        ds.compute_dHKL(inplace=True)
+    ds,_ = ds.assign_resolution_bins(bins)
+    ds['SNR'] = ds[ikey] / ds[sigkey]
+    resolution = ds[['bin', 'dHKL']].groupby('bin').mean()
+    isigi = ds[['bin', 'SNR']].groupby('bin').mean()
+    dmin = resolution[(isigi >= isigi_cutoff).to_numpy()].min().to_numpy()[0]
+    return dmin
 
 def run_analysis(parser):
     from careless.io.formatter import get_first_key_of_dtype
@@ -129,7 +118,14 @@ def run_analysis(parser):
                 sigkey = key
 
     ds.compute_dHKL(inplace=True)
-    ds = ds[(ds.dHKL >= parser.dmin) & (ds.dHKL <= parser.dmax) & (ds[ikey] / ds[sigkey] >= parser.isigi_cutoff)]
+    ds = ds[ds.dHKL <= parser.dmax]
+
+    if parser.dmin is not None:
+        dmin = parser.dmin
+    else:
+        dmin = estimate_dmin(ds, ikey, sigkey, parser.isigi_cutoff, bins=parser.bins)
+
+    ds = ds[ds.dHKL >= dmin]
     intensity = ds[ikey].to_numpy('float32')
     sigma = ds[sigkey].to_numpy('float32')
     dHKL = ds.dHKL.to_numpy('float32')
@@ -143,16 +139,13 @@ def run_analysis(parser):
 
     slope, intercept, r_value, p_value, std_err = linregress(mean[xkey], mean[ykey])
 
+    title = f"Estimated Wilson b-factor: {-2. * slope:0.2f} ± {2. * std_err:0.2f}"
     if parser.plot:
         sns.regplot(data=mean, x=xkey, y=ykey, color='k')
-        plt.title(f"y= {slope:0.1f}x + {intercept:0.1f}")
+        plt.title(title)
         plt.show()
+    print(title)
 
-
-    from IPython import embed
-    embed(colors='linux')
-    XX
-    b = estimate_b_factor(intensity, sigma, dHKL, parser.bins)
 
 def main():
     parser = ArgumentParser().parse_args()
