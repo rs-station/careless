@@ -38,10 +38,15 @@ class DataManager():
     def from_stream_files(cls, filenames, formatter):
         return cls.from_datasets((rs.read_crystfel(i) for i in filenames), formatter)
 
+    @staticmethod
+    def wilson_sigma(b, dHKL):
+        sigma = np.exp(-0.25 * b * np.reciprocal(dHKL*dHKL))
+        return sigma
+
     def get_wilson_sigma(self, b=None):
         if b is None:
             return 1.
-        sigma = np.exp(-0.25 * b * self.asu_collection.dHKL**-2.)
+        sigma = self.wilson_sigma(b, self.asu_collection.dHKL)
         return sigma
 
     def get_wilson_prior(self, b=None, k=1.):
@@ -175,12 +180,15 @@ class DataManager():
         N = np.bincount(refl_id.flatten(), minlength=len(F)).astype('float32')
         results = ()
         for i,asu in enumerate(self.asu_collection):
+            multiplicity = asu.multiplicity.astype('float32')
             idx = asu_id == i
             idx = idx.flatten()
             output = rs.DataSet({
                 'H' : h[idx],
                 'K' : k[idx],
                 'L' : l[idx],
+                'E' : F[idx] / np.sqrt(multiplicity[idx]),
+                'SigE' : F[idx] / np.sqrt(multiplicity[idx]),
                 'F' : F[idx],
                 'SigF' : SigF[idx],
                 'I' : I[idx],
