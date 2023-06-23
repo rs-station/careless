@@ -30,7 +30,8 @@ class BaseParser(argparse.ArgumentParser):
             "--image",
             type=str,
             default=None,
-            help="Make a plot of the results and save it to this filename. The filetype will be determined from the filename."
+            help="Make a plot of the results and save it to this filename. "
+                 "The filetype will be determined from the filename. "
                  "Any filetype supported by your matplotlib version will be available.",
         )
 
@@ -39,7 +40,8 @@ class BaseParser(argparse.ArgumentParser):
             "--output",
             type=str,
             default=None,
-            help=("Optionally save results to this file in csv format instead of printing them to the terminal."),
+            help="Optionally save results to this file in csv format instead of printing "
+                 "them to the terminal.",
         )
 
 
