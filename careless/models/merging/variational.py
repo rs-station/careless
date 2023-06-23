@@ -44,6 +44,39 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.scale_kl_weight = scale_kl_weight
         self.scale_prior = scale_prior
 
+    def scale_mean_sttdev(self, inputs):
+        """
+        Compute the moments of the posterior of reflection observation scale factors. 
+
+        Parameters
+        ----------
+        inputs : data
+            inputs is a data structure like [refl_id, image_id, metadata, intensity, uncertainty]. 
+            This can be a tf.DataSet, or a group of tensors. 
+
+        Returns
+        -------
+        mean : np.array
+            A numpy array containing the mean value of the scale predicted by the model for each input. 
+        stddev : np.array
+            A numpy array containing the standard deviation of the scale predicted by the model for each input. 
+            This is a reasonable estimate of the uncertainty of the model about each input.
+        """
+        refl_id = self.get_refl_id(inputs)
+
+        scale_dist = self.scaling_model(inputs)
+        mean = scale_dist.mean().numpy()
+        stddev = scale_dist.stddev().numpy()
+
+        # We need to convolve the predictions if this is laue data
+        from careless.models.likelihoods.laue import LaueBase
+        if isinstance(self.likelihood, LaueBase):
+            likelihood = self.likelihood(inputs)
+            mean = likelihood.convolve(mean)
+            stddev = np.sqrt(likelihood.convolve(stddev * stddev))
+
+        return mean, stddev
+
     def prediction_mean_stddev(self, inputs):
         """
         Parameters
