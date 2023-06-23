@@ -147,7 +147,7 @@ class ReciprocalASUCollection():
         asu_id = data['asu_id'].to_numpy('int')
         return asu_id[:,None], H
 
-    def to_refl_id(self, asu_id, H):
+    def to_refl_id(self, asu_id, H, allow_missing=False):
         """
         Parameters
         ----------
@@ -155,6 +155,8 @@ class ReciprocalASUCollection():
             (n x 1) array of asu ids 
         H : np.array
             (n x 3) array of miller indices 
+        allow_missing : bool (optional)
+            Replace missing reflections with -1 rather than throwing an error
 
         Returns
         -------
@@ -163,7 +165,11 @@ class ReciprocalASUCollection():
         """
         idx = np.concatenate((asu_id, H), axis=1).astype('int')
         idx = pd.MultiIndex.from_arrays(idx.T, names = ['asu_id', 'H', 'K', 'L'])
-        return self.asu_and_miller_lookup_table.loc[idx, 'id'].to_numpy('int')
+        if allow_missing:
+            refl_ids = pd.DataFrame(index=idx).join(self.asu_and_miller_lookup_table.id)
+            refl_ids = refl_ids.fillna(-1).to_numpy("int").flatten()
+            return refl_ids
+        return self.asu_and_miller_lookup_table.loc[idx, 'id'].to_numpy('int').flatten()
 
     def __getitem__(self, i):
         return self.reciprocal_asus[i]
