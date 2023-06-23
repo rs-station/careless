@@ -86,6 +86,11 @@ class BaseModel(tfk.layers.Layer):
         return BaseModel.get_input_by_name(inputs, 'refl_id')
 
     @staticmethod
+    def get_file_id(inputs):
+        """ Given a collection of inputs extract just the file_id """
+        return BaseModel.get_input_by_name(inputs, 'file_id')
+
+    @staticmethod
     def get_image_id(inputs):
         """ Given a collection of inputs extract just the image_id """
         return BaseModel.get_input_by_name(inputs, 'image_id')
