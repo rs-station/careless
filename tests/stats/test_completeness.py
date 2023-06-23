@@ -10,13 +10,17 @@ import pytest
 def test_completeness(merged_mtz, bins):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
-    command = f"-o {csv} -b {bins} {merged_mtz}"
+    png = f"{tf.name}/out.png"
+
+    command = f"-o {csv} -i {png} -b {bins} {merged_mtz}"
 
     parser = completeness.ArgumentParser().parse_args(command.split())
 
     assert not exists(csv)
-    completeness.run_analysis(parser, show=False)
+    assert not exists(png)
+    completeness.run_analysis(parser)
     assert exists(csv)
+    assert exists(png)
 
     df = pd.read_csv(csv)
     assert len(df) == bins + 2
