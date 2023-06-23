@@ -22,11 +22,12 @@ class BaseModel(tfk.layers.Layer):
     input_index = {
         'refl_id'       : 0,
         'image_id'      : 1,
-        'metadata'      : 2,
-        'intensities'   : 3,
-        'uncertainties' : 4,
-        'wavelength'    : 5,
-        'harmonic_id'   : 6,
+        'file_id'       : 2,
+        'metadata'      : 3,
+        'intensities'   : 4,
+        'uncertainties' : 5,
+        'wavelength'    : 6,
+        'harmonic_id'   : 7,
     }
 
     def call(self, inputs):
@@ -83,6 +84,11 @@ class BaseModel(tfk.layers.Layer):
     def get_refl_id(inputs):
         """ Given a collection of inputs extract just the reflection_id """
         return BaseModel.get_input_by_name(inputs, 'refl_id')
+
+    @staticmethod
+    def get_file_id(inputs):
+        """ Given a collection of inputs extract just the file_id """
+        return BaseModel.get_input_by_name(inputs, 'file_id')
 
     @staticmethod
     def get_image_id(inputs):

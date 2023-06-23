@@ -13,6 +13,7 @@ def test_getters(laue_inputs, mono_inputs):
             BaseModel.get_harmonic_id(inputs)
             BaseModel.get_wavelength(inputs)
         BaseModel.get_image_id(inputs)
+        BaseModel.get_file_id(inputs)
         BaseModel.get_intensities(inputs)
         BaseModel.get_metadata(inputs)
         BaseModel.get_refl_id(inputs)

@@ -112,9 +112,11 @@ class LaueTestData():
         self.data = ds
         self.reciprocal_asu = rasu
         self.reciprocal_asu_collection = rasu_collection
+        file_id = np.zeros_like(refl_id)
         self.inputs = [
             refl_id,
             image_id,
+            file_id,
             metadata,
             intensities,
             uncertainties,
@@ -167,9 +169,11 @@ class MonoTestData():
         self.data = ds
         self.reciprocal_asu = rasu
         self.reciprocal_asu_collection = rasu_collection
+        file_id = np.zeros_like(refl_id)
         self.inputs = [
             refl_id,
             image_id,
+            file_id,
             metadata,
             intensities,
             uncertainties,

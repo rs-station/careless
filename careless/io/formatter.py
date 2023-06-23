@@ -335,6 +335,7 @@ class MonoFormatter(DataFormatter):
             encoded  = positional_encoding(to_encode, self.ecoding_bit_depth)
             metadata = np.concatenate((metadata, encoded), axis=1)
 
+        file_id = data['file_id'].to_numpy('int64')
         refl_id = rac.to_refl_id(
             data['asu_id'].to_numpy('int64')[:,None],
             data.get_hkls(),
@@ -345,6 +346,7 @@ class MonoFormatter(DataFormatter):
 
         inputs = {
             'refl_id'   : refl_id[:,None],
+            'file_id'   : file_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
             'intensities'   : iobs,
@@ -584,6 +586,7 @@ class LaueFormatter(DataFormatter):
             encoded  = positional_encoding(to_encode, self.ecoding_bit_depth)
             metadata = np.concatenate((metadata, encoded), axis=1)
 
+        file_id = data['file_id'].to_numpy('int64')
         refl_id = rac.to_refl_id(
             data['asu_id'].to_numpy('int64')[:,None],
             data.get_hkls(),
@@ -596,6 +599,7 @@ class LaueFormatter(DataFormatter):
 
         inputs = {
             'refl_id'   : refl_id[:,None],
+            'file_id'   : file_id[:,None],
             'image_id'  : data['image_id'].to_numpy('int64')[:,None],
             'metadata'  : metadata,
             'intensities'   : iobs,
