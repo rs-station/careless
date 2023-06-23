@@ -22,11 +22,12 @@ class BaseModel(tfk.layers.Layer):
     input_index = {
         'refl_id'       : 0,
         'image_id'      : 1,
-        'metadata'      : 2,
-        'intensities'   : 3,
-        'uncertainties' : 4,
-        'wavelength'    : 5,
-        'harmonic_id'   : 6,
+        'file_id'       : 2,
+        'metadata'      : 3,
+        'intensities'   : 4,
+        'uncertainties' : 5,
+        'wavelength'    : 6,
+        'harmonic_id'   : 7,
     }
 
     def call(self, inputs):
