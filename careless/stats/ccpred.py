@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-class ArgumentParser(argparse.ArgumentParser):
+from careless.stats.parser import BaseParser
+class ArgumentParser(BaseParser):
     def __init__(self):
         super().__init__(
-            formatter_class=argparse.RawTextHelpFormatter, 
             description=__doc__
         )
 
@@ -46,20 +46,6 @@ class ArgumentParser(argparse.ArgumentParser):
             '--overall',
             action="store_true",
             help="Pool all prediction mtz files into a single calculation rather than treating each file individually.",
-        )
-
-        self.add_argument(
-            "-o",
-            "--output",
-            type=str,
-            default=None,
-            help="Optionally save CCpred values to this file in csv format.",
-        )
-
-        self.add_argument(
-            "--plot",
-            action="store_true",
-            help="Make a plot of the results with seaborn and display it using matplotlib.",
         )
 
 
@@ -121,6 +107,8 @@ def run_analysis(args):
 
     if args.output is not None:
         results.to_csv(args.output)
+    else:
+        print(results.to_string())
 
     plot_kwargs = {
         'data' : results,
@@ -143,8 +131,11 @@ def run_analysis(args):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    print(results.to_string())
-    if args.plot:
+
+    if args.image is not None:
+        plt.savefig(args.image)
+
+    if args.show:
         plt.show()
 
 def main():

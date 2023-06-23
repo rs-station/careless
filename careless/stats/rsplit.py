@@ -9,10 +9,10 @@ from scipy.optimize import minimize
 import numpy as np
 
 
-class ArgumentParser(argparse.ArgumentParser):
+from careless.stats.parser import BaseParser
+class ArgumentParser(BaseParser):
     def __init__(self):
         super().__init__(
-            formatter_class=argparse.RawTextHelpFormatter, 
             description=__doc__
         )
 
@@ -35,14 +35,6 @@ class ArgumentParser(argparse.ArgumentParser):
             "--use-intensities",
             action="store_true",
             help=("Optionally use intensities instead of structure factors to facilitate comparisons with other softwares."),
-        )
-
-        self.add_argument(
-            "-o",
-            "--output",
-            type=str,
-            default=None,
-            help=("Optionally save Rsplit values to this file in csv format."),
         )
 
 
@@ -98,7 +90,7 @@ def analyze_cchalf_mtz(mtzpath, bins=10, return_labels=True, keys=("F1", "F2")):
         return result
 
 
-def run_analysis(args, show=True):
+def run_analysis(args):
     results = []
     labels = None
 
@@ -127,6 +119,8 @@ def run_analysis(args, show=True):
 
     if args.output is not None:
         results.to_csv(args.output)
+    else:
+        print(results.to_string())
     
     sns.lineplot(
         data=results, x="bin", y="Rsplit", hue="filename", palette="Dark2"
@@ -136,12 +130,15 @@ def run_analysis(args, show=True):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    if show:
-        print(results.to_string())
+
+    if args.image is not None:
+        plt.savefig(args.image)
+
+    if args.show:
         plt.show()
 
 
 def main():
     parser = ArgumentParser().parse_args()
-    run_analysis(parser, True)
+    run_analysis(parser)
 
