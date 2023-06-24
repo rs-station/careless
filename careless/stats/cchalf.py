@@ -7,10 +7,10 @@ import reciprocalspaceship as rs
 import seaborn as sns
 
 
-class ArgumentParser(argparse.ArgumentParser):
+from careless.stats.parser import BaseParser
+class ArgumentParser(BaseParser):
     def __init__(self):
         super().__init__(
-            formatter_class=argparse.RawTextHelpFormatter, 
             description=__doc__
         )
 
@@ -36,15 +36,6 @@ class ArgumentParser(argparse.ArgumentParser):
             type=int,
             help=("Number of resolution bins to use, the default is 10."),
         )
-
-        self.add_argument(
-            "-o",
-            "--output",
-            type=str,
-            default=None,
-            help=("Optionally save CChalf values to this file in csv format."),
-        )
-
 
 def make_halves_cchalf(mtz, bins=10):
     """Construct half-datasets for computing CChalf"""
@@ -87,7 +78,7 @@ def analyze_cchalf_mtz(mtzpath, bins=10, return_labels=True, method="spearman"):
         return result
 
 
-def run_analysis(args, show=True):
+def run_analysis(args):
     results = []
     labels = None
     for m in args.mtz:
@@ -110,6 +101,8 @@ def run_analysis(args, show=True):
 
     if args.output is not None:
         results.to_csv(args.output)
+    else:
+        print(results.to_string())
     
     sns.lineplot(
         data=results, x="bin", y="CChalf", hue="filename", palette="viridis"
@@ -119,12 +112,15 @@ def run_analysis(args, show=True):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    if show:
-        print(results.to_string())
+
+    if args.image is not None:
+        plt.savefig(args.image)
+
+    if args.show:
         plt.show()
 
 
 def main():
     parser = ArgumentParser().parse_args()
-    run_analysis(parser, True)
+    run_analysis(parser)
 

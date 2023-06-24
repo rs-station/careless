@@ -7,11 +7,10 @@ import reciprocalspaceship as rs
 import seaborn as sns
 import numpy as np
 
-
-class ArgumentParser(argparse.ArgumentParser):
+from careless.stats.parser import BaseParser
+class ArgumentParser(BaseParser):
     def __init__(self):
         super().__init__(
-            formatter_class=argparse.RawTextHelpFormatter, 
             description=__doc__
         )
 
@@ -29,20 +28,14 @@ class ArgumentParser(argparse.ArgumentParser):
             help=("Number of resolution bins to use, the default is 10."),
         )
 
-        self.add_argument(
-            "-o",
-            "--output",
-            type=str,
-            default=None,
-            help=("Optionally save completeness values to this file in csv format."),
-        )
-
-def run_analysis(args, show=True):
+def run_analysis(args):
     ds = rs.read_mtz(args.mtz)
     results = rs.stats.compute_completeness(ds, bins=args.bins)
 
     if args.output is not None:
         results.to_csv(args.output)
+    else:
+        print(results.to_string())
 
     #Move overall to the beginning
     results = results.iloc[np.roll(np.arange(len(results)), 1)]
@@ -60,12 +53,14 @@ def run_analysis(args, show=True):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    if show:
-        print(results.to_string())
-        plt.show()
 
+    if args.image is not None:
+        plt.savefig(args.image)
+
+    if args.show:
+        plt.show()
 
 def main():
     parser = ArgumentParser().parse_args()
-    run_analysis(parser, True)
+    run_analysis(parser)
 
