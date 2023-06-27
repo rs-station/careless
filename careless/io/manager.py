@@ -187,8 +187,6 @@ class DataManager():
                 'H' : h[idx],
                 'K' : k[idx],
                 'L' : l[idx],
-                'E' : F[idx] / np.sqrt(multiplicity[idx]),
-                'SigE' : F[idx] / np.sqrt(multiplicity[idx]),
                 'F' : F[idx],
                 'SigF' : SigF[idx],
                 'I' : I[idx],
