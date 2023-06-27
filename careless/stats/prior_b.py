@@ -81,16 +81,6 @@ class ArgumentParser(argparse.ArgumentParser):
             help="Make a plot of the results and display it using matplotlib.",
         )
 
-def estimate_dmin(ds, ikey, sigkey, isigi_cutoff, bins=20):
-    if 'dHKL' not in ds:
-        ds.compute_dHKL(inplace=True)
-    ds,_ = ds.assign_resolution_bins(bins)
-    ds['SNR'] = ds[ikey] / ds[sigkey]
-    resolution = ds[['bin', 'dHKL']].groupby('bin').mean()
-    isigi = ds[['bin', 'SNR']].groupby('bin').mean()
-    dmin = resolution[(isigi >= isigi_cutoff).to_numpy()].min().to_numpy()[0]
-    return dmin
-
 def _make_df(dHKL, I, SigI, bins=None):
     df = pd.DataFrame({
         'dHKL' : dHKL,
