@@ -44,7 +44,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         self.scale_kl_weight = scale_kl_weight
         self.scale_prior = scale_prior
 
-    def scale_mean_sttdev(self, inputs):
+    def scale_mean_stddev(self, inputs):
         """
         Compute the moments of the posterior of reflection observation scale factors. 
 

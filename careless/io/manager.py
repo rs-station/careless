@@ -110,7 +110,7 @@ class DataManager():
         asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
         #ipred = model(inputs)
         ipred,sigipred = model.prediction_mean_stddev(inputs)
-        scale,sigscale = model.prediction_mean_stddev(inputs)
+        scale,sigscale = model.scale_mean_stddev(inputs)
 
         h,k,l = H.T
         results = ()
