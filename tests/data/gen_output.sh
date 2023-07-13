@@ -1,5 +1,6 @@
 mkdir output
 careless poly \
+    --disable-progress-bar \
     --iterations=10 \
     --merge-half-datasets \
     --half-dataset-repeats=3 \
