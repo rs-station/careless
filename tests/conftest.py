@@ -1,6 +1,6 @@
 import pytest
-from os import listdir
-from os.path import dirname, abspath, join
+from os import listdir,mkdir
+from os.path import dirname, abspath, join, exists
 import numpy as np
 import pandas as pd
 import re
@@ -10,8 +10,26 @@ import gemmi
 def pytest_sessionstart(session):
     rundir = "data/"
     rundir = abspath(join(dirname(__file__), rundir))
-    from subprocess import call
-    call(["sh", "gen_output.sh"], cwd=rundir)
+
+    command = """
+    careless poly 
+        --disable-progress-bar 
+        --iterations=10 
+        --merge-half-datasets 
+        --half-dataset-repeats=3 
+        --test-fraction=0.1 
+        --disable-gpu 
+        --anomalous 
+        --wavelength-key=Wavelength
+        dHKL,Hobs,Kobs,Lobs,Wavelength
+        pyp_off.mtz 
+        pyp_2ms.mtz 
+        output/pyp
+    """
+    if not exists(f"{rundir}/output"):
+        mkdir(f"{rundir}/output")
+        from subprocess import call
+        call(command.split(), cwd=rundir)
 
 @pytest.fixture
 def cell_and_spacegroups():
