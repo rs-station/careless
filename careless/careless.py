@@ -75,12 +75,9 @@ def run_careless(parser):
     predictions_data = None
     if test is not None:
         for file_id, (ds_train, ds_test) in enumerate(zip(
-                dm.get_predictions(model, train),
-                dm.get_predictions(model, test),
+                dm.get_predictions(model, train, test_value=0),
+                dm.get_predictions(model, test, test_value=1),
                 )):
-            ds_train['test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
-            ds_test['test']  = rs.DataSeries(1, index=ds_test.index, dtype='I')
-
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             rs.concat((
                 ds_train,
@@ -88,8 +85,7 @@ def run_careless(parser):
             )).write_mtz(filename)
     else:
         for file_id, ds_train in enumerate(dm.get_predictions(model, train)):
-            ds_train['test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
-
+            ds_train.loc[:,'test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             ds_train.write_mtz(filename)
 
