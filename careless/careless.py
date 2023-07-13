@@ -84,8 +84,7 @@ def run_careless(parser):
                 ds_test,
             )).write_mtz(filename)
     else:
-        for file_id, ds_train in enumerate(dm.get_predictions(model, train)):
-            ds_train.loc[:,'test'] = rs.DataSeries(0, index=ds_train.index, dtype='I')
+        for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0)):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             ds_train.write_mtz(filename)
 
