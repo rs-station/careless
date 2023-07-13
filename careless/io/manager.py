@@ -84,7 +84,7 @@ class DataManager():
         tfds = tf.data.Dataset.from_tensor_slices(packed)
         return tfds.batch(len(iobs))
 
-    def get_predictions(self, model, inputs=None):
+    def get_predictions(self, model, inputs=None, test_value=0):
         """ 
         Extract results from a surrogate_posterior.
 
@@ -94,6 +94,9 @@ class DataManager():
             A merging model from careless
         inputs : tuple (optional)
             Inputs for which to make the predictions if None, self.inputs is used.
+        test_value : int (optional)
+            Optionally change the value of the `test` column used for crossvalidation.
+            The default is 0. 
 
         Returns
         -------
@@ -101,39 +104,58 @@ class DataManager():
             A tuple of rs.DataSet objects containing the predictions for each 
             ReciprocalASU contained in self.asu_collection
         """
+        laue = BaseModel.is_laue(inputs)
+
         if inputs is None:
             inputs = self.inputs
 
         refl_id = BaseModel.get_refl_id(inputs)
+        asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
+        asu_id = asu_id.flatten()
+        file_id = model.get_file_id(inputs).flatten()
+        image_id = model.get_image_id(inputs).flatten()
+        if laue:
+            harmonic_id = BaseModel.get_harmonic_id(inputs).flatten()
+        else:
+            harmonic_id = np.arange(len(refl_id))
+        h,k,l = H.T
+
+        output = rs.DataSet({
+            'H' : rs.DataSeries(h, dtype='H'),
+            'K' : rs.DataSeries(k, dtype='H'),
+            'L' : rs.DataSeries(l, dtype='H'),
+            'harmonic_id' : rs.DataSeries(harmonic_id, dtype='I'),
+            'asu_id'      : rs.DataSeries(asu_id, dtype='I'),
+            'image_id'    : rs.DataSeries(image_id, dtype='I'),
+            'file_id'     : rs.DataSeries(file_id, dtype='I'),
+            'test'        : rs.DataSeries(test_value * np.ones_like(h), dtype='I'),
+        }, merged=False).groupby('harmonic_id').first().reset_index()
+        del(output['harmonic_id'])
+
         iobs = BaseModel.get_intensities(inputs).flatten()
         sig_iobs = BaseModel.get_uncertainties(inputs).flatten()
-        asu_id,H = self.asu_collection.to_asu_id_and_miller_index(refl_id)
-        #ipred = model(inputs)
         ipred,sigipred = model.prediction_mean_stddev(inputs)
         scale,sigscale = model.scale_mean_stddev(inputs)
 
-        h,k,l = H.T
-        results = ()
-        for i,asu in enumerate(self.asu_collection):
-            idx = asu_id == i
-            idx = idx.flatten()
-            output = rs.DataSet({
-                'H' : h[idx],
-                'K' : k[idx],
-                'L' : l[idx],
-                'Iobs' : iobs[idx],
-                'SigIobs' : sig_iobs[idx],
-                'Ipred' : ipred[idx],
-                'SigIpred' : sigipred[idx],
-                'Scale' : scale[idx],
-                'SigScale' : sigscale[idx],
-                }, 
-                cell=asu.cell, 
-                spacegroup=asu.spacegroup,
-                merged=False,
-            ).infer_mtz_dtypes().set_index(['H', 'K', 'L'])
-            results += (output, )
-        return results
+        num_refls = len(output)
+        data_cols = {
+            'Iobs'    : rs.DataSeries(iobs[:num_refls], dtype='J'),
+            'SigIobs' : rs.DataSeries(sig_iobs[:num_refls], dtype='Q'),
+            'Ipred'   : rs.DataSeries(ipred[:num_refls], dtype='J'),
+            'SigIpred': rs.DataSeries(sigipred[:num_refls], dtype='Q'),
+            'Scale'   : rs.DataSeries(scale[:num_refls], dtype='J'),
+            'SigScale': rs.DataSeries(sigscale[:num_refls], dtype='Q'),
+        }
+        for k,v in data_cols.items():
+            output[k] = v
+
+        for i,rasu in enumerate(self.asu_collection):
+            idx = output['asu_id'] == i
+            result = output.loc[idx]
+            result.cell = rasu.cell
+            result.spacegroup = rasu.spacegroup
+            yield result.set_index(['H', 'K', 'L'])
+
 
     def get_results(self, surrogate_posterior, inputs=None, output_parameters=True, max_intensity_snr=1e-5):
         """ 

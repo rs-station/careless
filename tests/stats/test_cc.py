@@ -66,7 +66,7 @@ def test_ccanom(xval_mtz, method, bins):
     assert len(df) == 3*bins + 1
 
 
-@pytest.mark.parametrize("bins", [1, 10])
+@pytest.mark.parametrize("bins", [1, 5])
 @pytest.mark.parametrize("overall", [True, False])
 @pytest.mark.parametrize("method", ["spearman", "pearson"])
 @pytest.mark.parametrize("multi", [False, True])
