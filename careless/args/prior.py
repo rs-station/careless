@@ -4,6 +4,13 @@ Options related to the prior distribution applied to the structure factors durin
 """
 
 args_and_kwargs = (
+    (("--kl-weight",), {
+        "help": "Set the weight of the kl divergence term relative to the likliehood. "
+                "By default, by default this is based purely on the number of reflections.",
+        "type": float, 
+        "default": None,
+    }),
+
     (("--wilson-prior-b",), {
         "help": "This flag enables learning reflections on a particular Wilson scale. "
                 "By default, the Wilson prior is flat across resolution bins. ",
