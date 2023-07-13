@@ -7,6 +7,12 @@ import re
 import reciprocalspaceship as rs
 import gemmi
 
+def pytest_sessionstart(session):
+    rundir = "data/"
+    rundir = abspath(join(dirname(__file__), rundir))
+    from subprocess import call
+    call(["sh", "gen_output.sh"], cwd=rundir)
+
 @pytest.fixture
 def cell_and_spacegroups():
     data = [
