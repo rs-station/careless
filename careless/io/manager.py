@@ -449,7 +449,7 @@ class DataManager():
                     scaling_model = mlp_scaler
 
         from tensorflow_probability import distributions as tfd
-        model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples)
+        model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples, kl_weight=parser.kl_weight)
 
         opt = tf.keras.optimizers.Adam(
             parser.learning_rate,
