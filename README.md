@@ -19,12 +19,31 @@ pip install careless
 ```
 
 ## Installation with GPU Support
-Careless supports GPU acceleration on NVIDIA GPUs. Prior to installing careless, install the 
+Careless supports GPU acceleration on NVIDIA GPUs. For users who would like to run `careless` in a cluster computing environment, requesting an interactive GPU node for the installation might be helpful. You may want to first follow the latest [Tensorflow installation instructions](https://www.tensorflow.org/install/pip#step-by-step_instructions) and then install `careless`. Specifically, 
+1) Create and activate a new environment with the appropriate Python version
+   ```bash
+   conda create -yn careless python=checktheversion
+   conda activate careless
+   pip install --upgrade pip
+   ```
+2) Install dependencies for GPU support (see the following paragraph)
+3) Install TensorFlow (and verify its GPU support)
+   ```bash
+   pip install tensorflow==checktheversion
+   #check that tensorflow sees the correct number of GPUs
+   python3 -c "import tensorflow as tf; print(len(tf.config.list_physical_devices('GPU')))"
+   ```
+4) Install `careless`
+   ```bash
+   pip install careless
+   ```
+
+The following dependencies are required for GPU support 
  - NVIDIA driver, 
  - CUDA Toolkit, and 
  - cuDNN. 
 
-For these dependencies, you can determine the versions required by the latest TensorFlow release from the [TensorFlow docs](https://www.tensorflow.org/install/pip#software_requirements). The driver is usually installed through the system package manager and will require root privileges. In a cluster computing environment, a suitable version of the NVIDIA driver will usually be provided by your system administrators. The two libraries, CUDA toolkit and cuDNN, may either be installed through the system package manager or using the Anaconda python distribution as described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions). 
+You can determine the versions required by the latest TensorFlow release from the [TensorFlow docs](https://www.tensorflow.org/install/pip#software_requirements). The driver is usually installed through the system package manager and will require root privileges. In a cluster computing environment, a suitable version of the NVIDIA driver will usually be provided by your system administrators. The two libraries, CUDA toolkit and cuDNN, may either be installed through the system package manager or using the Anaconda python distribution as described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions). 
 
 You may confirm GPU acceleration is active using the `nvidia-smi` command to monitor GPU usage during model training. If you are having trouble enabling GPU support, you may want to use the `--tf-debug` flag during training for verbose logging of TensorFlow issues. 
 
@@ -41,7 +60,7 @@ Pip will handle installation of all dependencies.
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 
-`careless` does not require but may take advantage of various accelator cards supported by TensorFlow. To 
+`careless` does not require but may take advantage of various accelator cards supported by TensorFlow.
 
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
