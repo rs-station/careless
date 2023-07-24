@@ -123,8 +123,8 @@ class TruncatedNormal(SurrogatePosterior):
         scale = tfp.util.TransformedVariable(
             scale,
             tfb.Chain([
-                tfb.Exp(),
                 tfb.Shift(scale_shift),
+                tfb.Exp(),
             ]),
         )
         return cls(loc, scale, low, high)
