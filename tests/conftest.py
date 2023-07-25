@@ -50,6 +50,12 @@ def xval_mtz():
     return filename
 
 @pytest.fixture
+def history_csv():
+    datapath = "data/output/pyp_history.csv"
+    filename = abspath(join(dirname(__file__), datapath))
+    return filename
+
+@pytest.fixture
 def predictions_mtz():
     datapath = "data/output/pyp_predictions_0.mtz"
     filename = abspath(join(dirname(__file__), datapath))
