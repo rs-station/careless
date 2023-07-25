@@ -56,6 +56,7 @@ setup(
             "careless.ccanom=careless.stats.ccanom:main",
             "careless.cchalf=careless.stats.cchalf:main",
             "careless.ccpred=careless.stats.ccpred:main",
+            "careless.plot_history=careless.stats.history:main",
             "careless.bfactor=careless.stats.prior_b:main",
             "careless.apply_bfactor=careless.stats.rescale:main",
             "careless.completeness=careless.stats.completeness:main",
