@@ -1,6 +1,7 @@
 from careless.stats import cchalf,ccanom,ccpred,rsplit
 from tempfile import TemporaryDirectory
 from os.path import exists
+from os import symlink
 import pandas as pd
 import pytest
 
@@ -23,7 +24,7 @@ def test_rsplit(xval_mtz, method, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins + 1
+    assert len(df) == 3*bins 
 
 
 @pytest.mark.parametrize("bins", [1, 10])
@@ -43,7 +44,7 @@ def test_cchalf(xval_mtz, method, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins + 1
+    assert len(df) == 3*bins 
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -63,7 +64,7 @@ def test_ccanom(xval_mtz, method, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins + 1
+    assert len(df) == 3*bins 
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -77,10 +78,15 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
     command = f"-o {csv} -i {png} -b {bins} "
     if overall:
         command = command + ' --overall '
-    command = command + f" {predictions_mtz} "
 
     if multi:
-        command = command + f" {predictions_mtz} "
+        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
+        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        symlink(predictions_mtz, mtz_0)
+        symlink(predictions_mtz, mtz_1)
+        command = command + f" {mtz_0} "
+        command = command + f" {mtz_1} "
+    else:
         command = command + f" {predictions_mtz} "
 
     parser = ccpred.ArgumentParser().parse_args(command.split())
@@ -94,7 +100,7 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
     df = pd.read_csv(csv)
 
     if multi and not overall:
-        assert len(df) == 6*bins + 1
+        assert len(df) == 4*bins 
     else:
-        assert len(df) == 2*bins + 1
+        assert len(df) == 2*bins
 
