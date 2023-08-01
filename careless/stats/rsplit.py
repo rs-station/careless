@@ -1,12 +1,12 @@
 """
-Compute Rsplit from careless output.
+Compute CChalf from careless output.
 """
 import argparse
+import numpy as np
 import matplotlib.pyplot as plt
 import reciprocalspaceship as rs
 import seaborn as sns
 from scipy.optimize import minimize
-import numpy as np
 
 
 from careless.stats.parser import BaseParser
@@ -32,13 +32,20 @@ class ArgumentParser(BaseParser):
         )
 
         self.add_argument(
-            "--use-intensities",
+            "--overall",
             action="store_true",
-            help=("Optionally use intensities instead of structure factors to facilitate comparisons with other softwares."),
+            help="Pool all prediction mtz files into a single calculation rather than treating each file individually.",
         )
 
+def rsplit(dataset):
+    x,y = dataset.F1.to_numpy(),dataset.F2.to_numpy()
+    def rfunc(k):
+        return np.sum(np.abs(x - k * y)) / np.sum(x + k * y)
 
-def make_halves_cchalf(mtz, bins=10):
+    p = minimize(rfunc, 1.)
+    return np.sqrt(2) * p.fun 
+
+def make_halves_rsplit(mtz, bins=10):
     """Construct half-datasets for computing Rsplit"""
 
     half1 = mtz.loc[mtz.half == 0].copy()
@@ -49,84 +56,64 @@ def make_halves_cchalf(mtz, bins=10):
         half1 = half1.stack_anomalous()
         half2 = half2.stack_anomalous()
 
-    # Using the definition of variance
-    half1["I"] = half1["F"] * half1["F"] + half1["SigF"] * half1["SigF"]
-    half2["I"] = half2["F"] * half2["F"] + half2["SigF"] * half2["SigF"]
-
-    temp = half1[["I", "F", "repeat"]].merge(
-        half2[["I", "F", "repeat"]], on=["H", "K", "L", "repeat"], suffixes=("1", "2")
-    )
-    temp, labels = temp.assign_resolution_bins(bins)
-
-    return temp, labels
-
-
-def rsplit(x, y):
-    def rfunc(k):
-        return np.sum(np.abs(x - k * y)) / np.sum(x + k * y)
-
-    p = minimize(rfunc, 1.)
-    return np.sqrt(2) * p.fun 
-
-def analyze_cchalf_mtz(mtzpath, bins=10, return_labels=True, keys=("F1", "F2")):
-    """Compute Rsplit from 2-fold cross-validation"""
-
-    mtz = rs.read_mtz(mtzpath)
-
-    # Error handling -- make sure MTZ file is appropriate
-    if "half" not in mtz.columns:
-        raise ValueError("Please provide MTZs from careless crossvalidation")
-
-    m, labels = make_halves_cchalf(mtz, bins)
-
-    grouper = m.groupby(["bin", "repeat"])[list(keys)]
-    result = (
-        grouper.corr(method=rsplit).unstack()[keys].to_frame().reset_index()
-    )
-
-    if return_labels:
-        return result, labels
-    else:
-        return result
-
+    out = half1[["F", "SigF", "repeat"]].merge(
+        half2[["F", "SigF", "repeat"]], on=["H", "K", "L", "repeat"], suffixes=("1", "2")
+    ).dropna()
+    return out
 
 def run_analysis(args):
-    results = []
-    labels = None
-
-    if args.use_intensities:
-        keys = ("I1", "I2")
-    else:
-        keys = ("F1", "F2")
-
+    ds = []
     for m in args.mtz:
-        result = analyze_cchalf_mtz(m, bins=args.bins, keys=keys)
-        if result is None:
-            continue
-        else:
-            result[0]["filename"] = m
-            results.append(result[0])
-            labels = result[1]
+        _ds = rs.read_mtz(m)
+        #non-isomorphism could lead to different resolution for each mtz
+        #need to calculate dHKL before concatenating 
+        _ds = make_halves_rsplit(_ds)
+        _ds.compute_dHKL(inplace=True)
+        _ds['file'] = m
+        _ds['Spacegroup'] = _ds.spacegroup.xhm()
+        ds.append(_ds)
+    ds = rs.concat(ds, check_isomorphous=False)
+    bins,edges = rs.utils.bin_by_percentile(ds.dHKL, args.bins, ascending=False)
+    ds['bin'] = bins
+    labels = [
+        f"{e1:0.2f} - {e2:0.2f}"
+        for e1, e2 in zip(edges[:-1], edges[1:])
+    ]
 
-    results = rs.concat(results, check_isomorphous=False)
-    results = results.reset_index(drop=True)
-    results["Rsplit"] = results[keys]
-    results.drop(columns=[keys], inplace=True)
+    if args.overall:
+        grouper = ds.groupby(["bin", "repeat"])
+    else:
+        grouper = ds.groupby(["file", "bin", "repeat"])
+    result = grouper.apply(rsplit).reset_index(name='Rsplit')
+    result['Resolution Range (Å)'] = np.array(labels)[result.bin]
+    result['Spacegroup'] = grouper['Spacegroup'].apply('first').to_numpy()
+    if not args.overall:
+        result['file'] = grouper['file'].apply('first').to_numpy()
+        result = result[['file', 'repeat', 'Resolution Range (Å)', 'bin', 'Spacegroup', 'Rsplit']]
+    else:
+        result = result[['repeat', 'Resolution Range (Å)', 'bin', 'Spacegroup', 'Rsplit']]
 
-
-    for k in ('bin', 'repeat'):
-        results[k] = results[k].to_numpy('int32')
 
     if args.output is not None:
-        results.to_csv(args.output)
+        result.to_csv(args.output)
     else:
-        print(results.to_string())
+        print(result.to_string())
     
-    sns.lineplot(
-        data=results, x="bin", y="Rsplit", hue="filename", palette="Dark2"
-    )
+    plot_kwargs = {
+        'data' : result,
+        'x' : 'bin',
+        'y' : 'Rsplit',
+    }
+
+    if args.overall:
+        plot_kwargs['color'] = 'k'
+    else:
+        plot_kwargs['hue'] = 'file'
+        plot_kwargs['palette'] = "Dark2"
+
+    sns.lineplot(**plot_kwargs)
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
-    plt.ylabel(r"$\mathrm{R_{split}}$ ")
+    plt.ylabel(r"$R_{\mathrm{split}}$")
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
