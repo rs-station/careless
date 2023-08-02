@@ -1,6 +1,7 @@
 from careless.models.base import BaseModel
 from careless.utils.shame import sanitize_tensor
 from careless.models.merging.surrogate_posteriors import TruncatedNormal
+from tensorflow.python.keras.engine import data_adapter
 from tqdm.autonotebook import tqdm
 import tensorflow_probability as tfp
 import tensorflow as tf
@@ -182,15 +183,58 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return ipred
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True):
+    def train_step_with_gradient_norm(self, data):
+        """
+        Conduct a training step with `data`. This method is the same as tfk.Model.train_step except that it
+        tracks the norm of the gradients as well. 
+        """
+        data = data_adapter.expand_1d(data)
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        # Run forward pass.
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            loss = self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
+
+        # Run backwards pass.
+        grads = tape.gradient(loss, self.trainable_variables)
+
+        # Compute the L2 norm of the gradients
+        grad_norm = tf.linalg.global_norm(grads)
+
+        # Only apply gradients if they are valid
+        if tf.math.is_finite(grad_norm):
+            self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
+
+        self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        # Collect metrics to return
+        return_metrics = {
+            "Grad Norm" : grad_norm,
+        }
+        for metric in self.metrics:
+            result = metric.result()
+            if isinstance(result, dict):
+                return_metrics.update(result)
+            else:
+                return_metrics[metric.name] = result
+
+        return return_metrics
+
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
-        def train_step(model_and_data):
-            model, data = model_and_data
-            model.reset_metrics()
-            history = model.train_step((data,))
-            return history
+        if use_custom_train_step:
+            def train_step(model_and_data):
+                model, data = model_and_data
+                model.reset_metrics()
+                history = model.train_step_with_gradient_norm((data,))
+                return history
+        else:
+            def train_step(model_and_data):
+                model, data = model_and_data
+                model.reset_metrics()
+                history = model.train_step((data,))
+                return history
 
         if not self._run_eagerly:
             train_step = tf.function(train_step, reduce_retracing=True)
@@ -218,5 +262,9 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 history[k].append(v)
 
             bar.set_postfix(pf)
+            if use_custom_train_step:
+                if not tf.math.is_finite(_history['Grad Norm']):
+                    print("Encountered numerical issues, terminating optimization early!")
+                    break
         return history
 
