@@ -77,7 +77,9 @@ def run_analysis(args):
         ccfunc = weighted_pearson_ccfunc
 
     result = grouper.apply(ccfunc).reset_index(name='CCpred')
-
+    result['file_id'] = grouper.first()['file_id'].to_numpy()
+    result['asu_id'] = grouper.first()['asu_id'].to_numpy()
+    result = result[['file', 'file_id', 'asu_id', 'BATCH', 'CCpred']]
 
     if args.output is not None:
         result.to_csv(args.output)
