@@ -1,4 +1,4 @@
-from careless.stats import cchalf,ccanom,ccpred,rsplit
+from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc
 from tempfile import TemporaryDirectory
 from os.path import exists
 from os import symlink
@@ -103,4 +103,33 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
         assert len(df) == 4*bins 
     else:
         assert len(df) == 2*bins
+
+
+@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("multi", [False, True])
+def test_image_cc(predictions_mtz, method, multi):
+    tf = TemporaryDirectory()
+    csv = f"{tf.name}/out.csv"
+    png = f"{tf.name}/out.png"
+    command = f"-o {csv} -i {png} "
+
+    if multi:
+        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
+        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        symlink(predictions_mtz, mtz_0)
+        symlink(predictions_mtz, mtz_1)
+        command = command + f" {mtz_0} "
+        command = command + f" {mtz_1} "
+    else:
+        command = command + f" {predictions_mtz} "
+
+    parser = image_cc.ArgumentParser().parse_args(command.split())
+
+    assert not exists(csv)
+    assert not exists(png)
+    image_cc.run_analysis(parser)
+    assert exists(csv)
+    assert exists(png)
+
+    df = pd.read_csv(csv)
 
