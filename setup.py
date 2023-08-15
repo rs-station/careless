@@ -57,6 +57,7 @@ setup(
             "careless.cchalf=careless.stats.cchalf:main",
             "careless.ccpred=careless.stats.ccpred:main",
             "careless.image_ccpred=careless.stats.image_cc:main",
+            "careless.filter_image=careless.stats.filter_by_image_cc:main",
             "careless.plot_history=careless.stats.history:main",
             "careless.bfactor=careless.stats.prior_b:main",
             "careless.apply_bfactor=careless.stats.rescale:main",

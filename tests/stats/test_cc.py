@@ -1,9 +1,10 @@
-from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc
+from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc,filter_by_image_cc
 from tempfile import TemporaryDirectory
 from os.path import exists
 from os import symlink
 import pandas as pd
 import pytest
+import reciprocalspaceship as rs
 
 
 
@@ -132,4 +133,23 @@ def test_image_cc(predictions_mtz, method, multi):
     assert exists(png)
 
     df = pd.read_csv(csv)
+
+@pytest.mark.parametrize("method", ["spearman", "pearson"])
+def test_filter_by_image_cc(predictions_mtz, method, off_file, on_file):
+    tf = TemporaryDirectory()
+    command = f" {predictions_mtz} {off_file} {on_file} -c 0.1 -o {tf.name}/out"
+    out_1 = f"{tf.name}/out_0.mtz"
+    out_2 = f"{tf.name}/out_0.mtz"
+
+    assert not exists(out_1)
+    assert not exists(out_2)
+
+    parser = filter_by_image_cc.ArgumentParser().parse_args(command.split())
+    filter_by_image_cc.run_analysis(parser)
+
+    assert exists(out_1)
+    assert exists(out_2)
+
+    rs.read_mtz(out_1)
+    rs.read_mtz(out_2)
 
