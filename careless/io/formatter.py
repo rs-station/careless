@@ -13,15 +13,20 @@ def get_first_key_of_dtype(ds, dtype):
         return match
     return None
 
-def standardize_metadata(metadata):
+def standardize_metadata(metadata, metadata_keys=None):
     """
     Standardize metadata ignoring columns with zero std deviation. 
     """
     std = metadata.std(0)
     zeros = (std == 0.)
-    if np.any(zeros):
-        import warnings
-        warnings.warn("Metadata column with zero standard deviation will not be standardized.")
+    for k,v in enumerate(std):
+        if metadata_keys is not None:
+            k = metadata_keys[k]
+        if v == 0.:
+            message = f'Metadata column "{k}" with zero standard deviation will not be standardized.'
+            print(message)
+            import warnings
+            warnings.warn(message)
 
     metadata[:,~zeros] = (metadata[:,~zeros] - metadata[:,~zeros].mean(0)) / metadata[:,~zeros].std(0)
     return metadata
@@ -328,7 +333,7 @@ class MonoFormatter(DataFormatter):
         metadata = data[self.metadata_keys].to_numpy('float32')
 
         if self.standardize:
-            metadata = standardize_metadata(metadata)
+            metadata = standardize_metadata(metadata, self.metadata_keys)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')
@@ -579,7 +584,7 @@ class LaueFormatter(DataFormatter):
         metadata = data[self.metadata_keys].to_numpy('float32')
 
         if self.standardize:
-            metadata = standardize_metadata(metadata)
+            metadata = standardize_metadata(metadata, self.metadata_keys)
 
         if self.positional_encoding_keys is not None:
             to_encode = data[self.positional_encoding_keys].to_numpy('float32')
