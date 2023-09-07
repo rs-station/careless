@@ -90,7 +90,8 @@ def run_analysis(args):
     elif args.method.lower() == "pearson":
         ccfunc = weighted_pearson_ccfunc
 
-    result = grouper.apply(ccfunc).reset_index(name='CCpred')
+    result = grouper.apply(ccfunc)
+    result = rs.DataSet({"CCpred" : result}).reset_index()
     result['Resolution Range (Å)'] = np.array(labels)[result.bin]
     result['Spacegroup'] = grouper['Spacegroup'].apply('first').to_numpy()
     if not args.overall:

@@ -99,7 +99,8 @@ def run_analysis(args):
     elif args.method.lower() == "pearson":
         ccfunc = weighted_pearson_ccfunc
 
-    result = grouper.apply(ccfunc).reset_index(name='CCpred')
+    result = grouper.apply(ccfunc)
+    result = rs.DataSet({"CCpred" : result}).reset_index()
     result['file_id'] = grouper.first()['file_id'].to_numpy()
     result['asu_id'] = grouper.first()['asu_id'].to_numpy()
     result = result[['file', 'file_id', 'asu_id', 'image_id', 'CCpred']]

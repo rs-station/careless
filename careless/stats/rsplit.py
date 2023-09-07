@@ -84,7 +84,8 @@ def run_analysis(args):
         grouper = ds.groupby(["bin", "repeat"])
     else:
         grouper = ds.groupby(["file", "bin", "repeat"])
-    result = grouper.apply(rsplit).reset_index(name='Rsplit')
+    result = grouper.apply(rsplit)
+    result = rs.DataSet({"Rsplit" : result}).reset_index()
     result['Resolution Range (Å)'] = np.array(labels)[result.bin]
     result['Spacegroup'] = grouper['Spacegroup'].apply('first').to_numpy()
     if not args.overall:
