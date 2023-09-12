@@ -1,0 +1,53 @@
+# https://peps.python.org/pep-0517/
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[project]
+name = "careless"
+dynamic = ["version"]
+description = "Merging crystallography data without much physics."
+requires-python = ">=3.8,<3.12"
+license = { text = "MIT" }
+authors = [
+    { email = "kmdalton@fas.harvard.edu", name = "Kevin M. Dalton" },
+]
+dependencies = [
+    "reciprocalspaceship>=0.9.16",
+    "tqdm",
+    "tensorflow>=2.8",
+    "tensorflow-probability",
+    "matplotlib",
+    "seaborn",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov", "pytest-xdist>=3"]
+docs = [
+    "sphinx",
+    "myst_parser",
+    "sphinxcontrib_autoprogram",
+    "sphinx_rtd_theme"
+]
+
+[project.urls]
+homepage = "https://dennisbrookner.github.io/careless"
+repository = "https://github.com/rs-station/careless"
+"Bug Tracker" = "https://github.com/rs-station/careless/issues"
+
+[project.scripts]
+careless = "careless.careless:main"
+"careless.ccanom" = "careless.stats.ccanom:main"
+"careless.cchalf" = "careless.stats.cchalf:main"
+"careless.ccpred" = "careless.stats.ccpred:main"
+"careless.image_ccpred" = "careless.stats.image_cc:main"
+"careless.filter_image" = "careless.stats.filter_by_image_cc:main"
+"careless.plot_history" = "careless.stats.history:main"
+"careless.bfactor" = "careless.stats.prior_b:main"
+"careless.apply_bfactor" = "careless.stats.rescale:main"
+"careless.completeness" = "careless.stats.completeness:main"
+"careless.rsplit" = "careless.stats.rsplit:main"
+"careless.xds2mtz" = "careless.io.xds:main"
