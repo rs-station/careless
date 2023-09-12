@@ -72,7 +72,7 @@ Still confused? File an [issue](https://github.com/rs-station/careless/issues/ne
 
 ## Core Model
 
-![pgm](doc/figures/pgm.svg)
+![pgm](docs/figures/pgm.svg)
 
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
 The model which is implemented in `careless` tries to scale individual reflection observations such that they become consistent with a set of prior beliefs.

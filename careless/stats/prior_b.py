@@ -179,9 +179,12 @@ def run_analysis(parser):
     print(title)
 
 
+def parse_arguments():
+    return ArgumentParser()
+
 def main():
-    parser = ArgumentParser().parse_args()
-    run_analysis(parser)
+    run_analysis(parse_arguments().parse_args())
+
 
 
 if __name__=='__main__':
