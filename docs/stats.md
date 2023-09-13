@@ -1,4 +1,4 @@
-# Stats utilites and more in careless
+# Other utilites
 
 `careless` includes a number of command-line utilities for performing common analyses and of `careless` outputs. These utilities and their command-line usage are documented below.
 

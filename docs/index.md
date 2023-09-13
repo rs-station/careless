@@ -8,7 +8,7 @@
    :hidden:
 
    careless CLI <careless>
-   stats utilites <stats>
+   Other utilites <stats>
    The "Double Wilson" algorithm <double_wilson>
 
 ```

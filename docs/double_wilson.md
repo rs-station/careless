@@ -1,7 +1,8 @@
 # Double Wilson Prior Calculations in `careless`
 
-We'd like to be able to make priors in which certain sets of structure factors are conditional on others. 
-The conditional distributions for structure factors are the Rice and Woolfson (Folded Normal) distributions for acentrics and centrics respectively. 
+This page briefly describes the so-called "Double Wilson" distributions available for use in `careless` when using one dataset as a reference for another.
+
+We'd like to be able to make priors in which certain sets of structure factors are conditional on others. The conditional distributions for structure factors are the Rice and Woolfson (Folded Normal) distributions for acentrics and centrics respectively. 
 
 
 ## Wilson's priors
