@@ -79,7 +79,7 @@ sys.stderr.write(
 ===============================
 Unsupported installation method
 ===============================
-matchmaps does not support installation with `python setup.py install`.
+careless does not support installation with `python setup.py install`.
 Please use `python -m pip install .` instead.
 """
 )
