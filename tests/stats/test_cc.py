@@ -48,7 +48,7 @@ def test_cchalf(xval_mtz, method, bins):
     assert len(df) == 3*bins 
 
 
-@pytest.mark.parametrize("bins", [1, 5])
+@pytest.mark.parametrize("bins", [1, 2])
 @pytest.mark.parametrize("method", ["spearman", "pearson"])
 def test_ccanom(xval_mtz, method, bins):
     tf = TemporaryDirectory()
