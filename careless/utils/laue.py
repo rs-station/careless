@@ -44,7 +44,14 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
         ds.compute_dHKL(inplace=True)
 
     Hobs = ds.loc[:,['Hobs', 'Kobs', 'Lobs']].to_numpy(np.int32)
+
+    #Calculated the harmonic as indexed
     nobs = np.gcd.reduce(Hobs, axis=1)
+
+    #Add primary harmonic miller index, wavelength, and resolution
+    # H = H_n / n
+    # lambda = lambda_n * n
+    # d = d_n * n
     H_0 = (Hobs/nobs[:,None]).astype(np.int32)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0.T
     ds['d_0'] = ds['dHKL']*nobs
@@ -53,12 +60,7 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
 
     if dmin is None:
         dmin = ds['dHKL'].min() - 1e-12
-    ds['n_max'] =  np.floor(ds['d_0']/dmin).astype(int)
-
-    #Change peak wavelength to correspond to H_0
-    # \lambda_n = (1/n) * \lambda_1
-    # there is some abuse of notation here \lambda_1 corresponds to H_0
-    ds.loc[:,'Hobs'],ds.loc[:,'Kobs'],ds.loc[:,'Lobs'] = ds['H_0'],ds['K_0'],ds['L_0']
+    ds['n_max'] =  np.floor_divide(ds['d_0'], dmin).astype(int)
 
     #This is where we make the indices to expand
     #each harmonic the appropriate number of times given dmin
@@ -72,7 +74,7 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     ds['Hobs'],ds['Kobs'],ds['Lobs'] = n*ds['H_0'],n*ds['K_0'],n*ds['L_0']
 
     #Update the HKLs to reflect the new harmonics
-    H = ds.loc[:,['H', 'K', 'L']].to_numpy(np.int32)
+    H = ds.get_hkls()
     H_0_asu = (H/np.gcd.reduce(H, axis=1)[:,None]).astype(np.int32)
     ds.loc[:,['H', 'K', 'L']] = n[:,None] * H_0_asu
     ds['dHKL'] = ds['d_0'] / n
