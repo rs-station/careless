@@ -43,13 +43,13 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     if 'dHKL' not in ds:
         ds.compute_dHKL(inplace=True)
 
-    #np.seterr(divide='ignore', invalid='ignore')
     Hobs = ds.loc[:,['Hobs', 'Kobs', 'Lobs']].to_numpy(np.int32)
-    H_0 = (Hobs/np.gcd.reduce(Hobs, axis=1)[:,None]).astype(np.int32)
+    nobs = np.gcd.reduce(Hobs, axis=1)
+    H_0 = (Hobs/nobs[:,None]).astype(np.int32)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0.T
-    ds.loc[:,'nobs'] = np.nanmax(Hobs / H_0, axis=1)
-    ds['d_0'] = ds['dHKL']*ds['nobs']
-    ds['Wavelength_0'] = ds[wavelength_key]*ds['nobs']
+    ds['d_0'] = ds['dHKL']*nobs
+    ds['Wavelength_0'] = ds[wavelength_key]*nobs
+    ds['nobs'] = nobs
 
     if dmin is None:
         dmin = ds['dHKL'].min() - 1e-12
