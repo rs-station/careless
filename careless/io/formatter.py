@@ -490,16 +490,11 @@ class LaueFormatter(DataFormatter):
         # Avoid non-unique MultiIndex complications
         ds.reset_index(inplace=True)
 
-        # Populate the observed miller indices before
-        # expanding harmonics
-        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
-
         # Resolution cutoff
-        ds.compute_dHKL(inplace=True) 
+        ds.compute_dHKL(inplace=True)
         dmin = self.dmin
         if dmin is None:
             dmin = ds.dHKL.min()
-        ds.drop(ds.index[ds.dHKL < dmin], inplace=True)
 
         # Detect empirical wavelength range
         wavelength_key = self.wavelength_key
@@ -514,8 +509,14 @@ class LaueFormatter(DataFormatter):
         from careless.utils.laue import expand_harmonics
         ds = expand_harmonics(ds, dmin, wavelength_key)
 
+        # Populate the observed miller indices 
+        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
+
+        # apply dmin
+        ds.drop(ds.index[ds.dHKL < dmin], inplace=True)
+        
         # Filter by wavelength
-        idx = (ds[wavelength_key] <= lam_min) | (ds[wavelength_key] >= lam_max)
+        idx = (ds[wavelength_key] < lam_min) | (ds[wavelength_key] > lam_max)
         ds.drop(ds.index[idx], inplace=True)
 
         # Systematic absences
