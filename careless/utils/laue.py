@@ -62,13 +62,14 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
 
     #This is where we make the indices to expand
     #each harmonic the appropriate number of times given dmin
-    n = np.arange(1, n_max.max() + 2)
-    idx,n = np.where(n <= n_max[:,None])
+    n = np.arange(n_max.max()) + 1
+    idx,n = np.where(n[None,:] <= n_max[:,None])
     n = n + 1
     #idx are the indices for expansion and n is the corresponding
     #set of harmonic integers
 
     ds = ds.iloc[idx]
+    ds.reset_index(inplace=True, drop=True)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0[idx].T
     ds['dHKL'] = (d_0[idx] / n)
     ds[wavelength_key] = (Wavelength_0[idx] / n)
