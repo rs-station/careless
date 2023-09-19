@@ -576,6 +576,7 @@ class LaueFormatter(DataFormatter):
             A collection of reciprocal asus to aid in intepreting results.
         """
         data = data.copy() #This is maybe overkill
+        data.reset_index(inplace=True, drop=True)
         data['harmonic_id'] = data.groupby(['image_id', 'H_0', 'K_0', 'L_0']).ngroup()
 
         data['dHKL'] = data.dHKL**-2.
@@ -595,10 +596,10 @@ class LaueFormatter(DataFormatter):
             data.get_hkls(),
             )
 
-        iobs  = data[['harmonic_id',   'intensity']].groupby('harmonic_id').first().to_numpy('float32')
-        sigma = data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32')
-        iobs  = np.pad( iobs, [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
-        sigma = np.pad(sigma, [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
+        _,idx = np.unique(data['harmonic_id'], return_index=True)
+        iobs,sigma = data[['intensity', 'uncertainty']].to_numpy('float32')[idx].T
+        iobs  = np.pad( iobs[:,None], [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
+        sigma = np.pad(sigma[:,None], [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
 
         inputs = {
             'refl_id'   : refl_id[:,None],
