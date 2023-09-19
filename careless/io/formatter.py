@@ -512,9 +512,6 @@ class LaueFormatter(DataFormatter):
         # Populate the observed miller indices 
         ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
 
-        # apply dmin
-        ds.drop(ds.index[ds.dHKL < dmin], inplace=True)
-        
         # Filter by wavelength
         idx = (ds[wavelength_key] < lam_min) | (ds[wavelength_key] > lam_max)
         ds.drop(ds.index[idx], inplace=True)
