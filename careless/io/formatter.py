@@ -490,16 +490,11 @@ class LaueFormatter(DataFormatter):
         # Avoid non-unique MultiIndex complications
         ds.reset_index(inplace=True)
 
-        # Populate the observed miller indices before
-        # expanding harmonics
-        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
-
         # Resolution cutoff
-        ds.compute_dHKL(inplace=True) 
+        ds.compute_dHKL(inplace=True)
         dmin = self.dmin
         if dmin is None:
             dmin = ds.dHKL.min()
-        ds.drop(ds.index[ds.dHKL < dmin], inplace=True)
 
         # Detect empirical wavelength range
         wavelength_key = self.wavelength_key
@@ -514,8 +509,11 @@ class LaueFormatter(DataFormatter):
         from careless.utils.laue import expand_harmonics
         ds = expand_harmonics(ds, dmin, wavelength_key)
 
+        # Populate the observed miller indices 
+        ds.loc[:,['Hobs', 'Kobs', 'Lobs']] = ds.get_hkls()
+
         # Filter by wavelength
-        idx = (ds[wavelength_key] <= lam_min) | (ds[wavelength_key] >= lam_max)
+        idx = (ds[wavelength_key] < lam_min) | (ds[wavelength_key] > lam_max)
         ds.drop(ds.index[idx], inplace=True)
 
         # Systematic absences
@@ -578,6 +576,7 @@ class LaueFormatter(DataFormatter):
             A collection of reciprocal asus to aid in intepreting results.
         """
         data = data.copy() #This is maybe overkill
+        data.reset_index(inplace=True, drop=True)
         data['harmonic_id'] = data.groupby(['image_id', 'H_0', 'K_0', 'L_0']).ngroup()
 
         data['dHKL'] = data.dHKL**-2.
@@ -597,10 +596,10 @@ class LaueFormatter(DataFormatter):
             data.get_hkls(),
             )
 
-        iobs  = data[['harmonic_id',   'intensity']].groupby('harmonic_id').first().to_numpy('float32')
-        sigma = data[['harmonic_id', 'uncertainty']].groupby('harmonic_id').first().to_numpy('float32')
-        iobs  = np.pad( iobs, [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
-        sigma = np.pad(sigma, [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
+        _,idx = np.unique(data['harmonic_id'], return_index=True)
+        iobs,sigma = data[['intensity', 'uncertainty']].to_numpy('float32')[idx].T
+        iobs  = np.pad( iobs[:,None], [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
+        sigma = np.pad(sigma[:,None], [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
 
         inputs = {
             'refl_id'   : refl_id[:,None],

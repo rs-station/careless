@@ -129,7 +129,9 @@ class DataManager():
             'image_id'    : rs.DataSeries(image_id, dtype='I'),
             'file_id'     : rs.DataSeries(file_id, dtype='I'),
             'test'        : rs.DataSeries(test_value * np.ones_like(h), dtype='I'),
-        }, merged=False).groupby('harmonic_id').first().reset_index()
+        }, merged=False)
+        _,idx = np.unique(output.harmonic_id, return_index=True)
+        output = output.loc[idx].reset_index(drop=True)
         del(output['harmonic_id'])
 
         iobs = BaseModel.get_intensities(inputs).flatten()

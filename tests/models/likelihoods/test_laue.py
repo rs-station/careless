@@ -66,7 +66,7 @@ def test_laue_LaplaceLikelihood(laue_inputs):
     likelihood.convolve(ipred).numpy()
     test = likelihood.log_prob(ipred).numpy()
     test = test[:,:nobs]
-    assert np.array_equiv(expected, test)
+    assert np.allclose(expected, test)
 
 
 
