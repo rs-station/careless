@@ -3,6 +3,7 @@ import reciprocalspaceship as rs
 from tempfile import TemporaryDirectory
 from careless.careless import run_careless
 from os.path import exists
+from careless.parser import parser
 
 niter = 10
 
@@ -10,34 +11,32 @@ def base_test_separate(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
         command = flags +  f" --separate-files {' '.join(filenames)} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
         for i,in_file in enumerate(filenames):
             out_file = out + f"_{i}.mtz"
             assert exists(out_file)
             in_ds = rs.read_mtz(in_file)
             out_ds = rs.read_mtz(out_file)
             assert in_ds.spacegroup == out_ds.spacegroup
-            if parser.dmin is not None:
-                assert out_ds.compute_dHKL().dHKL.min() >= parser.dmin
-            if parser.anomalous:
+            if parser_instance.dmin is not None:
+                assert out_ds.compute_dHKL().dHKL.min() >= parser_instance.dmin
+            if parser_instance.anomalous:
                 assert 'F(+)' in out_ds
 
 def base_test_together(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
         command = flags +  f" {' '.join(filenames)} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
         out_ds = rs.read_mtz(out_file)
-        if parser.dmin is not None:
-            assert out_ds.compute_dHKL().dHKL.min() >= parser.dmin
-        if parser.anomalous:
+        if parser_instance.dmin is not None:
+            assert out_ds.compute_dHKL().dHKL.min() >= parser_instance.dmin
+        if parser_instance.anomalous:
             assert 'F(+)' in out_ds
 
 @pytest.mark.parametrize("ev11", [True, False])
@@ -81,9 +80,8 @@ def test_scale_weight_save_and_load(off_file):
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
@@ -91,9 +89,8 @@ def test_scale_weight_save_and_load(off_file):
         flags = flags + f" --scale-file={out}_scale"
         out = td + '/out_reloaded'
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
@@ -106,9 +103,8 @@ def test_structure_factor_save_and_load(off_file):
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
@@ -116,9 +112,8 @@ def test_structure_factor_save_and_load(off_file):
         flags = flags + f" --structure-factor-file={out}_structure_factor"
         out = td + '/out_reloaded'
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
@@ -128,9 +123,8 @@ def test_freeze_structure_factor(off_file):
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} --freeze-structure-factors dHKL,image_id"
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
@@ -141,9 +135,8 @@ def test_freeze_scales(off_file):
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} --freeze-scales dHKL,image_id"
         command = flags +  f" {off_file} {out}"
-        from careless.parser import parser
-        parser = parser.parse_args(command.split())
-        run_careless(parser)
+        parser_instance = parser.parse_args(command.split())
+        run_careless(parser_instance)
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
