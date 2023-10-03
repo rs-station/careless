@@ -1,7 +1,6 @@
 import pytest
 import reciprocalspaceship as rs
 from tempfile import TemporaryDirectory
-from careless.careless import run_careless
 from os.path import exists
 from careless.parser import parser
 import tensorflow as tf
@@ -12,10 +11,9 @@ niter = 10
 def base_test_separate(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
-        flags = flags +  f" --separate-files {' '.join(filenames)} {out}"
-        command = 'careless '  + flags
+        command = 'careless ' + flags +  f" --separate-files {' '.join(filenames)} {out}"
         call(command.split())
-        parser_instance = parser.parse_args(flags.split())
+        parser_instance = parser.parse_args(command.split()[1:])
         for i,in_file in enumerate(filenames):
             out_file = out + f"_{i}.mtz"
             assert exists(out_file)
@@ -30,10 +28,9 @@ def base_test_separate(flags, filenames):
 def base_test_together(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
-        flags = flags +  f" {' '.join(filenames)} {out}"
-        command = 'careless ' + flags
+        command = 'careless ' +  flags +  f" {' '.join(filenames)} {out}"
         call(command.split())
-        parser_instance = parser.parse_args(flags.split())
+        parser_instance = parser.parse_args(command.split()[1:])
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
@@ -83,18 +80,20 @@ def test_scale_weight_save_and_load(off_file):
     with TemporaryDirectory() as td:
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
         flags = flags + f" --scale-file={out}_scale"
         out = td + '/out_reloaded'
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
+
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
@@ -106,18 +105,18 @@ def test_structure_factor_save_and_load(off_file):
     with TemporaryDirectory() as td:
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
         flags = flags + f" --structure-factor-file={out}_structure_factor"
         out = td + '/out_reloaded'
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
@@ -126,9 +125,9 @@ def test_freeze_structure_factor(off_file):
     with TemporaryDirectory() as td:
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} --freeze-structure-factors dHKL,image_id"
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
@@ -138,9 +137,9 @@ def test_freeze_scales(off_file):
     with TemporaryDirectory() as td:
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} --freeze-scales dHKL,image_id"
-        command = flags +  f" {off_file} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        command = 'careless ' + flags +  f" {off_file} {out}"
+        parser_instance = parser.parse_args(command.split()[1:])
+        call(command.split())
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
