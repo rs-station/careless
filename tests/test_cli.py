@@ -1,10 +1,26 @@
 import pytest
 import reciprocalspaceship as rs
 from tempfile import TemporaryDirectory
-from careless.careless import run_careless
+from careless.careless import run_careless as _run_careless
 from os.path import exists
+import multiprocessing
 
 niter = 10
+# True will use multiprocessing to bypass the tf memory leak issue,
+# but it may result in less verbose error messages.
+use_mp = True
+
+def run_careless(parser):
+    """
+    Workaround for tensorflow memory leak.
+    see: https://github.com/tensorflow/tensorflow/issues/36465
+    """
+    if use_mp:
+        proc = multiprocessing.Process(target=_run_careless, args=(parser,))
+        proc.start()
+        proc.join()
+    else:
+        _run_careless(parser)
 
 def base_test_separate(flags, filenames):
     with TemporaryDirectory() as td:
@@ -70,7 +86,7 @@ def test_twofile(off_file, on_file, on_file_alt_sg, ev11, dmin, anomalous, isigi
         base_test_together(flags, [off_file, on_file])
 
 def test_crystfel(stream_file):
-    flags = f"mono --iterations={niter} --spacegroups=1 dHKL,image_id"
+    flags = f"mono --disable-gpu --iterations={niter} --spacegroups=1 dHKL,image_id"
     base_test_together(flags, [stream_file])
 
 def test_scale_weight_save_and_load(off_file):
