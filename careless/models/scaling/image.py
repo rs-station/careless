@@ -5,6 +5,27 @@ import tensorflow_probability as tfp
 import numpy as np
 
 
+class DeltaFunction(object):
+    def __init__(self, x, bijector=None):
+        self.x = tf.squeeze(x, -1)
+        self.bijector = bijector
+        if self.bijector is None:
+            self.bijector = tfp.bijectors.Exp()
+
+    def sample(self, size):
+        return self.x[None,:]
+
+    def stddev(self):
+        return tf.zeros_like(self.x)
+
+    def mean(self):
+        return self.x
+
+class DeltaFunctionLayer(tf.keras.layers.Layer):
+    def call(self, x):
+        return DeltaFunction(x)
+
+
 class ImageScaler(Scaler):
     """
     Simple linear image scales. Average value pegged at 1.
@@ -23,7 +44,7 @@ class ImageScaler(Scaler):
     def scales(self):
         return tf.concat(([1.], self._scales), axis=-1)
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """
         Parameters
         ----------
@@ -49,7 +70,7 @@ class HybridImageScaler(Scaler):
         self.mlp_scaler = mlp_scaler
         self.image_scaler = image_scaler
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """
         Parameters
         ----------
@@ -86,7 +107,7 @@ class ImageLayer(Scaler):
             trainable=True,
         )
 
-    def call(self, metadata_and_image_id, *args, **kwargs):
+    def call(self, metadata_and_image_id, **kwargs):
         data,image_id = metadata_and_image_id
         image_id = tf.squeeze(image_id)
         w = tf.gather(self.w, image_id, axis=0)
@@ -97,31 +118,92 @@ class ImageLayer(Scaler):
 class NeuralImageScaler(Scaler):
     def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7):
         super().__init__()
-        layers = []
-        if leakiness is None:
-            activation = 'ReLU'
+        self.image_layers = image_layers
+
+        from careless.models.scaling.nn import MLP
+        self.mlp_1 = MLP(mlp_layers, mlp_width, leakiness)
+        self.mlp_2 = MLP(mlp_layers, mlp_width, leakiness)
+        self.distribution = tf.keras.Sequential([
+            tf.keras.layers.Dense(1),
+            DeltaFunctionLayer(),
+        ])
+
+    def _image_rep(self, imodel, isigi, metadata, image_id, samples=None):
+        if samples is None:
+            samples = self.image_layers
+
+        n = tf.reduce_max(image_id) + 1
+        n = tf.cast(n, 'int32')
+        c = tf.math.bincount(tf.squeeze(tf.cast(image_id, 'int32'), axis=-1))
+        c = tf.math.bincount(tf.squeeze(tf.cast(image_id, 'int32'), axis=-1))
+        p = 1 / tf.cast(c, 'float32')
+        p = tf.repeat(p, c)
+        l = tf.keras.backend.shape(p)[-1]
+        idx = tf.where(samples * p >= tf.random.uniform((l,)))
+        idx = tf.squeeze(idx, -1)
+
+        image_id = tf.gather(image_id, idx)
+        out = tf.concat((
+            imodel,
+            isigi,
+            metadata,
+        ), axis=-1)
+        out = tf.gather(out, idx)
+        out = self.mlp_1(out)
+        d = tf.keras.backend.shape(out)[-1]
+        out = tf.scatter_nd(image_id, out, (n, d)) / samples
+        return out
+
+
+    def _call_laue(self, inputs, surrogate_posterior):
+        metadata = self.get_metadata(inputs)
+        image_id = self.get_image_id(inputs)
+        refl_id = self.get_refl_id(inputs)
+        harmonic_id = self.get_harmonic_id(inputs)
+        isigi = tf.concat((
+            self.get_intensities(inputs),
+            self.get_uncertainties(inputs),
+        ), axis=-1)
+        isigi = tf.gather(isigi, tf.squeeze(harmonic_id, axis=-1))
+        f = surrogate_posterior.mean()[:,None]
+        sigf = surrogate_posterior.stddev()[:,None]
+        imodel = tf.concat((
+            f,
+            sigf,
+            tf.square(f) + tf.square(sigf)
+        ), axis=-1)
+        imodel = tf.gather(imodel, tf.squeeze(refl_id, -1))
+        image_rep = self._image_rep(imodel, isigi, metadata, image_id)
+        out = self.mlp_2(metadata)
+        out = out + tf.gather(image_rep, tf.squeeze(image_id, axis=-1))
+        return self.distribution(out)
+
+
+    def _call_mono(self, inputs, surrogate_posterior):
+        metadata = self.get_metadata(inputs)
+        image_id = self.get_image_id(inputs)
+        refl_id = self.get_refl_id(inputs)
+        isigi = tf.concat((
+            self.get_intensities(inputs),
+            self.get_uncertainties(inputs),
+        ), axis=-1)
+        f = surrogate_posterior.mean()[:,None]
+        sigf = surrogate_posterior.stddev()[:,None]
+        imodel = tf.concat((
+            f,
+            sigf,
+            tf.square(f) + tf.square(sigf)
+        ), axis=-1)
+        imodel = tf.gather(imodel, tf.squeeze(refl_id, -1))
+        image_rep = self._image_rep(imodel, isigi, metadata, image_id)
+        out = self.mlp_2(metadata)
+        out = out + tf.gather(out, tf.squeeze(image_id, axis=-1))
+        out = out + tf.gather(image_rep, tf.squeeze(image_id, axis=-1))
+        return self.distribution(out)
+
+    def call(self, inputs, surrogate_posterior, **kwargs):
+        if self.is_laue(inputs):
+            return self._call_laue(inputs, surrogate_posterior)
         else:
-            activation = tf.keras.layers.LeakyReLU(leakiness)
-
-        for i in range(image_layers):
-            layers.append(
-                ImageLayer(mlp_width, max_images, activation)
-            )
-
-        self.image_layers = layers
-        from careless.models.scaling.nn import MetadataScaler
-        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon)
-
-    def call(self, inputs):
-        result = self.get_metadata(inputs)
-        image_id = self.get_image_id(inputs),
-
-        result = self.metadata_scaler.network(result)
-        # One could use this line to add a skip connection here
-        #result = result + self.get_metadata(inputs)
-
-        for layer in self.image_layers:
-            result = layer((result, image_id))
-        result = self.metadata_scaler.distribution(result)
-        return result
+            return self._call_mono(inputs, surrogate_posterior)
 

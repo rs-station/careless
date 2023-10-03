@@ -65,7 +65,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         """
         refl_id = self.get_refl_id(inputs)
 
-        scale_dist = self.scaling_model(inputs)
+        scale_dist = self.scaling_model(inputs, surrogate_posterior=self.surrogate_posterior)
         mean = scale_dist.mean().numpy()
         stddev = scale_dist.stddev().numpy()
 
@@ -97,7 +97,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         refl_id = self.get_refl_id(inputs)
         #Let's actually return the expected value of the data under the current model
         #This is <F**2.>
-        scale_dist = self.scaling_model(inputs)
+        scale_dist = self.scaling_model(inputs, surrogate_posterior=self.surrogate_posterior)
         f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
         iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
         iexp = iexp.numpy()
@@ -154,7 +154,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         """
         z_f = self.surrogate_posterior.sample(self.mc_sample_size)
 
-        scale_dist = self.scaling_model(inputs)
+        scale_dist = self.scaling_model(inputs, surrogate_posterior=self.surrogate_posterior)
         z_scale = scale_dist.sample(self.mc_sample_size)
 
         if self.scale_prior is not None:

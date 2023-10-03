@@ -23,6 +23,25 @@ class NormalLayer(tf.keras.layers.Layer):
         scale = self.scale_bijector(scale)
         return tfd.Normal(loc, scale)
 
+class MLP(tf.keras.Sequential):
+    def __init__(self, n_layers, width, leakiness=0.01):
+        layers = []
+        if leakiness is None:
+            activation = tf.keras.layers.ReLU()
+        else:
+            activation = tf.keras.layers.LeakyReLU(leakiness)
+        for i in range(n_layers):
+            layers.append(
+                tf.keras.layers.Dense(
+                    width, 
+                    activation=activation, 
+                    use_bias=True, 
+                    kernel_initializer='identity'
+                    )
+                )
+        super().__init__(layers)
+
+
 class MetadataScaler(Scaler):
     """
     Neural network based scaler with simple dense layers.
@@ -78,7 +97,7 @@ class MetadataScaler(Scaler):
         self.network = tf.keras.Sequential(mlp_layers)
         self.distribution = tf.keras.Sequential(tfp_layers)
 
-    def call(self, metadata):
+    def call(self, metadata, **kwargs):
         """
         Parameters
         ----------
@@ -93,7 +112,7 @@ class MetadataScaler(Scaler):
 
 
 class MLPScaler(MetadataScaler):
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """
         Parameters
         ----------
