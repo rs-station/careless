@@ -4,15 +4,18 @@ from tempfile import TemporaryDirectory
 from careless.careless import run_careless
 from os.path import exists
 from careless.parser import parser
+import tensorflow as tf
+from subprocess import call
 
 niter = 10
 
 def base_test_separate(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
-        command = flags +  f" --separate-files {' '.join(filenames)} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        flags = flags +  f" --separate-files {' '.join(filenames)} {out}"
+        command = 'careless '  + flags
+        call(command.split())
+        parser_instance = parser.parse_args(flags.split())
         for i,in_file in enumerate(filenames):
             out_file = out + f"_{i}.mtz"
             assert exists(out_file)
@@ -27,9 +30,10 @@ def base_test_separate(flags, filenames):
 def base_test_together(flags, filenames):
     with TemporaryDirectory() as td:
         out = td + '/out'
-        command = flags +  f" {' '.join(filenames)} {out}"
-        parser_instance = parser.parse_args(command.split())
-        run_careless(parser_instance)
+        flags = flags +  f" {' '.join(filenames)} {out}"
+        command = 'careless ' + flags
+        call(command.split())
+        parser_instance = parser.parse_args(flags.split())
 
         out_file = out + f"_0.mtz"
         assert exists(out_file)
