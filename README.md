@@ -49,8 +49,7 @@ You may confirm GPU acceleration is active using the `nvidia-smi` command to mon
 
 ## Dependencies
 
-`careless` is likely to run on any operating system which is compatible with TensorFlow. 
-`careless` currently supports __Python 3.8 - 3.10__. 
+`careless` is likely to run on any operating system and python version which is compatible with TensorFlow. 
 Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
