@@ -71,8 +71,11 @@ def expand_harmonics(ds, dmin=None,  wavelength_key='Wavelength'):
     ds = ds.iloc[idx]
     ds.reset_index(inplace=True, drop=True)
     ds['H_0'],ds['K_0'],ds['L_0'] = H_0[idx].T
-    ds['dHKL'] = (d_0[idx] / n)
     ds[wavelength_key] = (Wavelength_0[idx] / n)
     ds['H'],ds['K'],ds['L'] = (n[:,None] * H_0[idx]).T
+
+    #Update dHKL using the cell and not harmonics
+    #d_0[idx] / n is not numerically precise enough
+    ds.compute_dHKL(inplace=True)
 
     return ds
