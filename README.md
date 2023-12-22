@@ -1,11 +1,10 @@
 # Careless 
 Merging crystallography data without much physics. 
 
-
 ![Build](https://github.com/rs-station/careless/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/rs-station/careless/branch/main/graph/badge.svg)](https://codecov.io/gh/rs-station/careless)
 [![PyPI](https://img.shields.io/pypi/v/careless?color=blue)](https://pypi.org/project/careless/)
-[![DOI](http://img.shields.io/badge/bioRxiv-10.1101/2021.01.05.425510-BD2736.svg)](https://doi.org/10.1101/2021.01.05.425510)
+[![DOI](http://img.shields.io/badge/nature_comms-purple.svg)](https://doi.org/10.1038/s41467-022-35280-8)
 
 ## Installation
 As described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions), it is best practice to install `careless` in a fresh [anaconda](https://www.anaconda.com/products/distribution) environment to avoid conflicts with previously installed dependencies. 
@@ -62,16 +61,15 @@ Pip will handle installation of all dependencies.
 `careless` does not require but may take advantage of various accelator cards supported by TensorFlow.
 
 ## Get Help
-For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
+For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. You can also consult the online documentation for a list of all available parameters.
 
-For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/rs-station/careless-examples)
+For usage examples and data from the [publication](https://doi.org/10.1038/s41467-022-35280-8), check out [careless-examples](https://github.com/rs-station/careless-examples)
 
 Still confused? File an [issue](https://github.com/rs-station/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
-
 ## Core Model
 
-![pgm](doc/figures/pgm.svg)
+![pgm](docs/figures/pgm.svg)
 
 `careless` uses approximate Bayesian inference to merge X-ray diffraction data. 
 The model which is implemented in `careless` tries to scale individual reflection observations such that they become consistent with a set of prior beliefs.

@@ -51,7 +51,10 @@ def run_analysis(parser):
     ds.write_mtz(parser.mtz_out)
 
 
+def parse_arguments():
+    return ArgumentParser()
+
 def main():
-    parser = ArgumentParser().parse_args()
-    run_analysis(parser)
+    run_analysis(parse_arguments().parse_args())
+
 

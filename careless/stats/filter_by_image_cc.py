@@ -118,7 +118,10 @@ def run_analysis(args):
         idx = (cc >= args.cc_cutoff)
         ds[idx].copy().write_mtz(out)
 
+def parse_arguments():
+    return ArgumentParser()
+
 def main():
-    parser = ArgumentParser().parse_args()
-    run_analysis(parser)
+    run_analysis(parse_arguments().parse_args())
+
 

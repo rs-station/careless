@@ -126,7 +126,10 @@ def run_analysis(args):
         plt.show()
 
 
+def parse_arguments():
+    return ArgumentParser()
+
 def main():
-    parser = ArgumentParser().parse_args()
-    run_analysis(parser)
+    run_analysis(parse_arguments().parse_args())
+
 

@@ -3,3 +3,6 @@
 .eggs/
 .vscode/
 *.swp
+
+docs/_build/*
+.DS_Store

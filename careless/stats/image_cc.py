@@ -112,7 +112,8 @@ def run_analysis(args):
     if args.show:
         plt.show()
 
-def main():
-    parser = ArgumentParser().parse_args()
-    run_analysis(parser)
+def parse_arguments():
+    return ArgumentParser()
 
+def main():
+    run_analysis(parse_arguments().parse_args())
