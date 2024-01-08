@@ -13,6 +13,13 @@ args_and_kwargs = (
         "default" : None,
     }),
 
+    (("--unitcell", ),  {
+        "help":"The unit cell parameters to use for merging. Currently only support a single unit"
+               "cell for all.",
+        "type":str,
+        "default" : None,
+    }),
+
     (("--image-key", ),  {
         "help":"The name of the key indicating image number for each data set. "
                "If no key is given, careless will use the first key with the BATCH dtype.",

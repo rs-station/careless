@@ -3,3 +3,5 @@
 .eggs/
 .vscode/
 *.swp
+.coverage
+coverage.xml
