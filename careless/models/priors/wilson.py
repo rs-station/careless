@@ -6,6 +6,7 @@ from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow as tf
 import numpy as np
+from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 
 class Centric(tfd.HalfNormal, Prior):
@@ -86,6 +87,7 @@ class DoubleWilsonPrior(Prior):
             Either a list with the same length as parents or an array that is length == len(asu_collection.lookup_table)
         sigma : float or array
         """
+        self.asu_collection = asu_collection
         self.parents = parents
         self.r_values = r_values
         reflids = []
@@ -136,7 +138,14 @@ class DoubleWilsonPrior(Prior):
         return self.wilson_prior.stddev()
 
     def log_prob(self, z):
-        z_parent = tf.gather(z, self.reflids, axis=-1)
+        mask = self.reflids >= 0
+        sanitized_reflids = tf.where(mask, self.reflids, 0)
+        z_parent = tf.where(
+            mask[None,:], 
+            tf.gather(z, sanitized_reflids, axis=-1),
+            0.,
+        )
+
         loc = tf.where(
             self.absent, 
             0.,
