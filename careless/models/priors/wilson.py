@@ -6,7 +6,6 @@ from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow as tf
 import numpy as np
-from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 
 class Centric(tfd.HalfNormal, Prior):
