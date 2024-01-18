@@ -136,7 +136,14 @@ class DoubleWilsonPrior(Prior):
         return self.wilson_prior.stddev()
 
     def log_prob(self, z):
-        z_parent = tf.gather(z, self.reflids, axis=-1)
+        mask = self.reflids >= 0
+        sanitized_reflids = tf.where(mask, self.reflids, 0)
+        z_parent = tf.where(
+            mask[None,:], 
+            tf.gather(z, sanitized_reflids, axis=-1),
+            0.,
+        )
+
         loc = tf.where(
             self.absent, 
             0.,
