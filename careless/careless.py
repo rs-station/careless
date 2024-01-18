@@ -68,9 +68,10 @@ def run_careless(parser):
 
     model.surrogate_posterior.save_weights(parser.output_base + '_structure_factor')
     model.scaling_model.save_weights(parser.output_base + '_scale')
-    import pickle
-    with open(parser.output_base + "_data_manager.pickle", "wb") as out:
-        pickle.dump(dm, out)
+    if parser.save_data_manager:
+        import pickle
+        with open(parser.output_base + "_data_manager.pickle", "wb") as out:
+            pickle.dump(dm, out)
 
     predictions_data = None
     if test is not None:

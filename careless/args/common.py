@@ -52,4 +52,11 @@ args_and_kwargs = (
         "action" : "store_true",
         "default" : False,
     }),
+
+    (("--save-data-manager", ),  {
+        "help":"Optionally save the data manager object in pickle format.",
+        "action" : "store_true",
+        "default" : False,
+    }),
+    
 )
