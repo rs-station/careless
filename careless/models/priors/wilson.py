@@ -86,7 +86,6 @@ class DoubleWilsonPrior(Prior):
             Either a list with the same length as parents or an array that is length == len(asu_collection.lookup_table)
         sigma : float or array
         """
-        self.asu_collection = asu_collection
         self.parents = parents
         self.r_values = r_values
         reflids = []
