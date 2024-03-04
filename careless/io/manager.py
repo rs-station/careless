@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import reciprocalspaceship as rs
+import gemmi
 from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
 from careless.models.priors.wilson import WilsonPrior,DoubleWilsonPrior
@@ -411,7 +412,12 @@ class DataManager():
             parents = [None if i == 'None' else int(i) for i in parents.split(',')]
             r_values = [float(i) for i in r_values.split(',')]
             sigma = self.get_wilson_sigma(parser.wilson_prior_b)
-            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, sigma=sigma)
+            reindexing_ops = parser.reindexing_ops
+            if reindexing_ops is not None:
+                delim = None #Whitespace
+                reindexing_ops = [gemmi.Op(i) for i in reindexing_ops.split(delim)]
+
+            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, reindexing_ops, sigma=sigma)
 
         loc,scale = prior.mean(),prior.stddev()
         scale = scale * parser.structure_factor_init_scale
