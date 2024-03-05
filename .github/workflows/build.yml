@@ -35,7 +35,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install "pytest<8"
-        conda env list
     
     - name: Test with pytest
       run: |
