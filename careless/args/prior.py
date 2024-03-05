@@ -48,7 +48,7 @@ args_and_kwargs = (
     (
         ("--double-wilson-reindexing-ops",),
         {
-            "help": 'Provide semicolon-delimited reindexing operators to remap miller indices from the child ASU to the parent. For root nodes or nodes with parents in the same setting, supply the identity operator x,y,z. For example --double-wilson-reindexing-ops=x,y,z;x-y,x,z+1/2.',
+            "help": 'Provide semicolon-delimited reindexing operators to remap miller indices from the child ASU to the parent. For root nodes or nodes with parents in the same setting, supply the identity operator x,y,z. For example --double-wilson-reindexing-ops="x,y,z;x-y,x,z+1/2". Note that quotations should be used in some circumstances to prevent bash from interpretting the semicolons.',
             "type": str,
             "default": None,
             "dest": "reindexing_ops",
