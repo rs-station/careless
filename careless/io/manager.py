@@ -414,7 +414,7 @@ class DataManager():
             sigma = self.get_wilson_sigma(parser.wilson_prior_b)
             reindexing_ops = parser.reindexing_ops
             if reindexing_ops is not None:
-                delim = None #Whitespace
+                delim = ';'
                 reindexing_ops = [gemmi.Op(i) for i in reindexing_ops.split(delim)]
 
             prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, reindexing_ops, sigma=sigma)
