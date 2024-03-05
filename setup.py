@@ -67,5 +67,5 @@ setup(
         ]
     },
     setup_requires=["pytest-runner"],
-    tests_require=["pytest", "pytest-cov", "pytest-xdist>=3"],
+    tests_require=["pytest<8", "pytest-cov", "pytest-xdist>=3"],
 )
