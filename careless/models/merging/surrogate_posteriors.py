@@ -5,12 +5,13 @@ from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 from tensorflow_probability.python.internal import tensor_util
 import tensorflow as tf
+import tf_keras as tfk
 import numpy as np
 
-class SurrogatePosterior(tf.keras.models.Model):
+class SurrogatePosterior(tfk.models.Model):
     """ The base class for learnable variational distributions over structure factor amplitudes. """
     def __init__(self, distribution, **kwargs):
-        super().__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.distribution = distribution
 
     def sample(self, *args, **kwargs):

@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tf_keras as tfk
 import reciprocalspaceship as rs
 from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
@@ -453,7 +454,7 @@ class DataManager():
         from tensorflow_probability import distributions as tfd
         model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples, kl_weight=parser.kl_weight)
 
-        opt = tf.keras.optimizers.Adam(
+        opt = tfk.optimizers.Adam(
             parser.learning_rate,
             parser.beta_1,
             parser.beta_2,

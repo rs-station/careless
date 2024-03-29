@@ -1,4 +1,5 @@
 from careless.models.likelihoods.base import Likelihood
+import tf_keras as tfk
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import util as tfu
@@ -76,18 +77,18 @@ class NeuralLikelihood(Likelihood):
 
         layers = []
         for _ in range(mlp_layers):
-            layer = tf.keras.layers.Dense(
+            layer = tfk.layers.Dense(
                 mlp_width,
-                activation=tf.keras.layers.LeakyReLU(),
+                activation=tfk.layers.LeakyReLU(),
             )
             layers.append(layer)
 
-        layer = tf.keras.layers.Dense(
+        layer = tfk.layers.Dense(
             1,
             activation='softplus',
         )
         layers.append(layer)
-        self.network = tf.keras.models.Sequential(layers)
+        self.network = tfk.models.Sequential(layers)
 
     def base_dist(self, loc, scale):
         raise NotImplementedError("extensions of this class must implement a base_dist(loc, scale) method")
