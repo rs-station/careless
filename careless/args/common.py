@@ -32,7 +32,7 @@ args_and_kwargs = (
         "help":"A floating point number usually between 0 and 1. The width of the initial structure factor distribution is this times" 
                "the standard deviation of the prior distribution. The default is 1.0. ",
         "type": float, 
-        "default" : 1.0,
+        "default" : 0.01,
     }),
 
     (("--epsilon",), {

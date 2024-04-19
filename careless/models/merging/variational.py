@@ -1,6 +1,5 @@
 from careless.models.base import BaseModel
 from careless.utils.shame import sanitize_tensor
-from careless.models.merging.surrogate_posteriors import TruncatedNormal
 from tensorflow.python.keras.engine import data_adapter
 from tqdm.autonotebook import tqdm
 import tensorflow_probability as tfp
@@ -135,8 +134,10 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         else:
             kl_div = reduction(kl_div)
 
-        self.add_loss(weight * kl_div)
         self.add_metric(kl_div, name=name)
+        if weight is not None:
+            kl_div = weight * kl_div
+        self.add_loss(kl_div)
         return kl_div
 
     def call(self, inputs):
@@ -159,7 +160,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         if self.scale_prior is not None:
             if self.scale_kl_weight is None:
-                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=self.scale_kl_weight, reduction='sum', name="Σ KLDiv")
+                self.add_kl_div(scale_dist, self.scale_prior, z_scale, reduction='sum', name="Σ KLDiv")
             else:
                 self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=1., reduction='mean', name="Σ KLDiv")
 
@@ -191,33 +192,56 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         data = data_adapter.expand_1d(data)
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
         # Run forward pass.
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
             y_pred = self(x, training=True)
             loss = self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
 
-        # Run backwards pass.
-        grads = tape.gradient(loss, self.trainable_variables)
+        metrics = {}
+        grad_norm = 0.
+        scale_vars = self.scaling_model.trainable_variables
+        grad_scale = tape.gradient(loss, scale_vars)
+        grad_s_norm = tf.linalg.global_norm(grad_scale)
+        metrics["|∇s|"] = grad_s_norm
+        grad_norm += grad_s_norm * grad_s_norm
 
-        # Compute the L2 norm of the gradients
-        grad_norm = tf.linalg.global_norm(grads)
+        q_vars = self.surrogate_posterior.trainable_variables
+        grad_q= tape.gradient(loss, q_vars)
+        grad_q_norm = tf.linalg.global_norm(grad_q)
+        metrics["|∇q|"] = grad_q_norm
+        grad_norm += grad_q_norm * grad_q_norm
 
-        # Only apply gradients if they are valid
-        if tf.math.is_finite(grad_norm):
-            self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
+        trainable_vars = scale_vars + q_vars 
+
+        gradients = grad_scale + grad_q 
+
+        ll_vars = self.likelihood.trainable_variables
+        if len(ll_vars) > 0:
+            grad_ll = tape.gradient(loss, ll_vars)
+            grad_ll_norm = tf.linalg.global_norm(grad_ll)
+            trainable_vars += ll_vars
+            gradients += grad_ll
+            metrics["|∇ll|"] = grad_ll_norm
+            grad_norm += grad_ll_norm * grad_ll_norm
+
+        is_sane = tf.reduce_all([tf.reduce_all(tf.math.is_finite(g)) for g in gradients])
+        metrics['Grad Norm'] = tf.sqrt(grad_norm)
+
+        if is_sane:
+            # Update weights
+            self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        else:
+            tf.print("Numerical issue detected with gradients, skipping a step")
 
         self.compiled_metrics.update_state(y, y_pred, sample_weight)
         # Collect metrics to return
-        return_metrics = {
-            "Grad Norm" : grad_norm,
-        }
         for metric in self.metrics:
             result = metric.result()
             if isinstance(result, dict):
-                return_metrics.update(result)
+                metrics.update(result)
             else:
-                return_metrics[metric.name] = result
+                metrics[metric.name] = result
 
-        return return_metrics
+        return metrics
 
     def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True):
         """
@@ -239,7 +263,8 @@ class VariationalMergingModel(tfk.Model, BaseModel):
         if not self._run_eagerly:
             train_step = tf.function(train_step, reduce_retracing=True)
 
-        if validation_data is not None:
+        val_scale = 1.
+        if validation_data is not None and self.kl_weight is None:
             val_scale = len(data[0]) / len(validation_data[0])
 
         history = {}
@@ -252,11 +277,18 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 if i%validation_frequency==0:
                     validation_metrics = self.test_on_batch(validation_data, return_dict=True)
                 _history['NLL_val'] = val_scale * validation_metrics['NLL']
+                _history['loss_val'] = val_scale * validation_metrics['loss']
 
             pf = {}
+            pbar_metrics = [
+                'loss',
+                'NLL',
+                'NLL_val',
+            ]
             for k,v in _history.items():
                 v = float(v)
-                pf[k] = format_string.format(v)
+                if k in pbar_metrics:
+                    pf[k] = format_string.format(v)
                 if k not in history:
                     history[k] = []
                 history[k].append(v)

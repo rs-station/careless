@@ -16,10 +16,7 @@ def run_careless(parser):
     from careless.io.manager import DataManager
     from careless.io.formatter import MonoFormatter,LaueFormatter
     from careless.models.base import BaseModel
-    from careless.models.merging.surrogate_posteriors import TruncatedNormal
     from careless.models.merging.variational import VariationalMergingModel
-    from careless.models.scaling.image import HybridImageScaler,ImageScaler
-    from careless.models.scaling.nn import MLPScaler
 
     if parser.type == 'poly':
         df = LaueFormatter.from_parser(parser)

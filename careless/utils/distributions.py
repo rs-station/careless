@@ -297,77 +297,214 @@ class Rice(tfd.Distribution):
     def stddev(self):
         return tf.math.sqrt(self.variance())
 
-class FoldedNormal(tfd.TransformedDistribution):
+import tensorflow as tf
+from tensorflow.python.ops import array_ops
+from tensorflow_probability.python.internal import dtype_util
+from tensorflow_probability.python.internal import special_math
+from tensorflow_probability import distributions as tfd
+from tensorflow_probability.python.internal import reparameterization
+from tensorflow_probability.python.internal import prefer_static as ps
+import numpy as np
+from tensorflow_probability.python.bijectors import exp as exp_bijector
+from tensorflow_probability.python.bijectors import absolute_value as abs_bijector
+from tensorflow_probability.python.internal import parameter_properties
+from tensorflow_probability.python.internal import samplers
+from tensorflow_probability import math as tfm
+from tensorflow_probability.python.internal import tensor_util
+
+def _logspace_sample_gradients(z, loc, scale):
+    alpha_sign,log_alpha = tf.sign(z + loc), tf.math.log(tf.abs(z + loc)) - tf.math.log(scale)
+    beta_sign,log_beta = tf.sign(z - loc), tf.math.log(tf.abs(z - loc)) - tf.math.log(scale)
+
+    log_p_a = tfd.Normal(loc, scale).log_prob(z)   #N(z|loc,scale)
+    log_p_b = tfd.Normal(-loc, scale).log_prob(z)  #N(z|-loc,scale)
+
+    # This formula is dz = N(z|-loc,scale) + N(z|loc,scale)
+    log_dz = tfp.math.log_add_exp(log_p_a, log_p_b)
+
+    # This formula is dloc = N(z|-loc,scale) - N(z|loc,scale)
+    log_dloc,dloc_sign = tfp.math.log_sub_exp(log_p_b, log_p_a, return_sign=True)
+    # dloc = dloc / dz
+    dloc = dloc_sign * tf.exp(log_dloc - log_dz)
+
+    # This formula is -[b * N(z|-loc, scale) + a * N(z|loc, scale)]
+    dscale = -alpha_sign * tf.exp(log_alpha + log_p_b - log_dz) - beta_sign * tf.exp(log_beta + log_p_a - log_dz)
+    return dloc, dscale
+    #return log_dz, dloc, dscale
+
+def _sample_gradients(z, loc, scale):
+    alpha = (z + loc) / scale
+    beta = (z - loc) / scale
+
+    p_a = tfd.Normal(loc, scale).prob(z)   #N(z|loc,scale)
+    p_b = tfd.Normal(-loc, scale).prob(z)  #N(z|-loc,scale)
+
+    # This formula is dz = N(z|-loc,scale) + N(z|loc,scale)
+    dz = p_a + p_b
+
+    # This formula is dloc = N(z|-loc,scale) - N(z|loc,scale)
+    dloc = p_b - p_a
+    dloc = dloc / dz
+
+    # This formula is -[b * N(z|-loc, scale) + a * N(z|loc, scale)]
+    dscale = -alpha * p_b - beta * p_a
+    dscale = dscale / dz
+    return dloc, dscale
+
+
+def sample_gradients(z, loc, scale, logspace=True):
+    if logspace:
+        return _logspace_sample_gradients(z, loc, scale)
+    return _sample_gradients(z, loc, scale)
+
+@tf.custom_gradient
+def stateless_folded_normal(shape, loc, scale, seed):
+    z = tf.random.stateless_normal(shape, seed, mean=loc, stddev=scale)
+    z = tf.abs(z)
+    def grad(upstream):
+        grads = sample_gradients(z, loc, scale)
+        dloc,dscale = grads[0], grads[1]
+        dloc = tf.reduce_sum(-upstream * dloc, axis=0)
+        dscale = tf.reduce_sum(-upstream * dscale, axis=0)
+        return None, dloc, dscale, None
+    return z, grad
+
+class FoldedNormal(tfd.Distribution):
+    """The folded normal distribution."""
     def __init__(self,
-		   loc,
-		   scale,
-		   validate_args=False,
-		   allow_nan_stats=True,
-		   name='FoldedNormal'): 
+               loc,
+               scale,
+               validate_args=False,
+               allow_nan_stats=True,
+               name='FoldedNormal'):
+        """Construct a folded normal distribution.
+        Args:
+          loc: Floating-point `Tensor`; the means of the underlying
+            Normal distribution(s).
+          scale: Floating-point `Tensor`; the stddevs of the underlying
+            Normal distribution(s).
+          validate_args: Python `bool`, default `False`. Whether to validate input
+            with asserts. If `validate_args` is `False`, and the inputs are
+            invalid, correct behavior is not guaranteed.
+          allow_nan_stats: Python `bool`, default `True`. If `False`, raise an
+            exception if a statistic (e.g. mean/mode/etc...) is undefined for any
+            batch member If `True`, batch members with valid parameters leading to
+            undefined statistics will return NaN for this statistic.
+          name: The name to give Ops created by the initializer.
+        """
         parameters = dict(locals())
         with tf.name_scope(name) as name:
-            self._loc   = tensor_util.convert_nonref_to_tensor(loc)
-            self._scale = tensor_util.convert_nonref_to_tensor(scale)
-            normal = tfd.Normal(self._loc, self._scale)
-            bijector = tfb.AbsoluteValue()
+          dtype = dtype_util.common_dtype([loc, scale], dtype_hint=tf.float32)
+          self._loc = tensor_util.convert_nonref_to_tensor(
+              loc, dtype=dtype, name='loc')
+          self._scale = tensor_util.convert_nonref_to_tensor(
+              scale, dtype=dtype, name='scale')
+          super(FoldedNormal, self).__init__(
+              dtype=dtype,
+              reparameterization_type=reparameterization.FULLY_REPARAMETERIZED,
+              validate_args=validate_args,
+              allow_nan_stats=allow_nan_stats,
+              parameters=parameters,
+              name=name)
 
-            super().__init__(
-                    distribution=normal, 
-                    bijector=bijector, 
-                    validate_args=validate_args,
-                    parameters=parameters,
-                    name=name)
+    def _batch_shape_tensor(self, loc, scale):
+        return array_ops.shape(loc / scale)
+
+    @classmethod
+    def _parameter_properties(cls, dtype, num_classes=None):
+        # pylint: disable=g-long-lambda
+        return dict(
+            loc=parameter_properties.ParameterProperties(
+                default_constraining_bijector_fn=(
+                    lambda: exp_bijector.Exp())),
+            scale=parameter_properties.ParameterProperties(
+                default_constraining_bijector_fn=(
+                    lambda: exp_bijector.Exp())),
+            )
+        # pylint: enable=g-long-lambda
 
     @property
     def loc(self):
+        """Distribution parameter for the pre-transformed mean."""
         return self._loc
 
     @property
     def scale(self):
+        """Distribution parameter for the pre-transformed standard deviation."""
         return self._scale
 
-    def prob(self,  value, name='prob', **kwargs):
-        p = super().prob(value, name, **kwargs)
-        return tf.where(value < 0, tf.zeros_like(p), p)
+    @property
+    def _pi(self):
+        return tf.convert_to_tensor(np.pi, self.dtype)
 
-    def log_prob(self,  value, name='prob', **kwargs):
-        p = super().log_prob(value, name, **kwargs)
-        return tf.where(value < 0, np.nan, p)
+    def _cdf(self, x):
+        loc,scale = self.loc,self.scale
+        x = tf.convert_to_tensor(x)
+        a = (x + loc) / scale
+        b = (x - loc) / scale
+        ir2 = tf.constant(tf.math.reciprocal(tf.sqrt(2.)), dtype=x.dtype)
+        return 0.5 * (tf.math.erf(ir2 * a) - tf.math.erf(ir2 * b))
 
-    def mean(self, name='mean', **kwargs):
+    def _sample_n(self, n, seed=None):
+        seed = samplers.sanitize_seed(seed)
+        loc = tf.convert_to_tensor(self.loc)
+        scale = tf.convert_to_tensor(self.scale)
+        shape = ps.concat([[n], self._batch_shape_tensor(loc=loc, scale=scale)], axis=0)
+        return stateless_folded_normal(shape, loc, scale, seed)
+
+    def _log_prob(self,  value):
+        loc,scale = self.loc,self.scale
+        result = tfm.log_add_exp(
+            tfd.Normal(loc, scale).log_prob(value), 
+            tfd.Normal(-loc, scale).log_prob(value),
+        )
+        return result
+        #return tf.where(value < 0, tf.constant(-np.inf, dtype=result.dtype), result)
+
+    def _mean(self):
         u = self.loc
         s = self.scale
-        return s * np.sqrt(2/np.pi) * tf.math.exp(-0.5 * (u/s)**2.) + u * (1. - 2. * special_math.ndtr(-u/s))
+        snr = u/s
+        return s * tf.sqrt(2/self._pi) * tf.math.exp(-0.5 * tf.square(snr)) + u * (1. - 2. * special_math.ndtr(-snr))
 
-    def variance(self, name='variance', **kwargs):
+    def _variance(self):
         u = self.loc
         s = self.scale
-        return u**2. + s**2. - self.mean()**2.
+        return tf.square(u) + tf.square(s) - tf.square(self.mean())
 
-    def stddev(self, name='stddev', **kwargs):
-        return tf.math.sqrt(self.variance())
+    def sample_square(self, sample_shape=(), seed=None, name='sample', **kwargs):
+        z = self.distribution.sample(sample_shape, seed, name, **kwargs)
+        return tf.square(z)
 
-if __name__=="__main__":
-    from careless.models.priors.wilson import Centric,Acentric
-    F = np.linspace(1e-10, 10, 1000)
-    #Test centrics
-    epsilon = np.random.choice([1., 2., 3., 4., 6.], 100).astype(np.float32)
-    Sigma = np.random.random(100).astype(np.float32)
-    centric = np.ones(100) == 1.
-    test = Stacy.wilson_prior(centric, epsilon, Sigma)
-    ref = Centric(epsilon, Sigma)
-    assert np.all(np.isclose(test.log_prob(F[:,None]), ref.log_prob(F[:,None]), rtol=1e-3))
-    assert np.all(np.isclose(test.prob(F[:,None]), ref.prob(F[:,None]), rtol=1e-3))
+    def moment(self, t, npoints=100):
+        """ use quadrature to estimate E[X^t] where X ~ FoldedNormal """
+        loc, scale = self.loc,self.scale
+        window_size = 20.0
+        Jmin = loc - window_size * scale
+        Jmax = loc + window_size * scale
+        Jmin = tf.maximum(0., Jmin)
 
-    #Test acentrics
-    centric = np.ones(100) == 0.
-    test = Stacy.wilson_prior(centric, epsilon, Sigma)
-    ref = Acentric(epsilon, Sigma)
-    assert np.all(np.isclose(test.prob(F[:,None]), ref.prob(F[:,None]), rtol=1e-3))
+        grid, weights = np.polynomial.chebyshev.chebgauss(npoints)
+        grid, weights = tf.convert_to_tensor(grid, loc.dtype),tf.convert_to_tensor(weights, loc.dtype)
+        grid = tf.reshape(
+            grid, 
+            (npoints,) + tf.ones_like(tf.shape(Jmin)),
+        )
 
-    #Test higher dimensions
-    centric = np.random.choice([True, False], [10, 20, 30])
-    epsilon = np.random.choice([1., 2., 3., 4., 6.], [10, 20, 30]).astype(np.float32)
-    q = Stacy.wilson_prior(centric, epsilon)
-    q.log_prob(q.sample())
+        # Note -- grid dimensions need to be leading for log_prob to work properly
+        logweights = (0.5 * (tf.math.log(1 - grid) + tf.math.log(1 + grid)) + tf.math.log(weights))[None, ...]
+        J = (Jmax - Jmin)[..., None] * grid / 2.0 + (Jmax + Jmin)[..., None] / 2.0
+        log_J = np.log(J)
+        log_prefactor = np.log(Jmax - Jmin) - np.log(2.0)
+        log_p = self.log_prob(J)
+        t * log_J + log_p
+
+
+        Phi = special_math.ndtr
+        mom = (0.5 * scale * scale * t * t + loc * t) * tf.math.log(
+            1. - Phi(-loc/scale - scale*t) + tf.exp(-2. * loc * t) * (1. - Phi(loc/scale - scale*t))
+        )
+        #mom = tf.exp(0.5 * scale * scale * t * t + loc * t) * special_math.ndtr(loc / scale + scale * t) + \
+        #      tf.exp(0.5 * scale * scale * t * t - loc * t) * special_math.ndtr(-loc / scale + scale * t)
+        return mom
 

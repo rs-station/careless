@@ -31,7 +31,6 @@ def standardize_metadata(metadata, metadata_keys=None):
     metadata[:,~zeros] = (metadata[:,~zeros] - metadata[:,~zeros].mean(0)) / metadata[:,~zeros].std(0)
     return metadata
     
-
 class DataFormatter():
     """
     Base class for formatting inputs. This class should not be used directly. To extend this class,
@@ -348,6 +347,10 @@ class MonoFormatter(DataFormatter):
 
         iobs    = data['intensity'].to_numpy('float32')[:,None]
         sigiobs = data['uncertainty'].to_numpy('float32')[:,None]
+        if self.standardize:
+            std = np.std(iobs.flatten())
+            iobs = iobs / std
+            sigiobs = sigiobs / std
 
         inputs = {
             'refl_id'   : refl_id[:,None],
@@ -598,6 +601,11 @@ class LaueFormatter(DataFormatter):
 
         _,idx = np.unique(data['harmonic_id'], return_index=True)
         iobs,sigma = data[['intensity', 'uncertainty']].to_numpy('float32')[idx].T
+        if self.standardize:
+            std = np.std(iobs.flatten())
+            iobs = iobs / std
+            sigiobs = sigiobs / std
+
         iobs  = np.pad( iobs[:,None], [[0, len(refl_id) - len( iobs)], [0, 0]], constant_values=1.)
         sigma = np.pad(sigma[:,None], [[0, len(refl_id) - len(sigma)], [0, 0]], constant_values=1.)
 
