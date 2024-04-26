@@ -8,6 +8,11 @@ args_and_kwargs = (
         "default":10000,
     }),
 
+    (("--use-wadam",), {
+        "help":"Use the Welfordized Adam optimizer with parameter set --learning-rate and --beta-1.", 
+        "action": "store_true", 
+    }),
+
     (("--learning-rate",), {
         "help":"Adam learning rate. The default is 0.001", 
         "type":float, 

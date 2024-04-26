@@ -272,7 +272,6 @@ class MLPScaler(Scaler):
         mask = tf.random.uniform(p.shape, 0., 1.) <= p
         mask = tf.squeeze(mask, axis=-1)
 
-
         samples = tf.concat((
             metadata[mask],
             intensities[mask],

@@ -381,7 +381,7 @@ class DataManager():
         parameters taken by the VariationalMergingModel constructor.
         The `parser` parameter is required if self.parser is not set. 
         """
-        from careless.models.merging.surrogate_posteriors import FoldedNormalPosterior
+        from careless.models.merging.surrogate_posteriors import FoldedNormalPosterior,RicePosterior
         from careless.models.merging.variational import VariationalMergingModel
         from careless.models.scaling.image import HybridImageScaler,ImageScaler
         from careless.models.scaling.nn import MLPScaler
@@ -419,6 +419,7 @@ class DataManager():
         low = 1e-32
         if surrogate_posterior is None:
             surrogate_posterior = FoldedNormalPosterior.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
+            #surrogate_posterior = RicePosterior.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
 
         if likelihood is None:
             dof = parser.studentt_likelihood_dof
@@ -458,8 +459,8 @@ class DataManager():
         #    scale_prior = tfd.Exponential(1.)
 
         from tensorflow_probability import distributions as tfd
-        scale_kl_weight = 1.
-        kl_weight = 1.
+        scale_kl_weight = parser.scale_kl_weight
+        kl_weight = parser.kl_weight
         scale_prior = tfd.Exponential(1.)
         model = VariationalMergingModel(
             surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples, 
@@ -468,12 +469,16 @@ class DataManager():
             scale_prior=scale_prior,
         )
 
-        opt = tf.keras.optimizers.Adam(
-            parser.learning_rate,
-            parser.beta_1,
-            parser.beta_2,
-            epsilon=parser.epsilon, 
-        )
+        if parser.use_wadam:
+            from careless.utils.optimizers import WAdam
+            opt = WAdam(parser.learning_rate, parser.beta_1, epsilon=parser.epsilon)
+        else:
+            opt = tf.keras.optimizers.Adam(
+                parser.learning_rate,
+                parser.beta_1,
+                parser.beta_2,
+                epsilon=parser.epsilon, 
+            )
 
         model.compile(
             opt,

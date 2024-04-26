@@ -1,245 +1,78 @@
+import numpy as np
+import math
 import tensorflow as tf
+import tensorflow_probability as tfp
 from tensorflow_probability.python.internal import special_math
 from tensorflow_probability import distributions as tfd
-import tensorflow_probability as tfp
 from tensorflow_probability import bijectors as tfb
+from tensorflow.python.ops import array_ops
+from tensorflow_probability.python.internal import dtype_util
+from tensorflow_probability.python.internal import special_math
+from tensorflow_probability.python.internal import reparameterization
+from tensorflow_probability.python.internal import prefer_static as ps
+from tensorflow_probability.python.bijectors import exp as exp_bijector
+from tensorflow_probability.python.bijectors import absolute_value as abs_bijector
+from tensorflow_probability.python.internal import parameter_properties
+from tensorflow_probability.python.internal import samplers
+from tensorflow_probability import math as tfm
 from tensorflow_probability.python.internal import tensor_util
-import numpy as np
 
-
-class Amoroso(tfd.TransformedDistribution):
-    def __init__(self,
-		   a,
-		   theta,
-		   alpha,
-                   beta,
-		   validate_args=False,
-		   allow_nan_stats=True,
-		   name='Amoroso'):
-
-        parameters = dict(locals())
-        with tf.name_scope(name) as name:
-            self._a = tensor_util.convert_nonref_to_tensor(a)
-            self._theta = tensor_util.convert_nonref_to_tensor(theta)
-            self._alpha = tensor_util.convert_nonref_to_tensor(alpha)
-            self._beta = tensor_util.convert_nonref_to_tensor(beta)
-            gamma = tfd.Gamma(alpha, 1.)
-
-            chain = tfb.Invert(tfb.Chain([
-                tfb.Exp(),
-                tfb.Scale(beta),
-                tfb.Shift(-tf.math.log(theta)),
-                tfb.Log(),
-                tfb.Shift(-a),
-            ]))
-
-            super().__init__(
-                    distribution=gamma, 
-                    bijector=chain, 
-                    validate_args=validate_args,
-                    parameters=parameters,
-                    name=name)
-
-    @property
-    def a(self):
-        return self._a
-
-    @property
-    def theta(self):
-        return self._theta
-
-    @property
-    def alpha(self):
-        return self._alpha
-
-    @property
-    def beta(self):
-        return self._beta
-
-    def custom_log_prob(self, X):
-        a = self.a
-        theta = self.theta
-        alpha = self.alpha
-        beta  = self.beta
-
-        inflation = 1e10
-        x = tf.math.log(tf.abs(beta)) - tf.math.log(tf.abs(theta)) - tf.math.lgamma(a) 
-        y = (alpha*beta - 1.)*(tf.math.log(inflation*X - inflation*a) - tf.math.log(theta) - tf.math.log(inflation)) 
-        z = - tf.math.pow(X - a, beta) * tf.math.exp(- beta * tf.math.log(theta))
-        print(x,y,z)
-
-        return x + y + z
-
-    def mean(self):
-        """
-        The mean of of the Amoroso distribution exists for `alpha + 1/beta >= 0`.
-        It can be computed analytically by
-
-        ```
-        mean = a + theta * gamma(alpha + 1/beta) / gamma(alpha)
-        ```
-        """
-        a,theta,alpha,beta = self.a,self.theta,self.alpha,self.beta
-        return a + tf.math.exp(tf.math.log(theta)+tf.math.lgamma(alpha + tf.math.reciprocal(beta)) - tf.math.lgamma(alpha))
-
-    def variance(self):
-        """
-        The variance of of the Amoroso distribution exists for `alpha + 2/beta >= 0`.
-        It can be computed analytically by
-
-        ```
-        variance = theta**2 * (gamma(alpha + 2/beta) / gamma(alpha) - gamma(alpha + 1/beta)**2 / gamma(alpha)**2 )
-        ```
-        """
-        theta,alpha,beta = self.theta,self.alpha,self.beta
-        return theta**2. * (tf.math.exp(tf.math.lgamma(alpha + 2./beta) - tf.math.lgamma(alpha)) - tf.math.exp(2.*tf.math.lgamma(alpha + 1/beta) - 2.*tf.math.lgamma(alpha)))
-
-    def stddev(self):
-        """
-        The variance of of the Amoroso distribution exists for `alpha + 2/beta >= 0`.
-        It can be computed analytically by
-
-        ```
-        variance = theta**2 * (gamma(alpha + 2/beta) / gamma(alpha) - gamma(alpha + 1/beta)**2 / gamma(alpha)**2 )
-        ```
-
-        The standard deviation is computed by
-        ```amoroso.stddev() = tf.sqrt(amoroso.variance())```
-        """
-        return tf.math.sqrt(self.variance())
-
-
-class Stacy(Amoroso):
-    def __init__(self,
-		 theta,
-		 alpha,
-                 beta,
-		 validate_args=False,
-		 allow_nan_stats=True,
-		 name='Stacy'):
-
-        parameters = dict(locals())
-        with tf.name_scope(name) as name:
-            super().__init__(
-                0.,
-                theta,
-                alpha,
-                beta,
-                validate_args,
-                allow_nan_stats,
-                name,
-            )
-
-    @classmethod
-    def wilson_prior(cls, centric, epsilon, Sigma=1.):
-        """
-        Construct a wilson prior based ont he Stacy distribution.
-        Centric Wilson distributions are HalfNormals with scale = sqrt(epsilon * Sigma)
-        P(F|Sigma,epsilon)  = (2*pi*Sigma*epsilon)**(-0.5) * exp(-F**2 / 2 / Sigma / epsilon)
-                            = Stacy(F| sqrt(2*Sigma*epsilon), 0.5, 2)
-
-        Acentric Wilson distribution 
-        P(F|Sigma,epsilon) = (2/Sigma/epsilon) * F * exp(-(F**2/Sigma/epsilon))
-                           = Stacy(F | sqrt(Sigma*epsilon), 1., 2.)
-
-        Parameters
-        ----------
-        centric : array (bool)
-            boolean array with True for centric reflections
-        epsilon : array (float)
-            float array of structure factor multiplicities
-        """
-        centric = tf.cast(centric, dtype=tf.float32)
-        epsilon = tf.convert_to_tensor(epsilon, dtype=tf.float32)
-        #centric = np.array(centric, dtype=np.float32) #<-- coerce same same
-        theta = centric*np.sqrt(2. * epsilon * Sigma) + (1.-centric)*np.sqrt(Sigma*epsilon)
-        alpha = centric*0.5 + (1.-centric)
-        beta = centric*2. + (1. - centric)*2.
-        return cls(theta, alpha, beta)
-
-    @staticmethod
-    def _stacy_params(dist):
-        if isinstance(dist, Stacy):
-            params = (dist.theta, dist.alpha, dist.beta)
-        elif isinstance(dist, tfd.Weibull):
-            # Weibul(x; k, lambda) = Stacy(x; lambda, 1, k)
-            k = dist.concentration
-            lam = dist.scale
-            params = (lam, 1., k)
-        elif isinstance(dist, tfd.HalfNormal):
-            #HalfNormal(x; scale) = Stacy(x; sqrt(2)*scale, 0.5, 2)
-            scale = dist.scale
-            params = (np.sqrt(2.) * scale, 0.5, 2.)
-        else:
-            raise TypeError(f"Equivalent Stacy parameters cannot be determined for distribution, {dist}. " 
-                             "Only tfd.Weibull, tfd.HalfNormal, or Stacy can be converted to Stacy parameterisation")
-        return params
-
-    @staticmethod
-    def _bauckhage_params(dist):
-        theta, alpha, beta = Stacy._stacy_params(dist)
-        bauckhage_params = (theta, alpha*beta, beta)
-        return bauckhage_params 
-
-    def kl_divergence(self, other):
-        """
-        The Stacy distribution has an analytical KL div. 
-        However, it isn't documented in the same parameterization as the Crooks Amoroso tome. 
-        To avoid confusion, I will first translate the Stacy distributions from 
-        Crooks's parameterization to the one in the KL div paper. 
-
-        ```
-        Stacy(x; a,d,p) = x**(d-1) * exp(-(x/a)**p) / Z
-        ```
-        where
-        ```
-        a = theta
-        d = alpha * beta
-        p = beta
-        ```
-        Then the KL div is
-        ```
-        log(p1*a2**d2*gamma(d2/p2)) - log(p2*a1**d1*gamma(d1/p1)) + 
-        (digamma(d1/p1)/p1 + log(a1)) * (d1 - d2) + 
-        gamma((d1 + p2)/p1) * (a1/a2)**p2 / gamma(d1/p1) - d1/p1
-        ```
-
-        See Bauckhage 2014 for derivation. 
-        https://arxiv.org/pdf/1401.6853.pdf
-
-        Parameters
-        ----------
-        other : Stacy or tfd.Weibull or tfd.HalfNormal
-        """
-        a1,d1,p1 = self._bauckhage_params(self)
-        a2,d2,p2 = self._bauckhage_params(other)
-
-        #The following numerics are easier to read if you alias this
-        ln = tf.math.log
-
-        kl = ln(p1) + d2*ln(a2) + tf.math.lgamma(d2/p2) - ln(p2) - d1*ln(a1) - tf.math.lgamma(d1/p1) + \
-             (tf.math.digamma(d1/p1)/p1 + ln(a1))*(d1 - d2) +  \
-             tf.math.exp(tf.math.lgamma((d1 + p2)/p1) - tf.math.lgamma(d1/p1) + p2*(ln(a1) - ln(a2))) \
-             - d1/p1
-
-        return kl
 
 
 class Rice(tfd.Distribution):
+    #Value of nu/sigma for which, above with the pdf and moments will be swapped with a normal distribution
+    _normal_crossover = 10. 
     def __init__(self,
 		   nu,
 		   sigma,
 		   validate_args=False,
 		   allow_nan_stats=True,
 		   name='Rice'):
+      parameters = dict(locals())
+      with tf.name_scope(name) as name:
+          dtype = dtype_util.common_dtype([nu, sigma], dtype_hint=tf.float32)
+          self._nu = tensor_util.convert_nonref_to_tensor(
+              nu, dtype=dtype, name='nu')
+          self._sigma = tensor_util.convert_nonref_to_tensor(
+              sigma, dtype=dtype, name='sigma')
+          super(Rice, self).__init__(
+            dtype=dtype,
+            reparameterization_type=reparameterization.FULLY_REPARAMETERIZED,
+            validate_args=validate_args,
+            allow_nan_stats=allow_nan_stats,
+            parameters=parameters,
+            name=name)
 
-        parameters = dict(locals())
-        #Value of nu/sigma for which, above with the pdf and moments will be swapped with a normal distribution
-        self._normal_crossover = 40. 
-        with tf.name_scope(name) as name:
-            self._nu = tensor_util.convert_nonref_to_tensor(nu)
-            self._sigma = tensor_util.convert_nonref_to_tensor(sigma)
-            self._base_normal = tfd.Normal(0., self._sigma)
+    @classmethod
+    def _parameter_properties(cls, dtype, num_classes=None):
+        # pylint: disable=g-long-lambda
+        return dict(
+            nu=parameter_properties.ParameterProperties(
+                default_constraining_bijector_fn=(
+                    lambda: exp_bijector.Exp())),
+            sigma=parameter_properties.ParameterProperties(
+                default_constraining_bijector_fn=(
+                    lambda: exp_bijector.Exp())),
+            )
+        # pylint: enable=g-long-lambda
+
+    def moment(self, t):
+        from scipy.stats import rice,norm
+        nu,sigma = self.nu,self.sigma
+        snr = nu / sigma
+        safe_sigma = np.minimum(sigma, self._normal_crossover * nu)
+        idx = snr <= self._normal_crossover
+        safe_sigma = np.where(
+            idx,
+            sigma,
+            nu / self._normal_crossover,
+        )
+        out = np.where(
+            idx,
+            rice.moment(t, nu/safe_sigma, scale=safe_sigma), #use safe sigma to prevent warnings
+            norm.moment(t, loc=nu, scale=nu),
+        )
+        return out
 
     @property
     def nu(self):
@@ -249,28 +82,35 @@ class Rice(tfd.Distribution):
     def sigma(self):
         return self._sigma
 
-    def sample(self, sample_shape=(), seed=None, name='sample', **kwargs):
-        s1 = self._base_normal.sample(sample_shape=sample_shape, seed=seed, name=name, **kwargs)
-        s2 = self._base_normal.sample(sample_shape=sample_shape, seed=seed, name=name, **kwargs)
-        return tf.math.sqrt(
-                    s1**2. +
-                   (s2 + self.nu)**2.
-               )
+    def _batch_shape_tensor(self, nu, sigma):
+        return array_ops.shape(nu / sigma)
 
-    def _log_bessel_i0(self, x):
+    def _sample_n(self, n, seed=None):
+        seed = samplers.sanitize_seed(seed)
+        nu = tf.convert_to_tensor(self.nu)
+        sigma = tf.convert_to_tensor(self.sigma)
+        shape = ps.concat([[n], self._batch_shape_tensor(nu=nu, sigma=sigma)], axis=0)
+        return stateless_rice(shape, nu, sigma, seed)
+
+    @staticmethod
+    def _log_bessel_i0(x):
         return tf.math.log(tf.math.bessel_i0e(x)) + tf.math.abs(x)
 
-    def _log_bessel_i1(self, x):
+    @staticmethod
+    def _log_bessel_i1(x):
         return tf.math.log(tf.math.bessel_i1e(x)) + tf.math.abs(x)
 
-    def _bessel_i0(self, x):
-        return tf.math.exp(self._log_bessel_i0(x))
+    @staticmethod
+    def _bessel_i0(x):
+        return tf.math.exp(Rice._log_bessel_i0(x))
 
-    def _bessel_i1(self, x):
-        return tf.math.exp(self._log_bessel_i1(x))
+    @staticmethod
+    def _bessel_i1(x):
+        return tf.math.exp(Rice._log_bessel_i1(x))
 
-    def _laguerre_half(self, x):
-        return (1. - x) * tf.math.exp(x / 2. + self._log_bessel_i0(-0.5 * x)) - x * tf.math.exp(x / 2.  + self._log_bessel_i1(-0.5 * x) )
+    @staticmethod
+    def _laguerre_half(x):
+        return (1. - x) * tf.math.exp(x / 2. + Rice._log_bessel_i0(-0.5 * x)) - x * tf.math.exp(x / 2.  + Rice._log_bessel_i1(-0.5 * x) )
 
     def prob(self, X):
         return tf.math.exp(self.log_prob(X))
@@ -297,42 +137,38 @@ class Rice(tfd.Distribution):
     def stddev(self):
         return tf.math.sqrt(self.variance())
 
-import tensorflow as tf
-from tensorflow.python.ops import array_ops
-from tensorflow_probability.python.internal import dtype_util
-from tensorflow_probability.python.internal import special_math
-from tensorflow_probability import distributions as tfd
-from tensorflow_probability.python.internal import reparameterization
-from tensorflow_probability.python.internal import prefer_static as ps
-import numpy as np
-from tensorflow_probability.python.bijectors import exp as exp_bijector
-from tensorflow_probability.python.bijectors import absolute_value as abs_bijector
-from tensorflow_probability.python.internal import parameter_properties
-from tensorflow_probability.python.internal import samplers
-from tensorflow_probability import math as tfm
-from tensorflow_probability.python.internal import tensor_util
+    @staticmethod
+    def sample_gradients(z, nu, sigma):
+        log_z, log_nu, log_sigma = tf.math.log(z), tf.math.log(nu), tf.math.log(sigma)
+        log_a = log_nu - log_sigma
+        log_b = log_z - log_sigma
+        ab = tf.exp(log_a + log_b)  # <-- argument of bessel functions
+        log_i0 = Rice._log_bessel_i0(ab)
+        log_i1 = Rice._log_bessel_i1(ab)
 
-def _logspace_sample_gradients(z, loc, scale):
-    alpha_sign,log_alpha = tf.sign(z + loc), tf.math.log(tf.abs(z + loc)) - tf.math.log(scale)
-    beta_sign,log_beta = tf.sign(z - loc), tf.math.log(tf.abs(z - loc)) - tf.math.log(scale)
+        dnu = tf.exp(log_i1 - log_i0)
+        dsigma = -(
+            tf.exp(log_nu - log_sigma + log_i1 - log_i0)
+            - tf.exp(log_z - log_sigma)
+        )
+        return dnu, dsigma
 
-    log_p_a = tfd.Normal(loc, scale).log_prob(z)   #N(z|loc,scale)
-    log_p_b = tfd.Normal(-loc, scale).log_prob(z)  #N(z|-loc,scale)
 
-    # This formula is dz = N(z|-loc,scale) + N(z|loc,scale)
-    log_dz = tfp.math.log_add_exp(log_p_a, log_p_b)
+@tf.custom_gradient
+def stateless_rice(shape, nu, sigma, seed):
+    A = tf.random.stateless_normal(shape, seed, mean=nu, stddev=sigma)
+    B = tf.random.stateless_normal(shape, seed, mean=tf.zeros_like(nu), stddev=sigma)
+    z = tf.sqrt(A*A + B*B)
+    def grad(upstream):
+        dnu,dsigma = Rice.sample_gradients(z, nu, sigma)
+        dnu = tf.reduce_sum(upstream * dnu, axis=0)
+        dsigma = tf.reduce_sum(upstream * dsigma, axis=0)
+        return None, dnu, dsigma, None
+    return z, grad
 
-    # This formula is dloc = N(z|-loc,scale) - N(z|loc,scale)
-    log_dloc,dloc_sign = tfp.math.log_sub_exp(log_p_b, log_p_a, return_sign=True)
-    # dloc = dloc / dz
-    dloc = dloc_sign * tf.exp(log_dloc - log_dz)
 
-    # This formula is -[b * N(z|-loc, scale) + a * N(z|loc, scale)]
-    dscale = -alpha_sign * tf.exp(log_alpha + log_p_b - log_dz) - beta_sign * tf.exp(log_beta + log_p_a - log_dz)
-    return dloc, dscale
-    #return log_dz, dloc, dscale
 
-def _sample_gradients(z, loc, scale):
+def folded_normal_sample_gradients(z, loc, scale):
     alpha = (z + loc) / scale
     beta = (z - loc) / scale
 
@@ -351,18 +187,12 @@ def _sample_gradients(z, loc, scale):
     dscale = dscale / dz
     return dloc, dscale
 
-
-def sample_gradients(z, loc, scale, logspace=True):
-    if logspace:
-        return _logspace_sample_gradients(z, loc, scale)
-    return _sample_gradients(z, loc, scale)
-
 @tf.custom_gradient
 def stateless_folded_normal(shape, loc, scale, seed):
     z = tf.random.stateless_normal(shape, seed, mean=loc, stddev=scale)
     z = tf.abs(z)
     def grad(upstream):
-        grads = sample_gradients(z, loc, scale)
+        grads = folded_normal_sample_gradients(z, loc, scale)
         dloc,dscale = grads[0], grads[1]
         dloc = tf.reduce_sum(-upstream * dloc, axis=0)
         dscale = tf.reduce_sum(-upstream * dscale, axis=0)
@@ -371,6 +201,7 @@ def stateless_folded_normal(shape, loc, scale, seed):
 
 class FoldedNormal(tfd.Distribution):
     """The folded normal distribution."""
+    _normal_crossover = 10.
     def __init__(self,
                loc,
                scale,
@@ -461,50 +292,57 @@ class FoldedNormal(tfd.Distribution):
         return result
         #return tf.where(value < 0, tf.constant(-np.inf, dtype=result.dtype), result)
 
+    @staticmethod
+    def _folded_normal_mean(loc, scale):
+        u,s = loc, scale
+        c = loc / scale
+        return s * tf.sqrt(2/math.pi) * tf.math.exp(-0.5 * c * c) + u * tf.math.erf(c/math.sqrt(2))
+
     def _mean(self):
         u = self.loc
         s = self.scale
-        snr = u/s
-        return s * tf.sqrt(2/self._pi) * tf.math.exp(-0.5 * tf.square(snr)) + u * (1. - 2. * special_math.ndtr(-snr))
+        c = u/s
+
+        idx = tf.abs(c) >= 10.
+        s_safe = tf.where(idx, 1., s)
+        u_safe = tf.where(idx, 1., u)
+        c_safe = tf.where(idx, 1., c)
+
+        return tf.where(
+            c >= self._normal_crossover,
+            u,
+            self._folded_normal_mean(u_safe, s_safe)
+        )
 
     def _variance(self):
         u = self.loc
         s = self.scale
-        return tf.square(u) + tf.square(s) - tf.square(self.mean())
+        c = u/s
 
-    def sample_square(self, sample_shape=(), seed=None, name='sample', **kwargs):
-        z = self.distribution.sample(sample_shape, seed, name, **kwargs)
-        return tf.square(z)
+        idx = tf.abs(c) >= 10.
+        s_safe = tf.where(idx, 1., s)
+        u_safe = tf.where(idx, 1., u)
+        c_safe = tf.where(idx, 1., c)
+        m = self._folded_normal_mean(u_safe, s_safe)
 
-    def moment(self, t, npoints=100):
-        """ use quadrature to estimate E[X^t] where X ~ FoldedNormal """
-        loc, scale = self.loc,self.scale
-        window_size = 20.0
-        Jmin = loc - window_size * scale
-        Jmax = loc + window_size * scale
-        Jmin = tf.maximum(0., Jmin)
-
-        grid, weights = np.polynomial.chebyshev.chebgauss(npoints)
-        grid, weights = tf.convert_to_tensor(grid, loc.dtype),tf.convert_to_tensor(weights, loc.dtype)
-        grid = tf.reshape(
-            grid, 
-            (npoints,) + tf.ones_like(tf.shape(Jmin)),
+        return tf.where(
+            idx, 
+            s*s,
+            u*u + s*s - m*m,
         )
 
-        # Note -- grid dimensions need to be leading for log_prob to work properly
-        logweights = (0.5 * (tf.math.log(1 - grid) + tf.math.log(1 + grid)) + tf.math.log(weights))[None, ...]
-        J = (Jmax - Jmin)[..., None] * grid / 2.0 + (Jmax + Jmin)[..., None] / 2.0
-        log_J = np.log(J)
-        log_prefactor = np.log(Jmax - Jmin) - np.log(2.0)
-        log_p = self.log_prob(J)
-        t * log_J + log_p
+    def moment(self, t):
+        """ Use Scipy to calculate the t-moment of a folded normal """
+        from scipy.stats import foldnorm,norm
+        loc,scale = self.loc.numpy(),self.scale.numpy()
+        c = loc / scale
+        idx = np.abs(c) > self._normal_crossover
+        c_safe = tf.where(idx, c, 0.)
+        scale_safe = tf.where(idx, scale, 1.)
 
-
-        Phi = special_math.ndtr
-        mom = (0.5 * scale * scale * t * t + loc * t) * tf.math.log(
-            1. - Phi(-loc/scale - scale*t) + tf.exp(-2. * loc * t) * (1. - Phi(loc/scale - scale*t))
+        result = np.where(
+            idx,
+            foldnorm.moment(t, loc/scale, scale=scale),
+            norm.moment(t, loc=loc, scale=scale),
         )
-        #mom = tf.exp(0.5 * scale * scale * t * t + loc * t) * special_math.ndtr(loc / scale + scale * t) + \
-        #      tf.exp(0.5 * scale * scale * t * t - loc * t) * special_math.ndtr(-loc / scale + scale * t)
-        return mom
-
+        return result

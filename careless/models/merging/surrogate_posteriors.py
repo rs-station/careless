@@ -93,6 +93,64 @@ class FoldedNormalPosterior(SurrogatePosterior):
         return cls(loc, scale, low)
 
 
+class RicePosterior(SurrogatePosterior):
+    def __init__(self, loc, scale, low=0., validate_args=False, allow_nan_stats=True, name='Rice', **kwargs):
+        distribution = Rice(loc, scale, validate_args, allow_nan_stats, name)
+        self.low = low
+        super().__init__(distribution, **kwargs)
+
+    def _scipy_moment_4(self):
+        return self.distribution.moment(4)
+
+    def moment_4(self, method='scipy'):
+        """
+        Calculate the fourth moment of this distribution. This is based on the formula here: 
+        Parameters
+        ----------
+        method : str (optional)
+            Only 'scipy' is currently supported
+        """
+        if method=='scipy':
+            return self._scipy_moment_4()
+        elif method == 'tf':
+            raise NotImplementedError(f"Unknown method {method} for computing moment_4")
+        else:
+            raise ValueError(f"Unknown method {method} for computing moment_4")
+
+    def sample(self, *args, **kwargs):
+        s = self.distribution.sample(*args, **kwargs)
+        return s + self.low
+
+    @classmethod
+    def from_loc_and_scale(cls, loc, scale, low=0., scale_shift=1e-7):
+        """
+        Instantiate a learnable distribution with good default bijectors.
+
+        loc : array
+            The initial location of the distribution
+        scale : array
+            The initial scale parameter of the distribution
+        low : float or array
+            A small constant added to samples for stability
+        scale_shift : float (optional)
+            A small constant added to the scale to increase numerical stability.
+        """
+        loc = tfp.util.TransformedVariable(
+            loc,
+            tfb.Chain([
+                tfb.Shift(scale_shift),
+                tfb.Exp(),
+            ]),
+        )
+        scale = tfp.util.TransformedVariable(
+            scale,
+            tfb.Chain([
+                tfb.Shift(scale_shift),
+                tfb.Exp(),
+            ]),
+        )
+        return cls(loc, scale, low)
+
 
 
 #This is a temporary workaround for tfd.TruncatedNormal which has a bug in sampling

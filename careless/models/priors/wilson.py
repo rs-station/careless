@@ -1,6 +1,5 @@
 import reciprocalspaceship as rs
 from careless.models.merging.surrogate_posteriors import RiceWoolfson
-from careless.utils.distributions import Stacy
 from careless.models.priors.base import Prior
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb

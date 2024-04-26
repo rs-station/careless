@@ -162,7 +162,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
             if self.scale_kl_weight is None:
                 self.add_kl_div(scale_dist, self.scale_prior, z_scale, reduction='sum', name="Σ KLDiv")
             else:
-                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=1., reduction='mean', name="Σ KLDiv")
+                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=self.scale_kl_weight, reduction='mean', name="Σ KLDiv")
 
         refl_id = self.get_refl_id(inputs)
 
