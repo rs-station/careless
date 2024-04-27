@@ -383,7 +383,6 @@ class DataManager():
         """
         from careless.models.merging.surrogate_posteriors import FoldedNormalPosterior,RicePosterior
         from careless.models.merging.variational import VariationalMergingModel
-        from careless.models.scaling.image import HybridImageScaler,ImageScaler
         from careless.models.scaling.nn import MLPScaler
         if parser is None:
             parser = self.parser
@@ -415,11 +414,9 @@ class DataManager():
 
         loc,scale = prior.mean(),prior.stddev()
         scale = scale * parser.structure_factor_init_scale
-        #low = (parser.epsilon * ~self.asu_collection.centric).astype('float32')
-        low = 1e-32
+        low = 1e-32 #very small kludge to make sure samples are never exactly zero
         if surrogate_posterior is None:
             surrogate_posterior = FoldedNormalPosterior.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
-            #surrogate_posterior = RicePosterior.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
 
         if likelihood is None:
             dof = parser.studentt_likelihood_dof
@@ -429,34 +426,7 @@ class DataManager():
                 likelihood = StudentTLikelihood(dof)
 
         if scaling_model is None:
-            mlp_width = parser.mlp_width
-            if mlp_width is None:
-                mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
-
-            if parser.image_layers > 0:
-                from careless.models.scaling.image import NeuralImageScaler
-                n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                scaling_model = NeuralImageScaler(
-                    parser.image_layers,
-                    n_images,
-                    parser.mlp_layers,
-                    mlp_width,
-                    epsilon=parser.epsilon,
-                )
-            else:
-                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon)
-                if parser.use_image_scales:
-                    n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
-                    image_scaler = ImageScaler(n_images)
-                    scaling_model = HybridImageScaler(mlp_scaler, image_scaler)
-                else:
-                    scaling_model = mlp_scaler
-
-        #scale_kl_weight = parser.scale_kl_weight
-        #scale_prior = None
-        #if parser.scale_kl_weight != 0.:
-        #    from tensorflow_probability import distributions as tfd
-        #    scale_prior = tfd.Exponential(1.)
+            scaling_model = MLPScaler(parser.mlp_layers, parser.mlp_width, epsilon=parser.epsilon)
 
         from tensorflow_probability import distributions as tfd
         scale_kl_weight = parser.scale_kl_weight
