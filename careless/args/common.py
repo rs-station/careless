@@ -14,6 +14,12 @@ args_and_kwargs = (
         "default" : 1,
     }),
 
+    (("--mtz-save-frequency",), {
+        "help":"How often to save MTZ files. Default 1_000. " ,
+        "type": int, 
+        "default" : 1_000,
+    }),
+
     (("--structure-factor-file",), {
         "help": "Initialize the structure factors from the ouput of a previous run. This argument should be a string beginning with the "
                 "base filename used in the previous run and ending in _structure_factor.  For instance, if the previous run "

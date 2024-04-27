@@ -243,7 +243,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
 
         return metrics
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True, callbacks=()):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
@@ -298,5 +298,7 @@ class VariationalMergingModel(tfk.Model, BaseModel):
                 if not tf.math.is_finite(_history['Grad Norm']):
                     print("Encountered numerical issues, terminating optimization early!")
                     break
+            for callback in callbacks:
+                callback(i, self)
         return history
 

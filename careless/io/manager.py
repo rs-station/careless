@@ -416,7 +416,8 @@ class DataManager():
         scale = scale * parser.structure_factor_init_scale
         low = 1e-32 #very small kludge to make sure samples are never exactly zero
         if surrogate_posterior is None:
-            surrogate_posterior = FoldedNormalPosterior.from_loc_and_scale(loc, scale, low, scale_shift=parser.epsilon)
+            surrogate_posterior = FoldedNormalPosterior.from_loc_and_scale(
+                    loc, scale, low, scale_shift=parser.epsilon)
 
         if likelihood is None:
             dof = parser.studentt_likelihood_dof
@@ -426,7 +427,8 @@ class DataManager():
                 likelihood = StudentTLikelihood(dof)
 
         if scaling_model is None:
-            scaling_model = MLPScaler(parser.mlp_layers, parser.mlp_width, epsilon=parser.epsilon)
+            scaling_model = MLPScaler(
+                    parser.mlp_layers, parser.mlp_width, epsilon=parser.epsilon)
 
         from tensorflow_probability import distributions as tfd
         scale_kl_weight = parser.scale_kl_weight

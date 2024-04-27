@@ -153,19 +153,6 @@ class Rice(tfd.Distribution):
         )
         return dnu, dsigma
 
-
-@tf.custom_gradient
-def stateless_rice(shape, nu, sigma, seed):
-    A = tf.random.stateless_normal(shape, seed, mean=nu, stddev=sigma)
-    B = tf.random.stateless_normal(shape, seed, mean=tf.zeros_like(nu), stddev=sigma)
-    z = tf.sqrt(A*A + B*B)
-    def grad(upstream):
-        dnu,dsigma = Rice.sample_gradients(z, nu, sigma)
-        dnu = tf.reduce_sum(upstream * dnu, axis=0)
-        dsigma = tf.reduce_sum(upstream * dsigma, axis=0)
-        return None, dnu, dsigma, None
-    return z, grad
-
 def _logspace_sample_gradients(z, loc, scale):
     alpha_sign,log_alpha = tf.sign(z + loc), tf.math.log(tf.abs(z + loc)) - tf.math.log(scale)
     beta_sign,log_beta = tf.sign(z - loc), tf.math.log(tf.abs(z - loc)) - tf.math.log(scale)
@@ -312,7 +299,6 @@ class FoldedNormal(tfd.Distribution):
             tfd.Normal(-loc, scale).log_prob(value),
         )
         return result
-        #return tf.where(value < 0, tf.constant(-np.inf, dtype=result.dtype), result)
 
     @staticmethod
     def _folded_normal_mean(loc, scale):

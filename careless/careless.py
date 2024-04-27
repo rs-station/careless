@@ -47,6 +47,9 @@ def run_careless(parser):
     validation_frequency = parser.validation_frequency
     progress = not parser.disable_progress_bar
 
+    from careless.callbacks.mtz import MTZSaver
+    mtz_saver = MTZSaver(dm, parser.mtz_save_frequency, parser.output_base)
+
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
         parser.iterations,
@@ -54,11 +57,9 @@ def run_careless(parser):
         validation_data=test,
         validation_frequency=validation_frequency,
         progress=progress,
+        callbacks=[mtz_saver],
     )
-
-    for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
-        filename = parser.output_base + f'_{i}.mtz'
-        ds.write_mtz(filename)
+    mtz_saver.write_mtz(model, train, parser.output_base)
 
     filename = parser.output_base + f'_history.csv'
     history = rs.DataSet(history).to_csv(filename, index_label='step')
