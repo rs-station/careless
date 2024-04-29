@@ -23,7 +23,6 @@ def run_careless(parser):
     elif parser.type == 'mono':
         df = MonoFormatter.from_parser(parser)
 
-
     inputs,rac = df.format_files(parser.reflection_files)
     dm = DataManager(inputs, rac, parser=parser)
 
@@ -48,7 +47,7 @@ def run_careless(parser):
     progress = not parser.disable_progress_bar
 
     from careless.callbacks.mtz import MTZSaver
-    mtz_saver = MTZSaver(dm, parser.mtz_save_frequency, parser.output_base)
+    mtz_saver = MTZSaver(dm, parser.mtz_save_frequency, parser.output_base, train)
 
     history = model.train_model(
         tuple(map(tf.convert_to_tensor, train)),
