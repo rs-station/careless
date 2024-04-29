@@ -175,6 +175,14 @@ class MLPScaler(Scaler):
             A tfp distribution instance.
         """
         image_id = self.get_image_id(inputs)
+        image_id = tf.expand_dims(
+            tf.unique_with_counts(
+                tf.squeeze(image_id, axis=-1),
+                out_idx=image_id.dtype,
+            )[1],
+            axis=-1,
+        )
+
         metadata = self.get_metadata(inputs)
         intensities = self.get_intensities(inputs)
         uncertainties = self.get_uncertainties(inputs)

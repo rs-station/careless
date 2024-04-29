@@ -42,13 +42,6 @@ class FoldedNormalPosterior(SurrogatePosterior):
         self.low = low
         super().__init__(distribution, **kwargs)
 
-    def _scipy_moment_4(self):
-        from scipy.stats import foldnorm
-        loc,scale = self.distribution.loc, self.distribution.scale
-        c = np.exp(np.log(np.abs(loc)) - np.log(scale))
-        mom4 = foldnorm.moment(4, c, scale=scale)
-        return mom4
-
     def moment_4(self, method='scipy'):
         """
         Calculate the fourth moment of this distribution. This is based on the formula here: 
@@ -58,7 +51,7 @@ class FoldedNormalPosterior(SurrogatePosterior):
             Only 'scipy' is currently supported
         """
         if method=='scipy':
-            return self._scipy_moment_4()
+            return self.distribution.moment(4)
         elif method == 'tf':
             raise NotImplementedError(f"Unknown method {method} for computing moment_4")
         else:
