@@ -221,7 +221,7 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
 
         return return_metrics
 
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True):
+    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True, jit_compile=None, reduce_retracing=False):
         """
         Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
         """
@@ -239,7 +239,7 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
                 return history
 
         if not self._run_eagerly:
-            train_step = tf.function(train_step, reduce_retracing=True)
+            train_step = tf.function(train_step, reduce_retracing=reduce_retracing, jit_compile=jit_compile)
 
         if validation_data is not None:
             val_scale = len(data[0]) / len(validation_data[0])

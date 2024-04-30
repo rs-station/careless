@@ -10,6 +10,7 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         parser = super().parse_args(*args, **kwargs)
 
         from os import environ
+        environ["TF_USE_LEGACY_KERAS"] = "1" #use keras 2
         if parser.tf_debug:
             # This is very noisy
             environ['TF_CPP_MIN_LOG_LEVEL'] = "1"
