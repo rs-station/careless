@@ -182,12 +182,15 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
 
         return ipred
 
-    def train_step_with_gradient_norm(self, data):
+    def train_step_with_gradient_norm(self, data=None):
         """
         Conduct a training step with `data`. This method is the same as tfk.Model.train_step except that it
         tracks the norm of the gradients as well. 
         """
-        x = data[0]
+        if data is None:
+            x = self.data
+        else:
+            x = data[0]
         y = self.get_intensities(x)
         #x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
         # Run forward pass.
@@ -203,8 +206,8 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
         grad_norm = tf.linalg.global_norm(grads)
 
         # Only apply gradients if they are valid
-        if tf.math.is_finite(grad_norm):
-            self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
+        grads = [tf.where(tf.math.is_finite(g), g, 0.) for g in grads]
+        self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
 
         #self.compiled_metrics.update_state(y, y_pred, sample_weight)
         self.compiled_metrics.update_state(y, y_pred)
@@ -239,7 +242,9 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
                 return history
 
         if not self._run_eagerly:
-            train_step = tf.function(train_step, reduce_retracing=reduce_retracing, jit_compile=jit_compile)
+            train_step = tf.function(
+                train_step, reduce_retracing=reduce_retracing, jit_compile=jit_compile
+            )
 
         if validation_data is not None:
             val_scale = len(data[0]) / len(validation_data[0])
