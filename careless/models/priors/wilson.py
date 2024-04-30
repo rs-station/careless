@@ -77,13 +77,15 @@ class WilsonPrior(Prior):
         )
 
 class DoubleWilsonPrior(Prior):
-    def __init__(self, asu_collection, parents, r_values, sigma=1.):
+    def __init__(self, asu_collection, parents, r_values, reindexing_ops=None, sigma=1.):
         """
         asu_collection : AsuCollection
         parents : list
             List of integers such that parents[i] = j implies that asu_id==i has parent asu_id==j
         r_values : list or array
             Either a list with the same length as parents or an array that is length == len(asu_collection.lookup_table)
+        reindexing_ops : list or tuple
+            A list of gemm.Op instances that is the same length as parents.
         sigma : float or array
         """
         self.parents = parents
@@ -115,6 +117,9 @@ class DoubleWilsonPrior(Prior):
                 root.append(np.zeros(len(child_asu.lookup_table), dtype='bool'))
                 parent_asu = asu_collection.reciprocal_asus[parent]
                 h = child_asu.Hall
+                if reindexing_ops is not None:
+                    op = reindexing_ops[child]
+                    h = rs.utils.apply_to_hkl(h, op)
                 h,_ = rs.utils.hkl_to_asu(h, parent_asu.spacegroup)
                 pid = parent*np.ones((len(h), 1), dtype='int32')
                 reflids.append(asu_collection.to_refl_id(pid, h, allow_missing=True))
