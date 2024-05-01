@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tf_keras as tfk
 from careless.models.base import BaseModel
 from careless.models.scaling.base import Scaler
 import tensorflow_probability as tfp
@@ -65,7 +66,7 @@ class HybridImageScaler(Scaler):
 class ImageLayer(Scaler):
     def __init__(self, units, max_images, activation=None, **kwargs):
         super().__init__(**kwargs)
-        self.activation = tf.keras.activations.get(activation)
+        self.activation = tfk.activations.get(activation)
         self.units = units
         self.max_images = max_images
 
@@ -101,7 +102,7 @@ class NeuralImageScaler(Scaler):
         if leakiness is None:
             activation = 'ReLU'
         else:
-            activation = tf.keras.layers.LeakyReLU(leakiness)
+            activation = tfk.layers.LeakyReLU(leakiness)
 
         for i in range(image_layers):
             layers.append(

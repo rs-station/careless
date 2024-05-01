@@ -8,6 +8,18 @@ args_and_kwargs = (
         "default":False,
     }),
 
+    (("--jit-compile",), {
+        "help":"Use jit compilation. By default defer to TF to decide. Enabling this option may decrease memory requirements for some models at the expense of increasing startup time.", 
+        "action":'store_true', 
+        "default":None,
+    }),
+
+    (("--reduce-retracing",), {
+        "help":"Use the reduce retracing option during compilation. This is disabled by default.", 
+        "action":'store_true', 
+        "default": False,
+    }),
+
     (("--disable-gpu",), {
         "help":"Disable GPU for high memory models.", 
         "action":'store_true', 

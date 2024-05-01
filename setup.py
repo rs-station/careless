@@ -41,8 +41,9 @@ setup(
     install_requires=[
         "reciprocalspaceship>=0.9.16",
         "tqdm",
-        "tensorflow==2.15",
-        "tensorflow-probability==0.23",
+        "tensorflow",
+        "tf_keras",
+        "tensorflow-probability[tf]",
         "matplotlib",
         "seaborn",
     ],

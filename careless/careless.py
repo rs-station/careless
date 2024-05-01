@@ -57,6 +57,8 @@ def run_careless(parser):
         validation_data=test,
         validation_frequency=validation_frequency,
         progress=progress,
+        reduce_retracing=parser.reduce_retracing,
+        jit_compile=parser.jit_compile,
     )
 
     for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
@@ -101,6 +103,8 @@ def run_careless(parser):
                     parser.iterations,
                     message=f"Merging repeat {repeat+1} half {half_id+1}",
                     progress=progress,
+                    reduce_retracing=parser.reduce_retracing,
+                    jit_compile=parser.jit_compile,
                 )
 
                 for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):

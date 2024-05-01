@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tf_keras as tfk
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow_probability as tfp
@@ -6,7 +7,7 @@ from careless.models.scaling.base import Scaler
 import numpy as np
 
 
-class NormalLayer(tf.keras.layers.Layer):
+class NormalLayer(tfk.layers.Layer):
     def __init__(self, scale_bijector=None, epsilon=1e-7, **kwargs): 
         super().__init__(**kwargs)
         self.epsilon = epsilon
@@ -46,28 +47,27 @@ class MetadataScaler(Scaler):
 
         for i in range(n_layers):
             if leakiness is None:
-                activation = tf.keras.layers.ReLU()
+                activation = tfk.layers.ReLU()
             else:
-                activation = tf.keras.layers.LeakyReLU(leakiness)
-                #activation = tf.keras.activations.exponential
+                activation = tfk.layers.LeakyReLU(leakiness)
 
             mlp_layers.append(
-                tf.keras.layers.Dense(
+                tfk.layers.Dense(
                     width, 
                     activation=activation, 
                     use_bias=True, 
-                    kernel_initializer='identity'
+                    kernel_initializer='identity',
                     )
                 )
 
         #The last layer is linear and generates location/scale params
         tfp_layers = []
         tfp_layers.append(
-            tf.keras.layers.Dense(
+            tfk.layers.Dense(
                 2, 
                 activation='linear', 
                 use_bias=True, 
-                kernel_initializer='identity'
+                kernel_initializer='identity',
             )
         )
 
@@ -75,8 +75,8 @@ class MetadataScaler(Scaler):
         #tfp_layers.append(tfp.layers.IndependentNormal())
         tfp_layers.append(NormalLayer(epsilon=epsilon))
 
-        self.network = tf.keras.Sequential(mlp_layers)
-        self.distribution = tf.keras.Sequential(tfp_layers)
+        self.network = tfk.Sequential(mlp_layers)
+        self.distribution = tfk.Sequential(tfp_layers)
 
     def call(self, metadata):
         """
