@@ -8,7 +8,7 @@ import multiprocessing
 niter = 10
 # True will use multiprocessing to bypass the tf memory leak issue,
 # but it may result in less verbose error messages.
-use_mp = True
+use_mp = False
 eager=True
 
 
