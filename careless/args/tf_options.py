@@ -9,13 +9,13 @@ args_and_kwargs = (
     }),
 
     (("--jit-compile",), {
-        "help":"Use jit compilation. By default defer to TF to decide.", 
+        "help":"Use jit compilation. By default defer to TF to decide. Enabling this option may decrease memory requirements for some models at the expense of increasing startup time.", 
         "action":'store_true', 
         "default":None,
     }),
 
     (("--reduce-retracing",), {
-        "help":"Use the reduce retracing option during compilation. By default defer to TF to decide.", 
+        "help":"Use the reduce retracing option during compilation. This is disabled by default.", 
         "action":'store_true', 
         "default": False,
     }),

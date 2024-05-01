@@ -192,12 +192,11 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
         else:
             x = data[0]
         y = self.get_intensities(x)
-        #x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+
         # Run forward pass.
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            #loss = self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
-            loss = self.compiled_loss(x, y, regularization_losses=self.losses)
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
 
         # Run backwards pass.
         grads = tape.gradient(loss, self.trainable_variables)
@@ -209,8 +208,8 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
         grads = [tf.where(tf.math.is_finite(g), g, 0.) for g in grads]
         self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
 
-        #self.compiled_metrics.update_state(y, y_pred, sample_weight)
         self.compiled_metrics.update_state(y, y_pred)
+
         # Collect metrics to return
         return_metrics = {
             "Grad Norm" : grad_norm,
