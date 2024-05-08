@@ -148,19 +148,9 @@ class MLPScaler(Scaler):
         self.distribution = tf.keras.Sequential(tfp_layers)
 
         self.sample_input = tf.keras.layers.Dense(
-            width-2, use_bias=True, kernel_initializer=kinit)
+            width, use_bias=True, kernel_initializer=kinit)
         self.metadata_input = tf.keras.layers.Dense(
-            width-2, use_bias=True, kernel_initializer=kinit)
-
-
-    @staticmethod
-    def _append_one_hot(tensor, index, categories):
-        suffix = tf.ones_like(tensor[...,:1]) * tf.one_hot(index, categories)
-        out =tf.concat((
-            tensor,
-            suffix,
-        ), axis=-1)
-        return out
+            width, use_bias=True, kernel_initializer=kinit)
 
     def call(self, inputs, samples=32):
         """
@@ -202,7 +192,6 @@ class MLPScaler(Scaler):
             uncertainties[mask],
         ), axis=-1)
         samples = self.sample_input(samples)
-        samples = self._append_one_hot(samples, 0, 2)
         samples = self.network(samples)
         num_images = tf.reduce_max(image_id) + 1
         _,_,c = tf.unique_with_counts(tf.squeeze(image_id[mask], axis=-1))
@@ -212,7 +201,6 @@ class MLPScaler(Scaler):
         image_rep /= tf.cast(c[...,None], 'float32')
 
         metadata = self.metadata_input(metadata) 
-        metadata = self._append_one_hot(metadata, 1, 2)
         metadata = metadata + \
             tf.gather(image_rep, tf.squeeze(image_id, axis=-1))
         out = self.distribution(self.network(metadata))
