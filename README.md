@@ -22,28 +22,28 @@ pip install careless
 Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
 
 1) **Install the NVIDIA driver** for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
-```
-Thu Jun 13 13:01:32 2024                                                                       
-+-----------------------------------------------------------------------------------------+    
-| NVIDIA-SMI 550.54.15              Driver Version: 550.54.15      CUDA Version: 12.4     |    
-|-----------------------------------------+------------------------+----------------------+    
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |    
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |    
-|                                         |                        |               MIG M. |    
-|=========================================+========================+======================|    
-|   0  Tesla V100S-PCIE-32GB          On  |   00000000:86:00.0 Off |                    0 |    
-| N/A   32C    P0             25W /  250W |       0MiB /  32768MiB |      0%      Default |    
-|                                         |                        |                  N/A |    
-+-----------------------------------------+------------------------+----------------------+    
-                                                                                               
-+-----------------------------------------------------------------------------------------+    
-| Processes:                                                                              |    
-|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |    
-|        ID   ID                                                               Usage      |    
-|=========================================================================================|    
-|  No running processes found                                                             |    
-+-----------------------------------------------------------------------------------------+    
-```
+
+        Thu Jun 13 13:01:32 2024                                                                       
+        +-----------------------------------------------------------------------------------------+    
+        | NVIDIA-SMI 550.54.15              Driver Version: 550.54.15      CUDA Version: 12.4     |    
+        |-----------------------------------------+------------------------+----------------------+    
+        | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |    
+        | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |    
+        |                                         |                        |               MIG M. |    
+        |=========================================+========================+======================|    
+        |   0  Tesla V100S-PCIE-32GB          On  |   00000000:86:00.0 Off |                    0 |    
+        | N/A   32C    P0             25W /  250W |       0MiB /  32768MiB |      0%      Default |    
+        |                                         |                        |                  N/A |    
+        +-----------------------------------------+------------------------+----------------------+    
+                                                                                                       
+        +-----------------------------------------------------------------------------------------+    
+        | Processes:                                                                              |    
+        |  GPU   GI   CI        PID   Type   Process name                              GPU Memory |    
+        |        ID   ID                                                               Usage      |    
+        |=========================================================================================|    
+        |  No running processes found                                                             |    
+        +-----------------------------------------------------------------------------------------+    
+
 A faulty driver will give an error message:
 ```
 NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running. 
