@@ -52,19 +52,18 @@ If the driver isn't installed, you will see:
 ```
 nvidia-smi: command not found
 ```
-2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://www.anaconda.com/download) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
+2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
 3) **Install careless** and associated dependencies including CUDA by running: 
 ```bash
 source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
 ``` 
 This will automatically create a new conda environment named careless.
 
-Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`.
+Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test`. 
 
 ## Dependencies
 
 `careless` is likely to run on any operating system and python version which is compatible with TensorFlow. 
-Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
  - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)
