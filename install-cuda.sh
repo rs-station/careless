@@ -44,4 +44,5 @@ export LD_LIBRARY_PATH="${ORIGINAL_LD_LIBRARY_PATH}"
 unset CUDNN_DIR
 unset PTXAS_DIR' >> $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 
-pip install careless
+# Install careless
+pip install --upgrade careless

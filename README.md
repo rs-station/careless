@@ -19,38 +19,58 @@ pip install careless
 ```
 
 ## Installation with GPU Support
-Careless supports GPU acceleration on NVIDIA GPUs. For users who would like to run `careless` in a cluster computing environment, requesting an interactive GPU node for the installation might be helpful. You may want to first follow the latest [Tensorflow installation instructions](https://www.tensorflow.org/install/pip#step-by-step_instructions) and then install `careless`. Specifically, 
-1) Create and activate a new environment with the appropriate Python version
-   ```bash
-   conda create -yn careless python=checktheversion
-   conda activate careless
-   pip install --upgrade pip
-   ```
-2) Install dependencies for GPU support (see the following paragraph)
-3) Install TensorFlow (and verify its GPU support)
-   ```bash
-   pip install tensorflow==checktheversion
-   #check that tensorflow sees the correct number of GPUs
-   python3 -c "import tensorflow as tf; print(len(tf.config.list_physical_devices('GPU')))"
-   ```
-4) Install `careless`
-   ```bash
-   pip install careless
-   ```
+Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
 
-The following dependencies are required for GPU support 
- - NVIDIA driver, 
- - CUDA Toolkit, and 
- - cuDNN. 
+1) **Install the NVIDIA driver** for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. 
 
-You can determine the versions required by the latest TensorFlow release from the [TensorFlow docs](https://www.tensorflow.org/install/pip#software_requirements). The driver is usually installed through the system package manager and will require root privileges. In a cluster computing environment, a suitable version of the NVIDIA driver will usually be provided by your system administrators. The two libraries, CUDA toolkit and cuDNN, may either be installed through the system package manager or using the Anaconda python distribution as described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions). 
+    You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
 
-You may confirm GPU acceleration is active using the `nvidia-smi` command to monitor GPU usage during model training. If you are having trouble enabling GPU support, you may want to use the `--tf-debug` flag during training for verbose logging of TensorFlow issues. 
+        Thu Jun 13 13:01:32 2024                                                                       
+        +-----------------------------------------------------------------------------------------+    
+        | NVIDIA-SMI 550.54.15              Driver Version: 550.54.15      CUDA Version: 12.4     |    
+        |-----------------------------------------+------------------------+----------------------+    
+        | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |    
+        | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |    
+        |                                         |                        |               MIG M. |    
+        |=========================================+========================+======================|    
+        |   0  Tesla V100S-PCIE-32GB          On  |   00000000:86:00.0 Off |                    0 |    
+        | N/A   32C    P0             25W /  250W |       0MiB /  32768MiB |      0%      Default |    
+        |                                         |                        |                  N/A |    
+        +-----------------------------------------+------------------------+----------------------+    
+                                                                                                       
+        +-----------------------------------------------------------------------------------------+    
+        | Processes:                                                                              |    
+        |  GPU   GI   CI        PID   Type   Process name                              GPU Memory |    
+        |        ID   ID                                                               Usage      |    
+        |=========================================================================================|    
+        |  No running processes found                                                             |    
+        +-----------------------------------------------------------------------------------------+    
+    A faulty driver will give an error message:
+
+        NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running. 
+    If the driver isn't installed, you will see:
+
+        nvidia-smi: command not found
+2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
+3) **Install careless** and associated dependencies including CUDA by running: 
+
+        source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
+    This will automatically create a new conda environment named careless.
+
+Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test` as in this example:
+
+        (careless) user@computer:~$ careless test
+        Careless version 0.4.2
+        ###############################################
+        # TensorFlow can access the following devices #
+        ###############################################
+         - CPU: /physical_device:CPU:0
+         - GPU: /physical_device:GPU:0
+
 
 ## Dependencies
 
 `careless` is likely to run on any operating system and python version which is compatible with TensorFlow. 
-Pip will handle installation of all dependencies. 
 `careless` uses mostly tools from the conventional scientific python stack plus
  - optimization routines from [TensorFlow](https://www.tensorflow.org/)
  - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)

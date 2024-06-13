@@ -25,6 +25,14 @@ def run_careless(parser):
         df = LaueFormatter.from_parser(parser)
     elif parser.type == 'mono':
         df = MonoFormatter.from_parser(parser)
+    elif parser.type == 'test':
+        print("###############################################")
+        print("# TensorFlow can access the following devices #")
+        print("###############################################")
+        for dev in tf.config.list_physical_devices():
+            print(f" - {dev.device_type}: {dev.name}")
+        from sys import exit
+        exit()
 
 
     inputs,rac = df.format_files(parser.reflection_files)
