@@ -19,7 +19,7 @@ pip install careless
 ```
 
 ## Installation with GPU Support
-Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. 
+Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
 
 1) Install the appropriate NVIDIA driver for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
 ```
