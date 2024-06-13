@@ -21,7 +21,7 @@ pip install careless
 ## Installation with GPU Support
 Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
 
-1) Install the appropriate NVIDIA driver for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
+1) **Install the NVIDIA driver** for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
 ```
 Thu Jun 13 13:01:32 2024                                                                       
 +-----------------------------------------------------------------------------------------+    
@@ -52,8 +52,8 @@ If the driver isn't installed, you will see:
 ```
 nvidia-smi: command not found
 ```
-2) Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://www.anaconda.com/download) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
-3) Install careless and associated dependencies including CUDA by running: 
+2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://www.anaconda.com/download) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
+3) **Install careless** and associated dependencies including CUDA by running: 
 ```bash
 source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
 ``` 
