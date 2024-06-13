@@ -21,7 +21,9 @@ pip install careless
 ## Installation with GPU Support
 Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
 
-1) **Install the NVIDIA driver** for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
+1) **Install the NVIDIA driver** for your accelerator card. On most hyper performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. 
+
+    You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
 
         Thu Jun 13 13:01:32 2024                                                                       
         +-----------------------------------------------------------------------------------------+    
@@ -53,7 +55,7 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
 3) **Install careless** and associated dependencies including CUDA by running: 
 
         source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
-This will automatically create a new conda environment named careless.
+    This will automatically create a new conda environment named careless.
 
 Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test` as in this example:
 
