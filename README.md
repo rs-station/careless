@@ -43,32 +43,28 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
         |=========================================================================================|    
         |  No running processes found                                                             |    
         +-----------------------------------------------------------------------------------------+    
-
 A faulty driver will give an error message:
-```
-NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running. 
-```
+
+        NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running. 
 If the driver isn't installed, you will see:
-```
-nvidia-smi: command not found
-```
+
+        nvidia-smi: command not found
 2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typically installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
 3) **Install careless** and associated dependencies including CUDA by running: 
-```bash
-source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
-``` 
+
+        source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
 This will automatically create a new conda environment named careless.
 
 Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test` as in this example:
-```
-(careless) user@computer:~$ careless test
-Careless version 0.4.2
-###############################################
-# TensorFlow can access the following devices #
-###############################################
- - CPU: /physical_device:CPU:0
- - GPU: /physical_device:GPU:0
-```
+
+        (careless) user@computer:~$ careless test
+        Careless version 0.4.2
+        ###############################################
+        # TensorFlow can access the following devices #
+        ###############################################
+         - CPU: /physical_device:CPU:0
+         - GPU: /physical_device:GPU:0
+
 
 ## Dependencies
 
