@@ -59,7 +59,16 @@ source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/inst
 ``` 
 This will automatically create a new conda environment named careless.
 
-Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test`. 
+Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test` as in this example:
+```
+(careless) user@computer:~$ careless test
+Careless version 0.4.2
+###############################################
+# TensorFlow can access the following devices #
+###############################################
+ - CPU: /physical_device:CPU:0
+ - GPU: /physical_device:GPU:0
+```
 
 ## Dependencies
 
