@@ -40,6 +40,7 @@ class DataFormatter():
     formatted model inputs 
     """
     spacegroups = None
+    cell = None
     def pack_inputs(self, inputs_dict):
         """
         inputs_dict : {k:v} where k corresponds to one of careless.models.base.BaseModel.input_index.keys()
@@ -53,7 +54,7 @@ class DataFormatter():
                 break
         return inputs
 
-    def prep_dataset(self, ds : rs.DataSet, spacegroup : Optional[gemmi.SpaceGroup] = None) -> rs.DataSet:
+    def prep_dataset(self, ds : rs.DataSet, spacegroup : Optional[gemmi.SpaceGroup] = None, cell : Optional[gemmi.UnitCell] = None) -> rs.DataSet:
         raise NotImplementedError("Formatter classes should implement `prep_dataset`")
 
     def finalize(self, data : rs.DataSet, rac : ReciprocalASUCollection) -> (tuple, ReciprocalASUCollection):
@@ -80,7 +81,7 @@ class DataFormatter():
             sg = None
             if self.spacegroups is not None:
                 sg = self.spacegroups[file_id]
-            ds = self.prep_dataset(ds, sg)
+            ds = self.prep_dataset(ds, sg, self.cell)
 
             if self.separate_outputs:
                 asu_id = file_id
@@ -159,6 +160,7 @@ class MonoFormatter(DataFormatter):
             positional_encoding_keys=None,
             encoding_bit_depth=5,
             spacegroups = None,
+            cell = None,
             standardize = True,
         ):
         """
@@ -194,6 +196,7 @@ class MonoFormatter(DataFormatter):
         self.positional_encoding_keys = positional_encoding_keys
         self.ecoding_bit_depth = encoding_bit_depth
         self.spacegroups = spacegroups
+        self.cell = cell
         self.standardize = standardize
 
     @classmethod
@@ -213,6 +216,11 @@ class MonoFormatter(DataFormatter):
                     "Multiple values provided for --spacegroups=, but the number of provided values does not match the number of reflection files. "
                     "Either provide a single spacegroup or one per reflection file as a comma-separated list. " 
                 )
+        
+        cell = None
+        if parser.unitcell is not None:
+            cell = [float(i) for i in parser.unitcell.split(",")]
+            cell = gemmi.UnitCell(*cell)
 
         return cls(
             parser.intensity_key,
@@ -226,10 +234,11 @@ class MonoFormatter(DataFormatter):
             pe_keys,
             parser.positional_encoding_frequencies,
             spacegroups,
+            cell,
             standardize=parser.standardize_metadata,
         )
 
-    def prep_dataset(self, ds, spacegroup=None, inplace=True):
+    def prep_dataset(self, ds, spacegroup=None, cell=None, inplace=True):
         """
         Format a single data set.
          - Apply resolution cutoff (dHKL >= dmin)
@@ -245,6 +254,8 @@ class MonoFormatter(DataFormatter):
             The rs DataSet instance to be standardized
         spacegroup : gemmi.SpaceGroup
             Optionally override ds.spacegroup with this object.
+        cell: gemmi.UnitCell
+            Optionally override ds.cell with this object.
         inplace : bool (optional)
             By default this method operators inplace on the passed dataset.
             Set this parameter to False in order to operate on a copy.
@@ -258,6 +269,8 @@ class MonoFormatter(DataFormatter):
 
         if spacegroup is not None:
             ds.spacegroup = spacegroup
+        if cell is not None:
+            ds.cell = cell
 
         # Avoid non-unique MultiIndex complications
         ds.reset_index(inplace=True)
