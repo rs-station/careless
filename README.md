@@ -57,7 +57,7 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
         source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
     This will automatically create a new conda environment named careless.
 
-Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. You can test CUDA support by running the `careless test` subprogram. If your installation was successful, you should see GPU devices listed in the output of `careless test` as in this example:
+Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. After the installation is finished, the script will test GPU availability by running `careless test`. If the installation was successful and your node has a GPU, it will appare in the output:
 
         (careless) user@computer:~$ careless test
         Careless version 0.4.2
