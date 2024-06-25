@@ -48,7 +48,7 @@ unset CUDNN_DIR
 unset PTXAS_DIR' >> $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 
 # Reactivate to update cuda paths
-conda activate careless
+conda activate $ENVNAME
 
 # Install careless
 pip install --upgrade careless
