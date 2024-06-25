@@ -48,7 +48,7 @@ class CustomParser(EnvironmentSettingsMixin):
      - Detect conflicting arguments and raise an informative error
     """
     def _validate_input_files(self, parser):
-        if parser.type == 'test':
+        if parser.type == 'devices':
             return
         for inFN in parser.reflection_files:
             if not exists(inFN):
@@ -90,7 +90,7 @@ parser.add_argument("--version", action="version", version=f"careless {careless.
 subs = parser.add_subparsers(title="Experiment Type", required=True, dest="type")
 mono_sub = subs.add_parser("mono", help="Process monochromatic diffraction data.", formatter_class=CustomFormatter)
 poly_sub = subs.add_parser("poly", help="Process polychromatic, 'Laue', diffraction data.", formatter_class=CustomFormatter)
-test_sub = subs.add_parser("test", help="Print available physical devices", formatter_class=CustomFormatter)
+devices_sub = subs.add_parser("devices", help="Print available physical devices", formatter_class=CustomFormatter)
 
 from careless.args import required,poly,groups
 
@@ -118,4 +118,4 @@ for group in groups:
 # Test needs environment settings options
 from careless.args import tf_options
 for args,kwargs in tf_options.args_and_kwargs:
-    test_sub.add_argument(*args, **kwargs)
+    devices_sub.add_argument(*args, **kwargs)

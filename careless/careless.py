@@ -25,7 +25,7 @@ def run_careless(parser):
         df = LaueFormatter.from_parser(parser)
     elif parser.type == 'mono':
         df = MonoFormatter.from_parser(parser)
-    elif parser.type == 'test':
+    elif parser.type == 'devices':
         print("###############################################")
         print("# TensorFlow can access the following devices #")
         print("###############################################")

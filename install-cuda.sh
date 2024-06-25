@@ -54,5 +54,5 @@ conda activate careless
 # Install careless
 pip install --upgrade careless
 
-# Run careless test
-careless test
+# Run careless devices
+careless devices
