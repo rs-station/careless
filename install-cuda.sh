@@ -3,13 +3,17 @@ PY_VERSION=3.11
 TFP_VERSION=0.24.0
 TF_VERSION=2.16.1
 
-conda create -yn $ENVNAME python=$PY_VERSION
 source $CONDA_PREFIX/etc/profile.d/conda.sh
 conda activate base
 
-source ./anaconda/etc/profile.d/conda.sh
-conda activate
-conda create -yn $ENVNAME python=$PY_VERSION
+result=$(conda create -n $ENVNAME python=$PY_VERSION 3>&2 2>&1 1>&3)
+
+echo $result
+if [ ! -z "${result}" ]; then
+    echo "User aborted anaconda env creation. Exiting... "
+    return
+fi
+
 conda activate $ENVNAME
 pip install --upgrade pip
 
@@ -44,5 +48,11 @@ export LD_LIBRARY_PATH="${ORIGINAL_LD_LIBRARY_PATH}"
 unset CUDNN_DIR
 unset PTXAS_DIR' >> $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 
+# Reactivate to update cuda paths
+conda activate careless
+
 # Install careless
 pip install --upgrade careless
+
+# Run careless test
+careless test
