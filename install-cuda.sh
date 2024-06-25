@@ -3,13 +3,12 @@ PY_VERSION=3.11
 TFP_VERSION=0.24.0
 TF_VERSION=2.16.1
 
-source $CONDA_PREFIX/etc/profile.d/conda.sh
 conda activate base
 
 result=$(conda create -n $ENVNAME python=$PY_VERSION 3>&2 2>&1 1>&3)
 
 echo $result
-if [ ! -z "${result}" ]; then
+if [[ $result == *"CondaSystemExit"* ]]; then
     echo "User aborted anaconda env creation. Exiting... "
     return
 fi
