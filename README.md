@@ -51,7 +51,7 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
     If the driver isn't installed, you will see:
 
         nvidia-smi: command not found
-2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/) or as directed by your cluster documentation. Before proceeding, make sure you activate your conda base environment. For typical installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
+2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/). Before proceeding, make sure you activate your conda base environment. For typical installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
 3) **Install careless** and associated dependencies including CUDA by running: 
 
         source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
