@@ -23,5 +23,6 @@ def test_completeness(merged_mtz, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == bins + 2
+    
+    assert len(df) == bins + 1
 
