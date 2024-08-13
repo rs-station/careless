@@ -168,3 +168,18 @@ def test_freeze_scales(off_file):
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
+@pytest.mark.parametrize('clip_type', ['--clipvalue', '--clipnorm', '--global-clipnorm'])
+def test_clipping(off_file, clip_type):
+    """ Test `--freeze-scales` for execution """
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        flags = f"mono --disable-gpu --iterations={niter} {clip_type}=1. dHKL,image_id"
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
+
