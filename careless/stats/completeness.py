@@ -31,6 +31,7 @@ class ArgumentParser(BaseParser):
 def run_analysis(args):
     ds = rs.read_mtz(args.mtz)
     results = rs.stats.compute_completeness(ds, bins=args.bins)
+    results = results['completeness']
 
     if args.output is not None:
         results.to_csv(args.output)
@@ -44,7 +45,7 @@ def run_analysis(args):
         data=results.reset_index().melt('index'),
         x='index',
         y='value',
-        hue='variable_1',
+        hue='variable',
         palette='Dark2',
     )
     plt.xticks(rotation=45, rotation_mode='anchor', ha='right')
