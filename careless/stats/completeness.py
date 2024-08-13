@@ -33,17 +33,21 @@ def run_analysis(args):
     results = rs.stats.compute_completeness(ds, bins=args.bins)
     results = results['completeness']
 
-    if args.output is not None:
-        results.to_csv(args.output)
-    else:
-        print(results.to_string())
 
     #Move overall to the beginning
     results = results.iloc[np.roll(np.arange(len(results)), 1)]
+    results = results.reset_index()
+    xlabel = 'Resolution Range (Å)'
+    results = results.rename(columns={'index' : xlabel})
+
+    if args.output is not None:
+        results.to_csv(args.output, index=False)
+    else:
+        print(results.to_string(index=False))
 
     ax = sns.lineplot(
-        data=results.reset_index().melt('index'),
-        x='index',
+        data=results.reset_index().melt(xlabel),
+        x=xlabel,
         y='value',
         hue='variable',
         palette='Dark2',
@@ -51,7 +55,6 @@ def run_analysis(args):
     plt.xticks(rotation=45, rotation_mode='anchor', ha='right')
     plt.legend(title="")
     plt.ylabel(r"Completeness")
-    plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
 
