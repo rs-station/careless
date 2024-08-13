@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "careless"
+authors=[
+    {name="Kevin M. Dalton", email="kmdalton@slac.stanford.edu"}
+]
+description = "Merging crystallography data without much physics."
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">= 3.9,<3.12"
+dependencies = [
+    "reciprocalspaceship>=0.9.16",
+    "tqdm",
+    "tensorflow",
+    "tf_keras",
+    "tensorflow-probability[tf]",
+    "matplotlib",
+    "seaborn",
+    "ray",
+]
+optional-dependencies.dev = [
+    "pytest", 
+    "pytest-cov",
+    "pytest-xdist",
+]
+license={text = "MIT"}
+
+[project.urls]
+Repository = "https://github.com/rs-station/careless"
+Examples = "https://github.com/rs-station/careless-examples"
+Issues = "https://github.com/rs-station/careless/issues"
+
+[project.scripts]
+careless = "careless.careless:main"
+"careless.ccanom" = "careless.stats.ccanom:main"
+"careless.cchalf" = "careless.stats.cchalf:main"
+"careless.ccpred" = "careless.stats.ccpred:main"
+"careless.image_ccpred" = "careless.stats.image_cc:main"
+"careless.filter_image" = "careless.stats.filter_by_image_cc:main"
+"careless.plot_history" = "careless.stats.history:main"
+"careless.bfactor" = "careless.stats.prior_b:main"
+"careless.apply_bfactor" = "careless.stats.rescale:main"
+"careless.completeness" = "careless.stats.completeness:main"
+"careless.rsplit" = "careless.stats.rsplit:main"
+"careless.xds2mtz" = "careless.io.xds:main"
+
+[tool.pytest.ini_options]
+addopts = "-n auto --cov=careless --cov-config=.coveragerc --cov-report xml"
+testpaths = [
+    "tests",
+]
+
+[tool.setuptools.dynamic]
+version = {file = "careless/VERSION"}
