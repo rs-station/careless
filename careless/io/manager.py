@@ -464,6 +464,9 @@ class DataManager():
             parser.learning_rate,
             parser.beta_1,
             parser.beta_2,
+            clipnorm=parser.clipnorm,
+            clipvalue=parser.clipvalue,
+            global_clipnorm=parser.global_clipnorm,
         )
 
         model.compile(

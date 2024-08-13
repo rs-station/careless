@@ -26,4 +26,22 @@ args_and_kwargs = (
         "default":0.99,
     }),
 
+    (("--clipnorm",), {
+        "help":"Optionally clip the norm of the gradient of each weight to be no larger than this value.", 
+        "type": float, 
+        "default": None,
+    }),
+
+    (("--clipvalue",), {
+        "help":"Optionally clip the gradients to be no larger than this value.", 
+        "type": float, 
+        "default": None,
+    }),
+
+    (("--global-clipnorm",), {
+        "help":"Optionally clip the norm of all the gradients to be no larger than this value.", 
+        "type": float, 
+        "default": None,
+    }),
+
 )
