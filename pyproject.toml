@@ -52,3 +52,6 @@ addopts = "-n auto --cov=careless --cov-config=.coveragerc --cov-report xml"
 testpaths = [
     "tests",
 ]
+
+[tool.setuptools.dynamic]
+version = {file = "careless/VERSION"}
