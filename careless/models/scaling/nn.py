@@ -22,8 +22,6 @@ class NormalLayer(tfk.layers.Layer):
     def call(self, x, **kwargs):
         loc, scale = tf.unstack(x, axis=-1)
         scale = self.scale_bijector(scale)
-        loc = loc 
-        scale = scale 
         return tfd.Normal(loc, scale)
 
 class MetadataScaler(Scaler):
