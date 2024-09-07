@@ -29,7 +29,7 @@ class MetadataScaler(Scaler):
     Neural network based scaler with simple dense layers.
     This neural network outputs a normal distribution.
     """
-    def __init__(self, n_layers, width, leakiness=0.01, epsilon=1e-7):
+    def __init__(self, n_layers, width, leakiness=0.01, epsilon=1e-7, scale_bijector=None):
         """
         Parameters
         ----------
@@ -73,7 +73,7 @@ class MetadataScaler(Scaler):
 
         #The final layer converts the output to a Normal distribution
         #tfp_layers.append(tfp.layers.IndependentNormal())
-        tfp_layers.append(NormalLayer(epsilon=epsilon))
+        tfp_layers.append(NormalLayer(epsilon=epsilon, scale_bijector=scale_bijector))
 
         self.network = tfk.Sequential(mlp_layers)
         self.distribution = tfk.Sequential(tfp_layers)
