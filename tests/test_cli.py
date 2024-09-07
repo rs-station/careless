@@ -170,10 +170,30 @@ def test_freeze_scales(off_file):
 
 @pytest.mark.parametrize('clip_type', ['--clipvalue', '--clipnorm', '--global-clipnorm'])
 def test_clipping(off_file, clip_type):
-    """ Test `--freeze-scales` for execution """
+    """ Test gradient clipping settings """
     with TemporaryDirectory() as td:
         out = td + '/out'
         flags = f"mono --disable-gpu --iterations={niter} {clip_type}=1. dHKL,image_id"
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
+
+@pytest.mark.parametrize('scale_bijector', ['exp', 'softplus'])
+@pytest.mark.parametrize('image_layers', [None, 2])
+def test_scale_bijector(off_file, scale_bijector, image_layers):
+    """ Test scale bijector settings """
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        if image_layers is not None:
+            flags = f"mono --disable-gpu --image-layers={image_layers} --iterations={niter} --scale-bijector={scale_bijector} dHKL,image_id"
+        else:
+            flags = f"mono --disable-gpu --iterations={niter} --scale-bijector={scale_bijector} dHKL,image_id"
+
         command = flags +  f" {off_file} {out}"
         from careless.parser import parser
         parser = parser.parse_args(command.split())

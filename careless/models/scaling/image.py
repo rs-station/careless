@@ -96,7 +96,7 @@ class ImageLayer(Scaler):
         return result
 
 class NeuralImageScaler(Scaler):
-    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7):
+    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7, scale_bijector=None):
         super().__init__()
         layers = []
         if leakiness is None:
@@ -111,15 +111,13 @@ class NeuralImageScaler(Scaler):
 
         self.image_layers = layers
         from careless.models.scaling.nn import MetadataScaler
-        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon)
+        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon, scale_bijector=scale_bijector)
 
     def call(self, inputs):
         result = self.get_metadata(inputs)
         image_id = self.get_image_id(inputs),
 
         result = self.metadata_scaler.network(result)
-        # One could use this line to add a skip connection here
-        #result = result + self.get_metadata(inputs)
 
         for layer in self.image_layers:
             result = layer((result, image_id))

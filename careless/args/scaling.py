@@ -43,4 +43,12 @@ args_and_kwargs = (
         "dest" : "use_image_scales",
         "default": True,
     }),
+
+    (("--scale-bijector",), {
+        "help": "What function to use to ensure positivity of the standard deviation of scales. "
+                "Supported functions are --scale-bijector=exp and the default is --scale-bijector=softplus",
+        "type": str,
+        "default": "softplus",
+        "choices" : ["exp", "softplus"],
+    }),
 )

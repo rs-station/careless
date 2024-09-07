@@ -438,6 +438,21 @@ class DataManager():
             if mlp_width is None:
                 mlp_width = BaseModel.get_metadata(self.inputs).shape[-1]
 
+            if parser.scale_bijector.lower() == 'softplus':
+                from tensorflow_probability import bijectors as tfb
+                scale_bijector = tfb.Chain([
+                    tfb.Shift(parser.epsilon),
+                    tfb.Softplus(),
+                ])
+            elif parser.scale_bijector.lower() == 'exp':
+                from tensorflow_probability import bijectors as tfb
+                scale_bijector = tfb.Chain([
+                    tfb.Shift(parser.epsilon),
+                    tfb.Exp(),
+                ])
+            else:
+                raise ValueError(f"Unsupported scale bijector type, {parser.scale_bijector}")
+
             if parser.image_layers > 0:
                 from careless.models.scaling.image import NeuralImageScaler
                 n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
@@ -447,9 +462,10 @@ class DataManager():
                     parser.mlp_layers,
                     mlp_width,
                     epsilon=parser.epsilon,
+                    scale_bijector=scale_bijector
                 )
             else:
-                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon)
+                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon, scale_bijector=scale_bijector)
                 if parser.use_image_scales:
                     n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
                     image_scaler = ImageScaler(n_images)
