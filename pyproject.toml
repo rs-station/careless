@@ -46,6 +46,7 @@ careless = "careless.careless:main"
 "careless.completeness" = "careless.stats.completeness:main"
 "careless.rsplit" = "careless.stats.rsplit:main"
 "careless.xds2mtz" = "careless.io.xds:main"
+"careless._gen_test_data" = "careless.utils.gen_test_data:main"
 
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=careless --cov-config=.coveragerc --cov-report xml"
