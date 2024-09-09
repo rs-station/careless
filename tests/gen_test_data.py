@@ -6,7 +6,7 @@ an example of how to run the careless tests.
 ```
 cd careless
 pip install -e .[dev]
-careless._gen_test_data tests/data
+python tests/gen_test_data.py
 pytest
 ```
 
@@ -23,14 +23,8 @@ import gemmi
 
 
 def main():
-    from argparse import ArgumentParser
-    parser = ArgumentParser(
-    )
-    parser.add_argument("rundir", help="The location of careless/tests/data")
-    parser = parser.parse_args()
-    rundir = parser.rundir
-    #rundir = "tests/data/"
-    #rundir = abspath(join(dirname(__file__), rundir))
+    rundir = "data/"
+    rundir = abspath(join(dirname(__file__), rundir))
 
     command = """
     careless poly 
@@ -49,7 +43,8 @@ def main():
     """
     if not exists(f"{rundir}/output"):
         mkdir(f"{rundir}/output")
-        from subprocess import call
-        call(command.split(), cwd=rundir)
+    from subprocess import call
+    call(command.split(), cwd=rundir)
 
-
+if __name__=="__main__":
+    main()
