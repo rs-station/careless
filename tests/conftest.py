@@ -8,28 +8,12 @@ import reciprocalspaceship as rs
 import gemmi
 
 def pytest_sessionstart(session):
-    rundir = "data/"
-    rundir = abspath(join(dirname(__file__), rundir))
-
-    command = """
-    careless poly 
-        --disable-progress-bar 
-        --iterations=10 
-        --merge-half-datasets 
-        --half-dataset-repeats=3 
-        --test-fraction=0.1 
-        --disable-gpu 
-        --anomalous 
-        --wavelength-key=Wavelength
-        dHKL,Hobs,Kobs,Lobs,Wavelength
-        pyp_off.mtz 
-        pyp_2ms.mtz 
-        output/pyp
-    """
-    if not exists(f"{rundir}/output"):
-        mkdir(f"{rundir}/output")
-        from subprocess import call
-        call(command.split(), cwd=rundir)
+    out_dir = "data/output"
+    out_dir = abspath(join(dirname(__file__), out_dir))
+    if exists(out_dir):
+        return
+    msg = f"""No test data in {out_dir}. Please run careless._gen_test_data and retry"""
+    raise FileNotFoundError(msg)
 
 @pytest.fixture
 def cell_and_spacegroups():
