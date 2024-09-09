@@ -12,7 +12,18 @@ def pytest_sessionstart(session):
     out_dir = abspath(join(dirname(__file__), out_dir))
     if exists(out_dir):
         return
-    msg = f"""No test data in {out_dir}. Please run careless._gen_test_data and retry"""
+    msg = f"""
+No test data in {out_dir}. Please run gen_test_data.py and retry.
+It is required to run this script prior to calling pytest. Here is
+an example of how to run the careless tests. 
+
+```
+cd careless
+pip install -e .[dev]
+python tests/gen_test_data.py
+pytest
+```
+    """
     raise FileNotFoundError(msg)
 
 @pytest.fixture
