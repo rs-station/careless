@@ -75,16 +75,19 @@ class DataFormatter():
         """
         data = None
 
-        reciprocal_asus = []
+        cells,spacegroups = [],[]
         for file_id, ds in enumerate(datasets):
-            sg = None
             if self.spacegroups is not None:
                 sg = self.spacegroups[file_id]
+            elif ds.spacegroup is not None:
+                sg = ds.spacegroup
+            else:
+                raise ValueError("Could not determine spacegroups. Please supply the --spacegroups flag")
+
             ds = self.prep_dataset(ds, sg)
 
             if self.separate_outputs:
                 asu_id = file_id
-                reciprocal_asus.append(ReciprocalASU(ds.cell, ds.spacegroup, ds.dHKL.min(), self.anomalous))
             else:
                 asu_id = 0
 
@@ -96,8 +99,22 @@ class DataFormatter():
             else:
                 data = rs.concat((data, ds), check_isomorphous=False)
 
-        if len(reciprocal_asus) == 0:
-            reciprocal_asus.append(ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
+            cells.append(ds.cell)
+            spacegroups.append(sg)
+            if not ds.cell.is_compatible_with_spacegroup(sg):
+                raise ValueError(
+                    f"Spacegroup {ds.spacegroup} found to be incompatible with unit cell constants {ds.cell} cannot proceed."
+                )
+
+        reciprocal_asus = []
+        dmin = data.dHKL.min()
+        if self.separate_outputs:
+            for cell,sg in zip(cells, spacegroups):
+                reciprocal_asus.append(
+                    ReciprocalASU(cell, sg, dmin, self.anomalous))
+        else:
+            reciprocal_asus.append(
+                ReciprocalASU(data.cell, data.spacegroup, dmin, self.anomalous))
 
         rac = ReciprocalASUCollection(reciprocal_asus)
         data['image_id'] = data.groupby(['file_id', 'image_id']).ngroup()
