@@ -96,7 +96,7 @@ class ImageLayer(Scaler):
         return result
 
 class NeuralImageScaler(Scaler):
-    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7, scale_bijector=None):
+    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7, scale_bijector=None, scale_multiplier=None):
         super().__init__()
         layers = []
         if leakiness is None:
@@ -111,7 +111,7 @@ class NeuralImageScaler(Scaler):
 
         self.image_layers = layers
         from careless.models.scaling.nn import MetadataScaler
-        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon, scale_bijector=scale_bijector)
+        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon, scale_bijector=scale_bijector, scale_multiplier=scale_multiplier)
 
     def call(self, inputs):
         result = self.get_metadata(inputs)

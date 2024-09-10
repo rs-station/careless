@@ -453,6 +453,8 @@ class DataManager():
             else:
                 raise ValueError(f"Unsupported scale bijector type, {parser.scale_bijector}")
 
+            istd = BaseModel.get_intensities(self.inputs).std()
+
             if parser.image_layers > 0:
                 from careless.models.scaling.image import NeuralImageScaler
                 n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
@@ -462,10 +464,14 @@ class DataManager():
                     parser.mlp_layers,
                     mlp_width,
                     epsilon=parser.epsilon,
-                    scale_bijector=scale_bijector
+                    scale_bijector=scale_bijector,
+                    scale_multiplier=istd,
                 )
             else:
-                mlp_scaler = MLPScaler(parser.mlp_layers, mlp_width, epsilon=parser.epsilon, scale_bijector=scale_bijector)
+                mlp_scaler = MLPScaler(
+                    parser.mlp_layers, mlp_width, 
+                    epsilon=parser.epsilon, scale_bijector=scale_bijector, scale_multiplier=istd,
+                )
                 if parser.use_image_scales:
                     n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
                     image_scaler = ImageScaler(n_images)

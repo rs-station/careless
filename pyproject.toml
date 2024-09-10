@@ -55,3 +55,4 @@ testpaths = [
 
 [tool.setuptools.dynamic]
 version = {file = "careless/VERSION"}
+
