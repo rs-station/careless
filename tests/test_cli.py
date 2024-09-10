@@ -89,6 +89,23 @@ def test_twofile(off_file, on_file, on_file_alt_sg, ev11, dmin, anomalous, isigi
     else:
         base_test_together(flags, [off_file, on_file])
 
+@pytest.mark.parametrize("mode", ['mono', 'poly'])
+def test_double_wilson(off_file, on_file, mode):
+    flags = f"{mode} --disable-gpu --iterations={niter} dHKL,image_id"
+    flags += " --double-wilson-parents=None,0 "
+    r_in_range = " --double-wilson-r=0.0,0.9 "
+    r_outside_range = " --double-wilson-r=0.0,1.0 "
+    base_test_separate(
+        flags + r_in_range, 
+        [off_file, on_file]
+    )
+
+    with pytest.raises(ValueError):
+        base_test_separate(
+            flags + r_outside_range, 
+            [off_file, on_file]
+        )
+
 def test_crystfel(stream_file):
     flags = f"mono --disable-gpu --iterations={niter} --spacegroups=1 dHKL,image_id"
     base_test_together(flags, [stream_file])
