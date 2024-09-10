@@ -118,8 +118,8 @@ def run_analysis(args):
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
-    if parser.ylim is not None:
-        plt.ylim(parser.ylim)
+    if args.ylim is not None:
+        plt.ylim(args.ylim)
 
     if args.image is not None:
         plt.savefig(args.image)

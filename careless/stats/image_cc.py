@@ -104,8 +104,8 @@ def run_analysis(args):
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.grid(which='both', axis='both', ls='dashdot')
-    if parser.ylim is not None:
-        plt.ylim(parser.ylim)
+    if args.ylim is not None:
+        plt.ylim(args.ylim)
     plt.tight_layout()
 
     if args.image is not None:
