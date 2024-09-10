@@ -44,5 +44,12 @@ class BaseParser(argparse.ArgumentParser):
                  "them to the terminal.",
         )
 
-
+        self.add_argument(
+            "-l",
+            "--ylim",
+            type=float,
+            nargs=2,
+            default=None,
+            help="Override the y-axis limits like `--ylim 0. 1.`"
+        )
 

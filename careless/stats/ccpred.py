@@ -128,6 +128,8 @@ def run_analysis(args):
     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
+    if parser.ylim is not None:
+        plt.ylim(parser.ylim)
     plt.tight_layout()
 
     if args.image is not None:
