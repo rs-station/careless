@@ -1,4 +1,4 @@
-from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc,filter_by_image_cc
+from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc,filter_by_image_cc,isigi
 from tempfile import TemporaryDirectory
 from os.path import exists
 from os import symlink
@@ -104,6 +104,43 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
         assert len(df) == 4*bins 
     else:
         assert len(df) == 2*bins
+
+@pytest.mark.parametrize("bins", [1, 5])
+@pytest.mark.parametrize("overall", [True, False])
+@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("multi", [False, True])
+def test_isigi(predictions_mtz, method, bins, overall, multi):
+    tf = TemporaryDirectory()
+    csv = f"{tf.name}/out.csv"
+    png = f"{tf.name}/out.png"
+    command = f"-o {csv} -i {png} -b {bins} "
+    if overall:
+        command = command + ' --overall '
+
+    if multi:
+        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
+        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        symlink(predictions_mtz, mtz_0)
+        symlink(predictions_mtz, mtz_1)
+        command = command + f" {mtz_0} "
+        command = command + f" {mtz_1} "
+    else:
+        command = command + f" {predictions_mtz} "
+
+    parser = isigi.ArgumentParser().parse_args(command.split())
+
+    assert not exists(csv)
+    assert not exists(png)
+    isigi.run_analysis(parser)
+    assert exists(csv)
+    assert exists(png)
+
+    df = pd.read_csv(csv)
+
+    if multi and not overall:
+        assert len(df) == 2*bins 
+    else:
+        assert len(df) == 1*bins
 
 
 @pytest.mark.parametrize("method", ["spearman", "pearson"])
