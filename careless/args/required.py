@@ -19,7 +19,8 @@ args_and_kwargs = (
         "metavar":"reflections.{mtz,stream}", 
         "help":"Mtz or stream file(s) containing unmerged reflection observations. "
                "If you are supplying stream files, you must also use the --spacegroups option to supply the symmetry for merging. "
-               "See the metadata_keys param for more info about stream file usage.",
+               "See the metadata_keys param for more info about stream file usage. "
+               "careless poly does not currently support .stream files.",
         "type":str, 
         "nargs":'+',
     }),

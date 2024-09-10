@@ -110,6 +110,11 @@ def test_crystfel(stream_file):
     flags = f"mono --disable-gpu --iterations={niter} --spacegroups=1 dHKL,image_id"
     base_test_together(flags, [stream_file])
 
+    #Careless poly should fail with a clear error message
+    with pytest.raises(ValueError):
+        flags = f"poly --disable-gpu --iterations={niter} --spacegroups=1 dHKL,image_id"
+        base_test_together(flags, [stream_file])
+
 def test_scale_weight_save_and_load(off_file):
     """
     Test saving and loading weights. 

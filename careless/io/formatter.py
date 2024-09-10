@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import reciprocalspaceship as rs
 import gemmi
+from functools import wraps
 from .asu import ReciprocalASU,ReciprocalASUCollection
 from careless.models.base import BaseModel
 from careless.utils.positional_encoding import positional_encoding
@@ -630,4 +631,14 @@ class LaueFormatter(DataFormatter):
         }
 
         return self.pack_inputs(inputs), rac
+
+    @wraps(DataFormatter.format_files)
+    def format_files(self, files):
+        for file in files:
+            if file.endswith('.stream'):
+                raise ValueError(
+                    "careless poly does not support .stream files. Use careless mono instead."
+                )
+        return super().format_files(files)
+
 
