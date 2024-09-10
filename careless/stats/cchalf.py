@@ -134,6 +134,8 @@ def run_analysis(args):
     plt.ylabel(r"$\mathrm{CC_{1/2}}$ " + f"({args.method})")
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
+    if args.ylim is not None:
+        plt.ylim(args.ylim)
     plt.tight_layout()
 
     if args.image is not None:

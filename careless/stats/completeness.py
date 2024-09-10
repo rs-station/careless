@@ -56,6 +56,8 @@ def run_analysis(args):
     plt.legend(title="")
     plt.ylabel(r"Completeness")
     plt.grid(which='both', axis='both', ls='dashdot')
+    if args.ylim is not None:
+        plt.ylim(args.ylim)
     plt.tight_layout()
 
     if args.image is not None:
