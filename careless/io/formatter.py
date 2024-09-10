@@ -107,13 +107,14 @@ class DataFormatter():
                 )
 
         reciprocal_asus = []
+        dmin = data.dHKL.min()
         if self.separate_outputs:
             for cell,sg in zip(cells, spacegroups):
                 reciprocal_asus.append(
-                    ReciprocalASU(cell, sg, data.dHKL.min(), self.anomalous))
+                    ReciprocalASU(cell, sg, dmin, self.anomalous))
         else:
             reciprocal_asus.append(
-                ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
+                ReciprocalASU(data.cell, data.spacegroup, dmin, self.anomalous))
 
         rac = ReciprocalASUCollection(reciprocal_asus)
         data['image_id'] = data.groupby(['file_id', 'image_id']).ngroup()
