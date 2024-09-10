@@ -75,7 +75,6 @@ class DataFormatter():
         """
         data = None
 
-        reciprocal_asus = []
         for file_id, ds in enumerate(datasets):
             sg = None
             if self.spacegroups is not None:
@@ -84,7 +83,6 @@ class DataFormatter():
 
             if self.separate_outputs:
                 asu_id = file_id
-                reciprocal_asus.append(ReciprocalASU(ds.cell, ds.spacegroup, ds.dHKL.min(), self.anomalous))
             else:
                 asu_id = 0
 
@@ -96,6 +94,10 @@ class DataFormatter():
             else:
                 data = rs.concat((data, ds), check_isomorphous=False)
 
+        reciprocal_asus = []
+        if self.separate_outputs:
+            for ds in datasets:
+                reciprocal_asus.append(ReciprocalASU(ds.cell, ds.spacegroup, data.dHKL.min(), self.anomalous))
         if len(reciprocal_asus) == 0:
             reciprocal_asus.append(ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
 
