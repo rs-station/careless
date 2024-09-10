@@ -75,7 +75,10 @@ class DataFormatter():
         """
         data = None
 
+        cells,spacegroups = [],[]
         for file_id, ds in enumerate(datasets):
+            cells.append(ds.cell)
+            spacegroups.append(ds.spacegroup)
             sg = None
             if self.spacegroups is not None:
                 sg = self.spacegroups[file_id]
@@ -96,10 +99,12 @@ class DataFormatter():
 
         reciprocal_asus = []
         if self.separate_outputs:
-            for ds in datasets:
-                reciprocal_asus.append(ReciprocalASU(ds.cell, ds.spacegroup, data.dHKL.min(), self.anomalous))
-        if len(reciprocal_asus) == 0:
-            reciprocal_asus.append(ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
+            for cell,sg in zip(cells, spacegroups):
+                reciprocal_asus.append(
+                    ReciprocalASU(cell, sg, data.dHKL.min(), self.anomalous))
+        else:
+            reciprocal_asus.append(
+                ReciprocalASU(data.cell, data.spacegroup, data.dHKL.min(), self.anomalous))
 
         rac = ReciprocalASUCollection(reciprocal_asus)
         data['image_id'] = data.groupby(['file_id', 'image_id']).ngroup()
