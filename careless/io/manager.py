@@ -412,6 +412,15 @@ class DataManager():
         elif prior is None and parser.parents is not None:
             parents = [None if i == 'None' else int(i) for i in parents.split(',')]
             r_values = [float(i) for i in r_values.split(',')]
+            for r in r_values:
+                if (r >= 1.) or (r <= -1.):
+                    raise ValueError(
+                        f"Supplied --double-wilson-r value {r} outside of allowed range (-1, 1)"
+                    )
+                if r < 0:
+                    from warnings import warn
+                    warn(f"Supplied --double-wilson-r value {r} is negative")
+
             sigma = self.get_wilson_sigma(parser.wilson_prior_b)
             reindexing_ops = parser.reindexing_ops
             if reindexing_ops is not None:
