@@ -77,6 +77,10 @@ class DataFormatter():
 
         cells,spacegroups = [],[]
         for file_id, ds in enumerate(datasets):
+            if not ds.cell.is_compatible_with_spacegroup(ds.spacegroup):
+                raise ValueError(
+                    f"Spacegroup {ds.spacegroup} found to be incompatible with unit cell constants {ds.cell} cannot proceed."
+                )
             cells.append(ds.cell)
             spacegroups.append(ds.spacegroup)
             sg = None
