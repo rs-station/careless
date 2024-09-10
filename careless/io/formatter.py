@@ -77,9 +77,13 @@ class DataFormatter():
 
         cells,spacegroups = [],[]
         for file_id, ds in enumerate(datasets):
-            sg = None
             if self.spacegroups is not None:
                 sg = self.spacegroups[file_id]
+            elif ds.spacegroup is not None:
+                sg = ds.spacegroup
+            else:
+                raise ValueError("Could not determine spacegroups. Please supply the --spacegroups flag")
+
             ds = self.prep_dataset(ds, sg)
 
             if self.separate_outputs:
