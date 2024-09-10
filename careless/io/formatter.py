@@ -77,12 +77,6 @@ class DataFormatter():
 
         cells,spacegroups = [],[]
         for file_id, ds in enumerate(datasets):
-            if not ds.cell.is_compatible_with_spacegroup(ds.spacegroup):
-                raise ValueError(
-                    f"Spacegroup {ds.spacegroup} found to be incompatible with unit cell constants {ds.cell} cannot proceed."
-                )
-            cells.append(ds.cell)
-            spacegroups.append(ds.spacegroup)
             sg = None
             if self.spacegroups is not None:
                 sg = self.spacegroups[file_id]
@@ -100,6 +94,13 @@ class DataFormatter():
                 data = ds
             else:
                 data = rs.concat((data, ds), check_isomorphous=False)
+
+            cells.append(ds.cell)
+            spacegroups.append(sg)
+            if not ds.cell.is_compatible_with_spacegroup(sg):
+                raise ValueError(
+                    f"Spacegroup {ds.spacegroup} found to be incompatible with unit cell constants {ds.cell} cannot proceed."
+                )
 
         reciprocal_asus = []
         if self.separate_outputs:
