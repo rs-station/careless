@@ -84,7 +84,7 @@ Careless is now installed in its own environment. Whenever you want to run carel
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
 
-For usage examples and data from the [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/rs-station/careless-examples)
+For usage examples and data from the `careless` [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/rs-station/careless-examples). For a detailed case study of `careless` processing including information about **crossvalidation measures**, see our [preprint](https://doi.org/10.1101/2024.07.30.605871). 
 
 Still confused? File an [issue](https://github.com/rs-station/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
