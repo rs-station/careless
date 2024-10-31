@@ -4,7 +4,7 @@ TF_VERSION=2.16.1
 pip install --upgrade pip
 
 pip install tensorflow[and-cuda]==$TF_VERSION
-pip install tensorflow-probability[tf]==$TFP_VERSION
+pip install tensorflow-probability[tf]==$TFP_VERSION tensorflow[and-cuda]==$TF_VERSION
 
 # The following is a workaround for a bug in tensorflow cuda installation
 # https://github.com/tensorflow/tensorflow/issues/63362#issuecomment-2134680575
