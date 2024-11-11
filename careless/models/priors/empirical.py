@@ -3,6 +3,7 @@ from tensorflow_probability import distributions as tfd
 import numpy as np
 from careless.models.priors.base import Prior
 from careless.models.merging.surrogate_posteriors import RiceWoolfson
+import math
 
 
 class ReferencePrior():
@@ -57,7 +58,7 @@ class LaplaceReferencePrior(ReferencePrior):
         """
         super().__init__(observed)
         loc = np.array(Fobs, dtype=np.float32)
-        scale = np.array(SigFobs, dtype=np.float32)/np.sqrt(2.)
+        scale = np.array(SigFobs, dtype=np.float32)/math.sqrt(2.)
         self.base_dist = tfd.Laplace(loc, scale)
 
 class NormalReferencePrior(ReferencePrior):

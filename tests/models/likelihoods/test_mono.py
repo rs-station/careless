@@ -2,6 +2,7 @@ import pytest
 from careless.models.likelihoods.mono import *
 from careless.models.base import BaseModel
 from tensorflow_probability import distributions as tfd
+import math
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
@@ -28,7 +29,7 @@ def test_mono_LaplaceLikelihood(mono_inputs):
 
     l_true = tfd.Laplace(
         tf.squeeze(iobs), 
-        tf.squeeze(sigiobs)/np.sqrt(2.),
+        tf.squeeze(sigiobs)/math.sqrt(2.),
     )
     z = l_true.sample()
 

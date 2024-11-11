@@ -2,6 +2,7 @@ import pytest
 from careless.models.likelihoods.laue import *
 from careless.models.base import BaseModel
 from tensorflow_probability import distributions as tfd
+import math
 
 from careless.utils.device import disable_gpu
 status = disable_gpu()
@@ -40,7 +41,7 @@ def test_laue_LaplaceLikelihood(laue_inputs):
     sigiobs = BaseModel.get_uncertainties(laue_inputs)
     ipred = fake_ipred(laue_inputs)
 
-    l_true = tfd.Laplace(iobs, sigiobs/np.sqrt(2.))
+    l_true = tfd.Laplace(iobs, sigiobs/math.sqrt(2.))
 
     iconv = likelihood.convolve(ipred)
 
