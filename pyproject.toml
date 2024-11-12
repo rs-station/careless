@@ -10,23 +10,28 @@ authors=[
 description = "Merging crystallography data without much physics."
 readme = "README.md"
 dynamic = ["version"]
-requires-python = ">= 3.9,<3.12"
+requires-python = ">= 3.9,<3.13"
 dependencies = [
     "reciprocalspaceship>=0.9.16",
     "tqdm",
-    "tensorflow",
-    "tf_keras",
-    "tensorflow-probability",
+    "tensorflow-probability[tf]==0.25",
+    "tensorflow==2.18.0",
     "matplotlib",
     "seaborn",
     "ray",
 ]
-optional-dependencies.dev = [
+
+license={text = "MIT"}
+
+[project.optional-dependencies]
+dev = [
     "pytest", 
     "pytest-cov",
     "pytest-xdist",
 ]
-license={text = "MIT"}
+cuda = [
+    "tensorflow[and-cuda]==2.18.0",
+]
 
 [project.urls]
 Repository = "https://github.com/rs-station/careless"
