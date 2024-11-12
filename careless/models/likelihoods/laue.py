@@ -3,6 +3,7 @@ from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow_probability as tfp
 import tensorflow as tf
+import math
 import numpy as np
 
 class ConvolvedLikelihood():
@@ -78,7 +79,7 @@ class LaplaceLikelihood(LaueBase):
         scale = self.get_uncertainties(inputs)
         loc = tf.squeeze(loc)
         scale = tf.squeeze(scale)
-        return tfd.Laplace(loc, scale/np.sqrt(2.))
+        return tfd.Laplace(loc, scale / math.sqrt(2.))
 
 class StudentTLikelihood(LaueBase):
     def __init__(self, dof):

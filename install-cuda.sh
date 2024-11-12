@@ -14,13 +14,14 @@ fi
 conda activate $ENVNAME
 
 # Install TensorFlow Probability
-source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-tfp.sh)
+# Currently not necessary
+#source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-tfp.sh)
 
 # Reactivate to update cuda paths
 conda activate $ENVNAME
 
 # Install careless
-pip install --upgrade careless
+pip install careless[cuda]
 
 # Run careless devices
 careless devices

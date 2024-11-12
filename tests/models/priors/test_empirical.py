@@ -4,6 +4,7 @@ import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 from careless.models.merging.surrogate_posteriors import RiceWoolfson
 from careless.models.priors.empirical import *
+import math
 import numpy as np
 
 from careless.utils.device import disable_gpu
@@ -48,7 +49,7 @@ def ReferencePrior_test(p, ref, mc_samples):
 @pytest.mark.parametrize('mc_samples', [(), 3, 1])
 def test_LaplaceReferencePrior(mc_samples):
     p = LaplaceReferencePrior(Fobs[observed], SigFobs[observed], observed)
-    q = tfd.Laplace(Fobs, SigFobs/np.sqrt(2.))
+    q = tfd.Laplace(Fobs, SigFobs/math.sqrt(2.))
     ReferencePrior_test(p, q, mc_samples)
 
 

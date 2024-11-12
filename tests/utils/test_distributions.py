@@ -1,6 +1,7 @@
 from careless.utils.distributions import Stacy,Amoroso
 from tensorflow_probability import distributions as tfd
 import numpy as np
+import math
 
 
 from careless.utils.device import disable_gpu
@@ -76,7 +77,7 @@ def test_halfnormal(xmin=1e-3, xmax=1e1, npoints=1000):
     ref_dist_class = tfd.HalfNormal
     scale = np.linspace(0.1, 100, 1000).astype(np.float32)
     ref_params = (scale,)
-    amoroso_params = (0., np.sqrt(2.) * scale, 0.5, 2.)
+    amoroso_params = (0., math.sqrt(2.) * scale, 0.5, 2.)
 
     # Construct distributions
     ref_dist = ref_dist_class(*ref_params)

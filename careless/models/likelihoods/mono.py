@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import util as tfu
 from tensorflow_probability import bijectors as tfb
+import math
 import numpy as np
 
 class LocationScaleLikelihood(Likelihood):
@@ -19,7 +20,7 @@ class NormalLikelihood(LocationScaleLikelihood):
 class LaplaceLikelihood(LocationScaleLikelihood):
     def call(self, inputs):
         loc, scale = self.get_loc_and_scale(inputs)
-        return tfd.Laplace(loc, scale/np.sqrt(2.))
+        return tfd.Laplace(loc, scale/math.sqrt(2.))
 
 class StudentTLikelihood(LocationScaleLikelihood):
     def __init__(self, dof):
