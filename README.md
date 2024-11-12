@@ -10,62 +10,27 @@ Merging crystallography data without much physics.
 ## Installation
 As described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions), it is best practice to install `careless` in a fresh [anaconda](https://www.anaconda.com/products/distribution) environment to avoid conflicts with previously installed dependencies. 
 
-Create a new environment and install `careless` using the following commands.
+Create a new environment using the following commands.
 ```bash
 conda create -yn careless python
 conda activate careless
 pip install --upgrade pip
+```
+
+Now install `careless` for CPU, 
+```bash
 pip install careless
 ```
+or for NVIDIA GPUs
+```bash
+pip install careless[cuda]
+```
+You may run `careless devices` to check whether GPU support was successfully installed. If you run into issues please [File an issue](https://github.com/rs-station/careless/issues/new/choose).
+
+
 
 ## Installation with GPU Support
 Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
-
-1) **Install the NVIDIA driver** for your accelerator card. In most high performance computing scenarios, this driver should be pre-installed. If it is not, we suggest you contact your system administrator as installation will require elevated privileges. 
-
-    You may check if the driver is functional by typing `nvidia-smi`. If it is working properly you will see output like the following,
-
-        Thu Jun 13 13:01:32 2024                                                                       
-        +-----------------------------------------------------------------------------------------+    
-        | NVIDIA-SMI 550.54.15              Driver Version: 550.54.15      CUDA Version: 12.4     |    
-        |-----------------------------------------+------------------------+----------------------+    
-        | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |    
-        | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |    
-        |                                         |                        |               MIG M. |    
-        |=========================================+========================+======================|    
-        |   0  Tesla V100S-PCIE-32GB          On  |   00000000:86:00.0 Off |                    0 |    
-        | N/A   32C    P0             25W /  250W |       0MiB /  32768MiB |      0%      Default |    
-        |                                         |                        |                  N/A |    
-        +-----------------------------------------+------------------------+----------------------+    
-                                                                                                       
-        +-----------------------------------------------------------------------------------------+    
-        | Processes:                                                                              |    
-        |  GPU   GI   CI        PID   Type   Process name                              GPU Memory |    
-        |        ID   ID                                                               Usage      |    
-        |=========================================================================================|    
-        |  No running processes found                                                             |    
-        +-----------------------------------------------------------------------------------------+    
-    A faulty driver will give an error message:
-
-        NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running. 
-    If the driver isn't installed, you will see:
-
-        nvidia-smi: command not found
-2) **Install Anaconda**. Once you have confirmed the NIVIDIA driver is available, proceed to install the Anaconda python distribution by following the instructions [here](https://docs.anaconda.com/free/anaconda/install/). Before proceeding, make sure you activate your conda base environment. For typical installations, this should normally happen by opening a new login shell. Alternatively, you may directly source the `conda.sh` in your Anaconda install directory. 
-3) **Install careless** and associated dependencies by running the following from your base conda environment: 
-
-        source <(curl -s https://raw.githubusercontent.com/rs-station/careless/main/install-cuda.sh)
-    This will automatically create a new conda environment named careless.
-
-Careless is now installed in its own environment. Whenever you want to run careless, you must first activate the careless conda environment by issuing `conda activate careless`. After the installation is finished, the script will test GPU availability by running `careless devices`. If the installation was successful and your node has a GPU, it will appare in the output:
-
-        (careless) user@computer:~$ careless devices
-        Careless version 0.4.3
-        ###############################################
-        # TensorFlow can access the following devices #
-        ###############################################
-         - CPU: /physical_device:CPU:0
-         - GPU: /physical_device:GPU:0
 
 
 ## Dependencies
