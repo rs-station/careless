@@ -46,7 +46,7 @@ def run_analysis(args):
         print(results.to_string(index=False))
 
     ax = sns.lineplot(
-        data=results.reset_index().melt(xlabel),
+        data=results.melt(xlabel),
         x=xlabel,
         y='value',
         hue='variable',
