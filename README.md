@@ -12,7 +12,7 @@ As described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#ste
 
 Create a new environment using the following commands.
 ```bash
-conda create -yn careless python
+conda create -yn careless python=3.12
 conda activate careless
 pip install --upgrade pip
 ```
