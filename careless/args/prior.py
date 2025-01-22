@@ -7,7 +7,7 @@ args_and_kwargs = (
     (
         ("--kl-weight",),
         {
-            "help": "Set the weight of the kl divergence term relative to the likliehood. "
+            "help": "Set the weight of the kl divergence term relative to the likelihood. "
             "By default, by default this is based purely on the number of reflections.",
             "type": float,
             "default": None,
