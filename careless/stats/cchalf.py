@@ -26,9 +26,9 @@ class ArgumentParser(BaseParser):
             "-m",
             "--method",
             default="pearson",
-            choices=["spearman", "pearson"],
-            help="Method for computing correlation coefficient (spearman or pearson). "
-            "The Pearson CC uses maximum-likelihood weights. Pearson is the default.",
+            choices=["pearson", "spearman", "weighted"],
+            help="Method for computing correlation coefficient (pearson, spearman, or weighted). "
+            "The 'weighted' option uses a Pearson CC with maximum-likelihood weights. Pearson is the default.",
         )
 
         self.add_argument(
@@ -57,6 +57,9 @@ def weighted_pearson_ccfunc(df):
 
 def spearman_ccfunc(df):
     return df[['F1', 'F2']].corr(method='spearman')['F1']['F2']
+
+def pearson_ccfunc(df):
+    return df[['F1', 'F2']].corr(method='pearson')['F1']['F2']
 
 def make_halves_cchalf(mtz, bins=10):
     """Construct half-datasets for computing CChalf"""
@@ -100,6 +103,8 @@ def run_analysis(args):
     if args.method.lower() == "spearman":
         ccfunc = spearman_ccfunc
     elif args.method.lower() == "pearson":
+        ccfunc = pearson_ccfunc
+    elif args.method.lower() == "weighted":
         ccfunc = weighted_pearson_ccfunc
     result = grouper.apply(ccfunc)
     result = rs.DataSet({"CChalf" : result}).reset_index()

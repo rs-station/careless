@@ -29,7 +29,7 @@ def test_rsplit(xval_mtz, method, bins):
 
 
 @pytest.mark.parametrize("bins", [1, 5])
-@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("method", ["spearman", "pearson", "weighted"])
 def test_cchalf(xval_mtz, method, bins):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
