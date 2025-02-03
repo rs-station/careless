@@ -29,10 +29,9 @@ class ArgumentParser(BaseParser):
         self.add_argument(
             "-m",
             "--method",
-            default="pearson",
-            choices=["pearson", "spearman"],
-            help="Method for computing correlation coefficient (spearman or pearson). "
-            "The Pearson CC uses maximum-likelihood weights. Pearson is the default.",
+            default="weighted",
+            choices=["weighted", "pearson", "spearman"],
+            help="Method for computing correlation coefficient (spearman or pearson). Weighted is the default.",
         )
 
         self.add_argument(
@@ -57,6 +56,9 @@ def weighted_pearson_ccfunc(df, iobs='Iobs', ipred='Ipred', sigiobs='SigIobs'):
 
 def spearman_ccfunc(df, iobs='Iobs', ipred='Ipred'):
     return df[[iobs, ipred]].corr(method='spearman')[iobs][ipred]
+
+def pearson_ccfunc(df, iobs='Iobs', ipred='Ipred'):
+    return df[[iobs, ipred]].corr(method='pearson')[iobs][ipred]
 
 def run_analysis(args):
     labels = None
@@ -88,7 +90,11 @@ def run_analysis(args):
     if args.method.lower() == "spearman":
         ccfunc = spearman_ccfunc
     elif args.method.lower() == "pearson":
+        ccfunc = pearson_ccfunc
+    elif args.method.lower() == "weighted":
         ccfunc = weighted_pearson_ccfunc
+    else:
+        raise ValueError(f"Unrecognized CC --method, {args.method}")
 
     result = grouper.apply(ccfunc)
     result = rs.DataSet({"CCpred" : result}).reset_index()
