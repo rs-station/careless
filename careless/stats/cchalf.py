@@ -106,6 +106,9 @@ def run_analysis(args):
         ccfunc = pearson_ccfunc
     elif args.method.lower() == "weighted":
         ccfunc = weighted_pearson_ccfunc
+    else:
+        raise ValueError(f"Unrecognized CC --method, {args.method}")
+
     result = grouper.apply(ccfunc)
     result = rs.DataSet({"CChalf" : result}).reset_index()
     result['Resolution Range (Å)'] = np.array(labels)[result.bin]

@@ -26,10 +26,10 @@ class ArgumentParser(BaseParser):
         self.add_argument(
             "-m",
             "--method",
-            default="pearson",
-            choices=["pearson", "spearman"],
-            help="Method for computing correlation coefficient (spearman or pearson). "
-            "The Pearson CC uses maximum-likelihood weights. Pearson is the default.",
+            default="weighted",
+            choices=["weighted", "pearson", "spearman"],
+            help="Method for computing correlation coefficient (weighted, spearman, or pearson). "
+            "Weighted is the default which is consistent with the behavior of XDS`.",
         )
 
         self.add_argument(
@@ -79,6 +79,9 @@ def weighted_pearson_ccfunc(df):
 def spearman_ccfunc(df):
     return df[['Danom1', 'Danom2']].corr(method='spearman')['Danom1']['Danom2']
 
+def pearson_ccfunc(df):
+    return df[['Danom1', 'Danom2']].corr(method='pearson')['Danom1']['Danom2']
+
 def run_analysis(args):
     ds = []
     for m in args.mtz:
@@ -105,7 +108,12 @@ def run_analysis(args):
     if args.method.lower() == "spearman":
         ccfunc = spearman_ccfunc
     elif args.method.lower() == "pearson":
+        ccfunc = pearson_ccfunc
+    elif args.method.lower() == "weighted":
         ccfunc = weighted_pearson_ccfunc
+    else:
+        raise ValueError(f"Unrecognized CC --method, {args.method}")
+
     result = grouper.apply(ccfunc)
     result = rs.DataSet({"CCanom" : result}).reset_index()
     result['Resolution Range (Å)'] = np.array(labels)[result.bin]
