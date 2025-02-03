@@ -49,7 +49,7 @@ def test_cchalf(xval_mtz, method, bins):
 
 
 @pytest.mark.parametrize("bins", [1, 5])
-@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("method", ["spearman", "pearson", "weighted"])
 def test_ccanom(xval_mtz, method, bins):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
@@ -70,7 +70,7 @@ def test_ccanom(xval_mtz, method, bins):
 
 @pytest.mark.parametrize("bins", [1, 5])
 @pytest.mark.parametrize("overall", [True, False])
-@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("method", ["spearman", "pearson", "weighted"])
 @pytest.mark.parametrize("multi", [False, True])
 def test_ccpred(predictions_mtz, method, bins, overall, multi):
     tf = TemporaryDirectory()
@@ -143,7 +143,7 @@ def test_isigi(predictions_mtz, method, bins, overall, multi):
         assert len(df) == 1*bins
 
 
-@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("method", ["weighted", "spearman", "pearson"])
 @pytest.mark.parametrize("multi", [False, True])
 def test_image_cc(predictions_mtz, method, multi):
     tf = TemporaryDirectory()
@@ -171,7 +171,7 @@ def test_image_cc(predictions_mtz, method, multi):
 
     df = pd.read_csv(csv)
 
-@pytest.mark.parametrize("method", ["spearman", "pearson"])
+@pytest.mark.parametrize("method", ["weighted", "spearman", "pearson"])
 def test_filter_by_image_cc(predictions_mtz, method, off_file, on_file):
     tf = TemporaryDirectory()
     command = f" {predictions_mtz} {off_file} {on_file} -c 0.1 -o {tf.name}/out"
