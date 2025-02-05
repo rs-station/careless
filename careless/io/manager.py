@@ -491,7 +491,11 @@ class DataManager():
         from tensorflow_probability import distributions as tfd
         model = VariationalMergingModel(surrogate_posterior, prior, likelihood, scaling_model, parser.mc_samples, kl_weight=parser.kl_weight)
 
-        opt = tfk.optimizers.Adam(
+        Optimizer = tfk.optimizers.Adam
+        if parser.use_wadam:
+            from careless.optimizers import WAdam as Optimizer
+
+        opt = Optimizer(
             parser.learning_rate,
             parser.beta_1,
             parser.beta_2,

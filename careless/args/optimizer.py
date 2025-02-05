@@ -2,6 +2,11 @@ name = "Optimizer Parameters"
 description = None
 
 args_and_kwargs = (
+    (("--use-wadam",), {
+        "help":"Use the Welfordized version of the Adam optimizer.", 
+        "action": "store_true", 
+    }),
+
     (("--iterations",), {
         "help":"Number of gradient steps to take.", 
         "type":int, 
