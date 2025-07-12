@@ -17,13 +17,20 @@ def check_for_key_error(key, dtype, flag, ds):
 (see https://rs-station.github.io/reciprocalspaceship/userguide/mtzdtypes.html for more info on MTZ dtypes).""".format(dtype=dtype, flag=flag)
     else:
         msg = "User supplied {dtype} column key {key}, but {key} is not available in the input data. ".format(dtype=dtype, key=key)
-    msg = msg + f' Available keys are: \n"{','.join(ds.keys())}"'
+    msg = msg + ' Available keys are: \n'
+    msg = msg + ','.join(ds.keys())
     raise ValueError(msg)
 
+
 def check_for_metadata_key_error(keys, ds):
+    msg = ""
     for k in keys:
         if k not in ds:
-            raise ValueError(f'Metadata key "{k}" not found in input data. Available keys are: \n"{','.join(ds.keys())}"')
+            msg += f'Metadata key "{k}" not found in input data. \n'
+    if len(msg) > 0:
+        msg += "Available keys are: \n"
+        msg = msg + ','.join(ds.keys())
+        raise ValueError(msg)
 
 def get_first_key_of_dtype(ds, dtype):
     matches = ds.dtypes[ds.dtypes == dtype].keys()
