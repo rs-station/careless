@@ -23,7 +23,7 @@ def check_for_key_error(key, dtype, flag, ds):
 def check_for_metadata_key_error(keys, ds):
     for k in keys:
         if k not in ds:
-            raise ValueError(f"""Metadata key "{k}" not found in input data. Available keys are: \n"{','.join(ds.keys())}" """)
+            raise ValueError(f'Metadata key "{k}" not found in input data. Available keys are: \n"{','.join(ds.keys())}"')
 
 def get_first_key_of_dtype(ds, dtype):
     matches = ds.dtypes[ds.dtypes == dtype].keys()
