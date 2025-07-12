@@ -8,6 +8,23 @@ from careless.models.base import BaseModel
 from careless.utils.positional_encoding import positional_encoding
 from typing import Optional
 
+
+def check_for_key_error(key, dtype, flag, ds):
+    if key in ds:
+        return
+    if key is None:
+        msg = """Unable to determine the {dtype} column key. Please use {flag} to specify the {dtype} key name or ensure your input has a column with the {dtype} dtype 
+(see https://rs-station.github.io/reciprocalspaceship/userguide/mtzdtypes.html for more info on MTZ dtypes).""".format(dtype=dtype, flag=flag)
+    else:
+        msg = "User supplied {dtype} column key {key}, but {key} is not available in the input data. ".format(dtype=dtype, key=key)
+    msg = msg + f' Available keys are: \n"{','.join(ds.keys())}"'
+    raise ValueError(msg)
+
+def check_for_metadata_key_error(keys, ds):
+    for k in keys:
+        if k not in ds:
+            raise ValueError(f"""Metadata key "{k}" not found in input data. Available keys are: \n"{','.join(ds.keys())}" """)
+
 def get_first_key_of_dtype(ds, dtype):
     matches = ds.dtypes[ds.dtypes == dtype].keys()
     for match in matches:
@@ -298,11 +315,13 @@ class MonoFormatter(DataFormatter):
         image_key = self.image_key
         if image_key is None:
             image_key = get_first_key_of_dtype(ds, 'B')
+        check_for_key_error(image_key, 'Batch', '--image-key', ds)
 
         # Try to guess the intensity key
         intensity_key = self.intensity_key
         if intensity_key is None:
             intensity_key = get_first_key_of_dtype(ds, 'J')
+        check_for_key_error(intensity_key, 'Intensity', '--intensity-key', ds)
 
         # Try to guess the uncertainty key
         uncertainty_key = self.uncertainty_key
@@ -313,13 +332,7 @@ class MonoFormatter(DataFormatter):
                         uncertainty_key = k
         if uncertainty_key is None:
             uncertainty_key = get_first_key_of_dtype(ds, 'Q')
-
-
-        if uncertainty_key is None:
-            raise ValueError(
-                f"No matching uncertainty key found for intensity key {intensity_key}"
-                 "please manually specify the uncertainty key. "
-            )
+        check_for_key_error(uncertainty_key, 'Stddev', '--uncertainty-key', ds)
 
         # Add special IDs
         ds['intensity'] = ds[intensity_key]
@@ -348,6 +361,7 @@ class MonoFormatter(DataFormatter):
             A collection of reciprocal asus to aid in intepreting results.
         """
         data['dHKL'] = data.dHKL**-2.
+        check_for_metadata_key_error(self.metadata_keys, data)
         metadata = data[self.metadata_keys].to_numpy('float32')
 
         if self.standardize:
@@ -540,15 +554,18 @@ class LaueFormatter(DataFormatter):
         # Map to ASU
         ds.hkl_to_asu(inplace=True, anomalous=self.anomalous)
 
+
         # Try to guess the image key
         image_key = self.image_key
         if image_key is None:
             image_key = get_first_key_of_dtype(ds, 'B')
+        check_for_key_error(image_key, 'Batch', '--image-key', ds)
 
         # Try to guess the intensity key
         intensity_key = self.intensity_key
         if intensity_key is None:
             intensity_key = get_first_key_of_dtype(ds, 'J')
+        check_for_key_error(intensity_key, 'Intensity', '--intensity-key', ds)
 
         # Try to guess the uncertainty key
         uncertainty_key = self.uncertainty_key
@@ -559,12 +576,7 @@ class LaueFormatter(DataFormatter):
                         uncertainty_key = k
         if uncertainty_key is None:
             uncertainty_key = get_first_key_of_dtype(ds, 'Q')
-
-        if uncertainty_key is None:
-            raise ValueError(
-                f"No matching uncertainty key found for intensity key {intensity_key}"
-                 "please manually specify the uncertainty key. "
-            )
+        check_for_key_error(uncertainty_key, 'Stddev', '--uncertainty-key', ds)
 
         # Add special IDs
         ds['intensity'] = ds[intensity_key]
@@ -598,6 +610,7 @@ class LaueFormatter(DataFormatter):
         data['harmonic_id'] = data.groupby(['image_id', 'H_0', 'K_0', 'L_0']).ngroup()
 
         data['dHKL'] = data.dHKL**-2.
+        check_for_metadata_key_error(self.metadata_keys, data)
         metadata = data[self.metadata_keys].to_numpy('float32')
 
         if self.standardize:
