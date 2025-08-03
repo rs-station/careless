@@ -79,7 +79,9 @@ Gradiennt ascent is used to maximize the `ELBO`.
 ### Priors
 The simplest prior which `careless` implements are the popular priors<sup>[1](#wilson)</sup> derived by A. J. C. Wilson from the random atom model. 
 This is a relatively weak prior, but it is sufficient in practice for many types of crystallographic data. 
-`careless` will include support for reference and multivariate priors in future releases. 
+`careless` now includes support for use of multivariate priors as described in our [preprint](https://www.biorxiv.org/content/10.1101/2024.07.22.604476v1). 
+See the [dw-examples](https://github.com/Hekstra-Lab/dw-examples/tree/main) repo for use examples.
+Support for reference priors will be addressed in a future release. 
 
 ### Likelihoods
 The quality of the current structure factor estimates during optimization is judged by a likelihood function. 
