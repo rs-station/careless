@@ -49,7 +49,7 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
 
-For usage examples and data from the `careless` [preprint](https://doi.org/10.1101/2021.01.05.425510), check out [careless-examples](https://github.com/rs-station/careless-examples). For a detailed case study of `careless` processing including information about **crossvalidation measures**, see our [preprint](https://doi.org/10.1101/2024.07.30.605871). 
+For usage examples and data from the `careless` [preprint](https://doi.org/10.1101/2021.01.05.425510) and [paper](https://www.nature.com/articles/s41467-022-35280-8), check out [careless-examples](https://github.com/rs-station/careless-examples). For a detailed case study of `careless` processing including information about **crossvalidation measures**, see our [preprint](https://doi.org/10.1101/2024.07.30.605871) and [manuscript](https://pubs.aip.org/aca/sdy/article/11/6/064301/3319201) on time-resolved study of DJ-1. 
 
 Still confused? File an [issue](https://github.com/rs-station/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
