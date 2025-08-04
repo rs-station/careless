@@ -49,7 +49,7 @@ Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We s
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
 
-For usage examples and data from the `careless` [preprint](https://doi.org/10.1101/2021.01.05.425510) and [paper](https://www.nature.com/articles/s41467-022-35280-8), check out [careless-examples](https://github.com/rs-station/careless-examples). For a detailed case study of `careless` processing including information about **crossvalidation measures**, see our [preprint](https://doi.org/10.1101/2024.07.30.605871) and [manuscript](https://pubs.aip.org/aca/sdy/article/11/6/064301/3319201) on time-resolved study of DJ-1. 
+For usage examples and data from the `careless` [preprint](https://doi.org/10.1101/2021.01.05.425510) and [paper](https://www.nature.com/articles/s41467-022-35280-8), check out [careless-examples](https://github.com/rs-station/careless-examples). For a detailed case study of `careless` processing including information about **crossvalidation measures**, see our [preprint](https://doi.org/10.1101/2024.07.30.605871) and [paper](https://pubs.aip.org/aca/sdy/article/11/6/064301/3319201) on time-resolved study of DJ-1. 
 
 Still confused? File an [issue](https://github.com/rs-station/careless/issues/new/choose)! Issues help us improve our code base and leave a public record for other users. 
 
@@ -79,8 +79,9 @@ Gradiennt ascent is used to maximize the `ELBO`.
 ### Priors
 The simplest prior which `careless` implements are the popular priors<sup>[1](#wilson)</sup> derived by A. J. C. Wilson from the random atom model. 
 This is a relatively weak prior, but it is sufficient in practice for many types of crystallographic data. 
+
 `careless` now includes support for use of multivariate priors as described in our [preprint](https://www.biorxiv.org/content/10.1101/2024.07.22.604476v1). 
-See the [dw-examples](https://github.com/Hekstra-Lab/dw-examples/tree/main) repo for use examples.
+See the [dw-examples repo](https://github.com/Hekstra-Lab/dw-examples/tree/main) for use examples.
 Support for reference priors will be addressed in a future release. 
 
 ### Likelihoods
