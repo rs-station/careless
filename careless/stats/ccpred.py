@@ -47,6 +47,18 @@ class ArgumentParser(BaseParser):
             action="store_true",
             help="Pool all prediction mtz files into a single calculation rather than treating each file individually.",
         )
+        
+        self.add_argument(
+            "--height",
+            default=6,
+            help="Height of the plot to make with default value 6 (inches)."
+        )
+
+        self.add_argument(
+            "--width",
+            default=6,
+            help="Width of the plot to make with default value 6 (inches)."
+        )
 
 def weighted_pearson_ccfunc(df, iobs='Iobs', ipred='Ipred', sigiobs='SigIobs'):
     x = df[iobs].to_numpy('float32')
@@ -114,24 +126,28 @@ def run_analysis(args):
     else:
         print(result.to_string())
 
+    
+
+
+
     plot_kwargs = {
         'data' : result,
         'x' : 'bin',
         'y' : 'CCpred',
         'style' : 'test',
     }
-
     if args.overall:
         plot_kwargs['color'] = 'k'
     else:
         plot_kwargs['hue'] = 'file'
         plot_kwargs['palette'] = "Dark2"
 
+    plt.figure(figsize=(args.width, args.height))
     sns.lineplot(**plot_kwargs)
 
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
-    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    plt.legend(bbox_to_anchor=(0.5, 1.35), loc='upper center', borderaxespad=0)
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     if args.ylim is not None:

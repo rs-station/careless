@@ -36,13 +36,13 @@ class ArgumentParser(BaseParser):
 
         self.add_argument(
             "--height",
-            default=3,
+            default=6,
             help="Height of the plot to make with default value 3 (inches)."
         )
 
         self.add_argument(
             "--width",
-            default=7,
+            default=6,
             help="Width of the plot to make with default value 7 (inches)."
         )
 
@@ -93,7 +93,6 @@ def run_analysis(args):
     else:
         print(result.to_string())
 
-
     plot_kwargs = {
         'data' : result,
         'x' : 'BATCH',
@@ -102,13 +101,14 @@ def run_analysis(args):
         'marker' : '.',
         'linestyle' : 'none',
         'palette' : "Dark2",
+        'markeredgecolor' : 'none',
     }
 
     plt.figure(figsize=(args.width, args.height))
     sns.lineplot(**plot_kwargs)
 
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
-    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    plt.legend(bbox_to_anchor=(0.5, 1.35), loc='upper center', borderaxespad=0)
     plt.grid(which='both', axis='both', ls='dashdot')
     if args.ylim is not None:
         plt.ylim(args.ylim)

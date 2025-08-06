@@ -116,6 +116,7 @@ def run_analysis(args):
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$R_{\mathrm{split}}$")
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
+    plt.legend(loc='upper left', borderaxespad=0)
     plt.grid(which='both', axis='both', ls='dashdot')
     plt.tight_layout()
     if args.ylim is not None:
