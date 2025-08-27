@@ -34,18 +34,6 @@ class ArgumentParser(BaseParser):
             help="Method for computing correlation coefficient (spearman or pearson). Weighted is the default.",
         )
 
-        self.add_argument(
-            "--height",
-            default=6,
-            help="Height of the plot to make with default value 3 (inches)."
-        )
-
-        self.add_argument(
-            "--width",
-            default=6,
-            help="Width of the plot to make with default value 7 (inches)."
-        )
-
 def weighted_pearson_ccfunc(df, iobs='Iobs', ipred='Ipred', sigiobs='SigIobs'):
     x = df[iobs].to_numpy('float32')
     y = df[ipred].to_numpy('float32')

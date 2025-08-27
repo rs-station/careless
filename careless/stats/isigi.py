@@ -121,6 +121,7 @@ def run_analysis(args):
         plot_kwargs['hue'] = 'file'
         plot_kwargs['palette'] = "Dark2"
 
+    plt.figure(figsize=(args.width, args.height))
     ax=sns.lineplot(**plot_kwargs)
     if args.log:
         ax.set(yscale='log')

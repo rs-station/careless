@@ -137,6 +137,7 @@ def run_analysis(args):
         plot_kwargs['hue'] = 'file'
         plot_kwargs['palette'] = "Dark2"
 
+    plt.figure(figsize=(args.width, args.height))
     sns.lineplot(**plot_kwargs)
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{1/2}}$ " + f"({args.method})")

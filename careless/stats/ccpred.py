@@ -47,18 +47,6 @@ class ArgumentParser(BaseParser):
             action="store_true",
             help="Pool all prediction mtz files into a single calculation rather than treating each file individually.",
         )
-        
-        self.add_argument(
-            "--height",
-            default=6,
-            help="Height of the plot to make with default value 6 (inches)."
-        )
-
-        self.add_argument(
-            "--width",
-            default=6,
-            help="Width of the plot to make with default value 6 (inches)."
-        )
 
 def weighted_pearson_ccfunc(df, iobs='Iobs', ipred='Ipred', sigiobs='SigIobs'):
     x = df[iobs].to_numpy('float32')
@@ -161,6 +149,7 @@ def run_analysis(args):
         plt.show()
 
 def main():
+    print("running main")
     parser = ArgumentParser().parse_args()
     run_analysis(parser)
 
