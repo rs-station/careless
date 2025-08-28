@@ -53,3 +53,17 @@ class BaseParser(argparse.ArgumentParser):
             help="Override the y-axis limits like `--ylim 0. 1.`"
         )
 
+        self.add_argument(
+            "--height",
+            default=6,
+             type=float,
+            help="Height of the plot to make with default value 6 (inches)."
+        )
+
+        self.add_argument(
+            "--width",
+            default=6,
+             type=float,
+            help="Width of the plot to make with default value 6 (inches)."
+        )
+            

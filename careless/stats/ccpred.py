@@ -114,24 +114,28 @@ def run_analysis(args):
     else:
         print(result.to_string())
 
+    
+
+
+
     plot_kwargs = {
         'data' : result,
         'x' : 'bin',
         'y' : 'CCpred',
         'style' : 'test',
     }
-
     if args.overall:
         plot_kwargs['color'] = 'k'
     else:
         plot_kwargs['hue'] = 'file'
         plot_kwargs['palette'] = "Dark2"
 
+    plt.figure(figsize=(args.width, args.height))
     sns.lineplot(**plot_kwargs)
 
     plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
     plt.ylabel(r"$\mathrm{CC_{pred}}$ " + f"({args.method})")
-    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    plt.legend(bbox_to_anchor=(0.5, 1.35), loc='upper center', borderaxespad=0)
     plt.xlabel("Resolution ($\mathrm{\AA}$)")
     plt.grid(which='both', axis='both', ls='dashdot')
     if args.ylim is not None:
@@ -145,6 +149,7 @@ def run_analysis(args):
         plt.show()
 
 def main():
+    print("running main")
     parser = ArgumentParser().parse_args()
     run_analysis(parser)
 

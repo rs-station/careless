@@ -45,6 +45,7 @@ def run_analysis(args):
     else:
         print(results.to_string(index=False))
 
+    plt.figure(figsize=(args.width, args.height))
     ax = sns.lineplot(
         data=results.melt(xlabel),
         x=xlabel,
