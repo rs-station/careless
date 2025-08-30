@@ -427,7 +427,7 @@ class DataManager():
                 delim = ';'
                 reindexing_ops = [gemmi.Op(i) for i in reindexing_ops.split(delim)]
 
-            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, reindexing_ops, sigma=sigma)
+            prior = DoubleWilsonPrior(self.asu_collection, parents, r_values, reindexing_ops, sigma=sigma, optimize_r=parser.optimize_double_wilson_r)
 
         loc,scale = prior.mean(),prior.stddev()
         scale = scale * parser.structure_factor_init_scale

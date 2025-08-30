@@ -54,4 +54,11 @@ args_and_kwargs = (
             "dest": "reindexing_ops",
         },
     ),
+    (
+        ("--optimize-double-wilson-r",),
+        {
+            "help": 'Make the double wilson r-value into a trainable parameter.',
+            "action": "store_true",
+        },
+    ),
 )

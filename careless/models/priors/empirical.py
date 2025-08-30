@@ -6,7 +6,7 @@ from careless.models.merging.surrogate_posteriors import RiceWoolfson
 import math
 
 
-class ReferencePrior():
+class ReferencePrior(Prior):
     """
     A Prior class with a `log_prob` implementation that returns zeros for unobserved miller indices.
      - This class is not meant to be used directly. 
@@ -15,6 +15,7 @@ class ReferencePrior():
     """
     base_dist = None
     def __init__(self, observed=None):
+        super().__init__()
         if observed is None:
             self.idx = None
         else:
@@ -46,6 +47,7 @@ class LaplaceReferencePrior(ReferencePrior):
     A Laplacian prior distribution centered at empirical structure factor amplitudes derived from a conventional experiment.
     """
     def __init__(self, Fobs, SigFobs, observed=None):
+        super().__init__()
         """
         Parameters
         ----------
@@ -66,6 +68,7 @@ class NormalReferencePrior(ReferencePrior):
     A Normal prior distribution centered at empirical structure factor amplitudes derived from a conventional experiment.
     """
     def __init__(self, Fobs, SigFobs, observed=None):
+        super().__init__()
         """
         Parameters
         ----------
@@ -86,6 +89,7 @@ class StudentTReferencePrior(ReferencePrior):
     A Student's T prior distribution centered at empirical structure factor amplitudes derived from a conventional experiment.
     """
     def __init__(self, Fobs, SigFobs, dof, observed=None):
+        super().__init__()
         """
         Parameters
         ----------
@@ -108,6 +112,7 @@ class RiceWoolfsonReferencePrior(ReferencePrior):
     A Rice Woolfson prior distribution centered at empirical structure factor amplitudes derived from a conventional experiment.
     """
     def __init__(self, Fobs, SigFobs, centric, observed=None):
+        super().__init__()
         """
         Parameters
         ----------

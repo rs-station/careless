@@ -90,11 +90,14 @@ def test_twofile(off_file, on_file, on_file_alt_sg, ev11, dmin, anomalous, isigi
         base_test_together(flags, [off_file, on_file])
 
 @pytest.mark.parametrize("mode", ['mono', 'poly'])
-def test_double_wilson(off_file, on_file, mode):
+@pytest.mark.parametrize("optimize_r", [False, True])
+def test_double_wilson(off_file, on_file, mode, optimize_r):
     flags = f"{mode} --disable-gpu --iterations={niter} dHKL,image_id"
     flags += " --double-wilson-parents=None,0 "
     r_in_range = " --double-wilson-r=0.0,0.9 "
     r_outside_range = " --double-wilson-r=0.0,1.0 "
+    if optimize_r:
+        flags += " --optimize-double-wilson-r "
     base_test_separate(
         flags + r_in_range, 
         [off_file, on_file]

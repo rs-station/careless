@@ -1,21 +1,23 @@
 import reciprocalspaceship as rs
 from careless.models.merging.surrogate_posteriors import RiceWoolfson
+import tf_keras as tfk
 from careless.utils.distributions import Stacy
 from careless.models.priors.base import Prior
+from tensorflow_probability import util as tfu
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import tensorflow as tf
 import numpy as np
 
 
-class Centric(tfd.HalfNormal, Prior):
+class Centric(tfd.HalfNormal):
     def __init__(self, epsilon, sigma=1.):
         self.epsilon = tf.convert_to_tensor(epsilon)
         self.sigma = tf.convert_to_tensor(sigma)
         super().__init__(tf.math.sqrt(epsilon * self.sigma))
 
 
-class Acentric(tfd.Weibull, Prior):
+class Acentric(tfd.Weibull):
     def __init__(self, epsilon, sigma=1.):
         self.epsilon = tf.convert_to_tensor(epsilon)
         self.sigma = tf.convert_to_tensor(sigma)
@@ -38,6 +40,7 @@ class WilsonPrior(Prior):
             The Σ value for the wilson distribution. The represents the average intensity stratified by a measure
             like resolution. 
         """
+        super().__init__()
         self.epsilon = np.array(epsilon, dtype=np.float32)
         self.centric = np.array(centric, dtype=bool)
         self.sigma = np.array(sigma, dtype=np.float32)
@@ -77,38 +80,35 @@ class WilsonPrior(Prior):
         )
 
 class DoubleWilsonPrior(Prior):
-    def __init__(self, asu_collection, parents, r_values, reindexing_ops=None, sigma=1.):
+    def __init__(self, asu_collection, parents, r_values, reindexing_ops=None, sigma=1., optimize_r=False):
         """
         asu_collection : AsuCollection
         parents : list
             List of integers such that parents[i] = j implies that asu_id==i has parent asu_id==j
         r_values : list or array
-            Either a list with the same length as parents or an array that is length == len(asu_collection.lookup_table)
+            Either a list with the same length as parents. 
         reindexing_ops : list or tuple
             A list of gemm.Op instances that is the same length as parents.
         sigma : float or array
         """
+        super().__init__()
         self.parents = parents
-        self.r_values = r_values
+        self.optimize_r = optimize_r
         reflids = []
         loc = []
         scale = []
         root = []
-        r = []
 
-        if len(r_values) == len(asu_collection):
-            for r_value,asu in zip(r_values, asu_collection):
-                r.append(r_value*np.ones(len(asu.lookup_table), dtype='float32'))
-            self.r = np.concatenate(r)
-        elif len(r_values) == len(asu_collection.lookup_table):
-            self.r = r_values
-        else:
-            raise ValueError("r_values must either one per asu or one per reflection in the collection")
+        self.r = tf.convert_to_tensor(r_values, tf.float32)
+        if optimize_r:
+            self.r = tfu.TransformedVariable(
+                self.r,
+                tfb.Sigmoid(),
+            )
 
         for child,parent in enumerate(parents):
             child_asu  = asu_collection.reciprocal_asus[child]
             child_size = len(child_asu.lookup_table)
-            r_value = r_values[child]
 
             if parent is None:
                 reflids.append(child_asu.lookup_table.id.to_numpy('int32'))
@@ -126,11 +126,11 @@ class DoubleWilsonPrior(Prior):
 
         self.centric = asu_collection.centric
         self.multiplicity = asu_collection.multiplicity
+        self.asu_ids = asu_collection.asu_ids
 
         self.sigma = sigma
         self.reflids = np.concatenate(reflids)
         self.absent = tf.convert_to_tensor(self.reflids == -1)
-        self.r = np.concatenate(r)
         self.root = np.concatenate(root)
         self.wilson_prior = WilsonPrior(asu_collection.centric, asu_collection.multiplicity, sigma)
 
@@ -141,6 +141,8 @@ class DoubleWilsonPrior(Prior):
         return self.wilson_prior.stddev()
 
     def log_prob(self, z):
+        r = tf.gather(self.r, self.asu_ids)
+
         mask = self.reflids >= 0
         sanitized_reflids = tf.where(mask, self.reflids, 0)
         z_parent = tf.where(
@@ -152,9 +154,9 @@ class DoubleWilsonPrior(Prior):
         loc = tf.where(
             self.absent, 
             0.,
-            z_parent * self.r
+            z_parent * r
         )
-        r2 = tf.square(self.r)
+        r2 = tf.square(r)
         scale = tf.where(
             self.centric,
             tf.math.sqrt(self.multiplicity * self.sigma * (1. - r2)),
@@ -165,5 +167,6 @@ class DoubleWilsonPrior(Prior):
         p_wilson = self.wilson_prior.log_prob(z)
         p_dw = rice_woolfson.log_prob(z)
         log_p = tf.where(self.root, p_wilson, p_dw)
+        self.add_metric(tf.reduce_mean(self.r), "Mean r")
         return log_p
 
