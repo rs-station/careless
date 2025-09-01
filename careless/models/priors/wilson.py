@@ -167,6 +167,7 @@ class DoubleWilsonPrior(Prior):
         p_wilson = self.wilson_prior.log_prob(z)
         p_dw = rice_woolfson.log_prob(z)
         log_p = tf.where(self.root, p_wilson, p_dw)
-        self.add_metric(tf.reduce_mean(self.r), "Mean r")
+        for i,r in enumerate(self.r):
+            self.add_metric(r, "rDW_{i}")
         return log_p
 
