@@ -45,10 +45,9 @@ args_and_kwargs = (
     }),
 
     (("--scale-bijector",), {
-        "help": "What function to use to ensure positivity of the standard deviation of scales. "
-                "Supported functions are --scale-bijector=exp and the default is --scale-bijector=softplus",
+        "help": "What function to use to ensure positivity of the standard deviation of scales. ",
         "type": str,
-        "default": "softplus",
+        "default": "exp",
         "choices" : ["exp", "softplus"],
     }),
 )

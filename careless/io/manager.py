@@ -453,16 +453,16 @@ class DataManager():
                     tfb.Shift(parser.epsilon),
                     tfb.Softplus(),
                 ])
+                istd = BaseModel.get_intensities(self.inputs).std()
             elif parser.scale_bijector.lower() == 'exp':
                 from tensorflow_probability import bijectors as tfb
                 scale_bijector = tfb.Chain([
                     tfb.Shift(parser.epsilon),
                     tfb.Exp(),
                 ])
+                istd = None
             else:
                 raise ValueError(f"Unsupported scale bijector type, {parser.scale_bijector}")
-
-            istd = BaseModel.get_intensities(self.inputs).std()
 
             if parser.image_layers > 0:
                 from careless.models.scaling.image import NeuralImageScaler
