@@ -90,6 +90,9 @@ class DoubleWilsonPrior(Prior):
         reindexing_ops : list or tuple
             A list of gemm.Op instances that is the same length as parents.
         sigma : float or array
+            The scale parameter as in Wilson's priors
+        optimize_r : bool (optional)
+            Optionally allow r to optimize for non-root nodes. 
         """
         super().__init__()
         self.parents = parents
