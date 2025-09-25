@@ -30,11 +30,16 @@ def test_rsplit(xval_mtz, method, bins):
 
 @pytest.mark.parametrize("bins", [1, 5])
 @pytest.mark.parametrize("method", ["spearman", "pearson", "weighted"])
-def test_cchalf(xval_mtz, method, bins):
+@pytest.mark.parametrize("use_structure_factors", [False, True])
+def test_cchalf(xval_mtz, method, bins, use_structure_factors):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
     png = f"{tf.name}/out.png"
-    command = f"-o {csv} -i {png} -b {bins} -m {method} {xval_mtz}"
+    sf = ''
+    if use_structure_factors:
+        sf = "--use-structure-factors"
+
+    command = f"-o {csv} -i {png} -b {bins} -m {method} {sf} {xval_mtz}"
 
     parser = cchalf.ArgumentParser().parse_args(command.split())
 
