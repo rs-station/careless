@@ -349,6 +349,15 @@ class MonoFormatter(DataFormatter):
         if self.isigi_cutoff is not None:
             ds.drop(ds.index[ds['intensity'] / ds['uncertainty'] < self.isigi_cutoff], inplace=True)
 
+        if ds['uncertainty'].min() <= 0.:
+            msg = f"""
+            Some uncertainty estimates for {uncertainty_key} are less than 
+            or equal to zero. Cannot proceed. Please check that your input 
+            has all positive uncertainties. Double check you have selected
+            the desired uncertainty key. 
+            """
+            raise ValueError(msg)
+
         return ds
 
     def finalize(self, data, rac):
@@ -593,6 +602,15 @@ class LaueFormatter(DataFormatter):
         isigi_cutoff = self.isigi_cutoff
         if isigi_cutoff is not None:
             ds.drop(ds.index[ds['intensity'] / ds['uncertainty'] < isigi_cutoff], inplace=True)
+
+        if ds['uncertainty'].min() <= 0.:
+            msg = f"""
+            Some uncertainty estimates for {uncertainty_key} are less than 
+            or equal to zero. Cannot proceed. Please check that your input 
+            has all positive uncertainties. Double check you have selected
+            the desired uncertainty key. 
+            """
+            raise ValueError(msg)
 
         return ds
 
