@@ -50,4 +50,11 @@ args_and_kwargs = (
         "default": "exp",
         "choices" : ["exp", "softplus"],
     }),
+    (("--constant-scales",), {
+        "help": "Use a single learnable global scaling factor for all reflections (Dirac delta distribution). "
+                "Disables neural network and image-based scaling. "
+                "Useful for deconvolution of instrument-corrected data while allowing global magnitude matching.",
+        "action": "store_true",
+        "default": False,
+    }),
 )

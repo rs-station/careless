@@ -387,6 +387,7 @@ class DataManager():
         from careless.models.merging.variational import VariationalMergingModel
         from careless.models.scaling.image import HybridImageScaler,ImageScaler
         from careless.models.scaling.nn import MLPScaler
+        from careless.models.scaling.base import ConstantScaler
         if parser is None:
             parser = self.parser
         if parser is None:
@@ -464,7 +465,12 @@ class DataManager():
             else:
                 raise ValueError(f"Unsupported scale bijector type, {parser.scale_bijector}")
 
-            if parser.image_layers > 0:
+            if parser.constant_scales:
+                init_scale = istd
+                if init_scale is None:
+                     init_scale = BaseModel.get_intensities(self.inputs).std()
+                scaling_model = ConstantScaler(scale_bijector=scale_bijector)
+            elif parser.image_layers > 0:
                 from careless.models.scaling.image import NeuralImageScaler
                 n_images = np.max(BaseModel.get_image_id(self.inputs)) + 1
                 scaling_model = NeuralImageScaler(
