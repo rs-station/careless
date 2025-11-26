@@ -2,48 +2,86 @@ from careless.models.base import BaseModel
 import tf_keras as tfk
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
-
+from tensorflow_probability import bijectors as tfb
+import numpy as np
 
 class Scaler(tfk.models.Model, BaseModel):
     """ Base class for scaling models """
 
-class ConstantScaler(Scaler):
+class TabulatedSpectralScaler(Scaler):
     """
-    A scaler that learns a single global scaling factor for the entire dataset.
-    Outputs a deterministic distribution with zero variance.
+    A scaler that uses a pre-calculated regular grid lookup table for fast spectral scaling.
     """
-    def __init__(self, initial_value=1.0, scale_bijector=None):
+    def __init__(self, x_grid, y_grid, trainable_scale=False, initial_value=1.0, num_grid_points=10000):
         """
         Parameters
         ----------
+        x_grid : array-like
+            Input wavelengths (irregular).
+        y_grid : array-like
+            Input scale factors.
+        trainable_scale : bool
+            Enable global learnable multiplier.
         initial_value : float
-            The initial value for the global scale (e.g., intensity standard deviation).
-        scale_bijector : tfp.bijectors.Bijector
-            Bijector to map the unconstrained variable to the positive real line.
+            Initial value for global multiplier.
+        num_grid_points : int
+            Size of the regular lookup grid.
         """
         super().__init__()
-        if scale_bijector is None:
-            scale_bijector = tfb.Exp()
-        self.scale_bijector = scale_bijector
 
-        # Initialize the variable in the unconstrained space
-        init_tensor = tf.constant(initial_value, dtype=tf.float32)
-        unconstrained_init = self.scale_bijector.inverse(init_tensor)
+        # 1. Resample onto Regular Grid (NumPy)
+        self.x_min = float(np.min(x_grid))
+        self.x_max = float(np.max(x_grid))
 
-        self.w = tf.Variable(unconstrained_init, name='global_scale', trainable=True)
+        # Create regular grid coordinates
+        self.step = (self.x_max - self.x_min) / (num_grid_points - 1)
+        regular_x = np.linspace(self.x_min, self.x_max, num_grid_points)
+
+        # Interpolate y values onto this regular grid
+        # Sort input to ensure np.interp works correctly
+        sort_idx = np.argsort(x_grid)
+        x_in = x_grid[sort_idx]
+        y_in = y_grid[sort_idx]
+
+        regular_y = np.interp(regular_x, x_in, y_in)
+
+        # 2. Store Lookup Table as TF Constants
+        self.y_grid = tf.constant(regular_y, dtype=tf.float32)
+        self.x_start = tf.constant(self.x_min, dtype=tf.float32)
+        self.dx = tf.constant(self.step, dtype=tf.float32)
+        self.max_idx = tf.constant(num_grid_points - 1, dtype=tf.float32)
+        self.max_idx_int = tf.constant(num_grid_points - 1, dtype=tf.int32)
+
+        self.trainable_scale = trainable_scale
+        if self.trainable_scale:
+            self.bijector = tfb.Exp()
+            init_tensor = tf.constant(initial_value, dtype=tf.float32)
+            unconstrained_init = self.bijector.inverse(init_tensor)
+            self.global_w = tf.Variable(unconstrained_init, name='spectral_global_scale', trainable=True)
 
     def call(self, inputs):
-        """
-        Returns a Deterministic distribution centered at the learned global scale.
-        """
-        refl_id = self.get_refl_id(inputs)
+        wavelengths = self.get_wavelength(inputs)
 
-        refl_id = tf.squeeze(refl_id, axis=-1) 
+        float_idx = (wavelengths - self.x_start) / self.dx
+        float_idx = tf.clip_by_value(float_idx, 0.0, self.max_idx)
 
-        # Transform variable to positive scale
-        scale = self.scale_bijector(self.w)
+        idx_lo = tf.floor(float_idx)
+        idx_hi = idx_lo + 1.0
 
-        # Broadcast to shape of inputs (Batch,)
-        loc = scale * tf.ones_like(refl_id, dtype=tf.float32)
+        # interpolation weight
+        weight = float_idx - idx_lo
 
-        return tfd.Deterministic(loc=loc)
+        idx_lo_int = tf.cast(idx_lo, tf.int32)
+        idx_hi_int = tf.cast(idx_hi, tf.int32)
+        idx_hi_int = tf.minimum(idx_hi_int, self.max_idx_int)
+        y_lo = tf.gather(self.y_grid, idx_lo_int)
+        y_hi = tf.gather(self.y_grid, idx_hi_int)
+        scale = y_lo + weight * (y_hi - y_lo)
+
+        if self.trainable_scale:
+            scale = scale * self.bijector(self.global_w)
+
+        # Force the output to be 1D (BatchSize,) instead of matching wavelengths (BatchSize, 1)
+        scale = tf.reshape(scale, [-1])
+
+        return tfd.Deterministic(loc=scale)

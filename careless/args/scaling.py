@@ -50,11 +50,23 @@ args_and_kwargs = (
         "default": "exp",
         "choices" : ["exp", "softplus"],
     }),
-    (("--constant-scales",), {
-        "help": "Use a single learnable global scaling factor for all reflections (Dirac delta distribution). "
-                "Disables neural network and image-based scaling. "
-                "Useful for deconvolution of instrument-corrected data while allowing global magnitude matching.",
+    (("--spectral-file",), {
+        "help": "Path to a two-column text file (wavelength, scale) representing the incident flux spectrum. "
+                "Disables neural network scaling. Used for harmonic deconvolution with a known spectrum.",
+        "type": str,
+        "default": None,
+    }),
+    (("--trainable-spectral-scale",), {
+        "help": "If set, multiplies the tabulated spectrum by a single learnable global scalar. "
+                "Allows the overall magnitude to float while keeping the spectral shape fixed.",
         "action": "store_true",
         "default": False,
+    }),
+    (("--spectral-grid-points",), {
+        "help": "Number of points to use for the interpolated spectral lookup table. "
+                "Higher values provide more accuracy but consume more memory. "
+                "Default is 10,000.",
+        "type": int,
+        "default": 10000,
     }),
 )
