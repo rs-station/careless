@@ -635,6 +635,7 @@ class LaueFormatter(DataFormatter):
         data['harmonic_id'] = data.groupby(['image_id', 'H_0', 'K_0', 'L_0']).ngroup()
 
         data['dHKL'] = data.dHKL**-2.
+        d_inv_angstroms_sq = data['dHKL'].to_numpy('float32')
         check_for_metadata_key_error(self.metadata_keys, data)
         metadata = data[self.metadata_keys].to_numpy('float32')
 
@@ -666,6 +667,7 @@ class LaueFormatter(DataFormatter):
             'uncertainties'   : sigma,
             'wavelength' : data[self.wavelength_key].to_numpy('float32')[:,None],
             'harmonic_id' : data['harmonic_id'].to_numpy('int64')[:,None],
+            'dHKL'      : d_inv_angstroms_sq[:,None],
         }
 
         return self.pack_inputs(inputs), rac

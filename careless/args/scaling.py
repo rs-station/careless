@@ -69,4 +69,10 @@ args_and_kwargs = (
         "type": int,
         "default": 10000,
     }),
+    (("--lorentz-correction",), {
+        "help": "Apply the Laue Lorentz correction factor (L ~ lambda^4 / sin^2(theta)) to the scales. "
+                "Requires using the tabulated spectral scaler.",
+        "action": "store_true",
+        "default": False,
+    }),
 )

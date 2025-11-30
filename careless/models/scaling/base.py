@@ -12,7 +12,8 @@ class TabulatedSpectralScaler(Scaler):
     """
     A scaler that uses a pre-calculated regular grid lookup table for fast spectral scaling.
     """
-    def __init__(self, x_grid, y_grid, trainable_scale=False, initial_value=1.0, num_grid_points=10000):
+    def __init__(self, x_grid, y_grid, trainable_scale=False, initial_value=1.0, num_grid_points=10000,
+                 lorentz_correction=False):
         """
         Parameters
         ----------
@@ -45,12 +46,14 @@ class TabulatedSpectralScaler(Scaler):
 
         regular_y = np.interp(regular_x, x_in, y_in)
 
-        # 2. Store Lookup Table as TF Constants
+        # Store Lookup Table as TF Constants
         self.y_grid = tf.constant(regular_y, dtype=tf.float32)
         self.x_start = tf.constant(self.x_min, dtype=tf.float32)
         self.dx = tf.constant(self.step, dtype=tf.float32)
         self.max_idx = tf.constant(num_grid_points - 1, dtype=tf.float32)
         self.max_idx_int = tf.constant(num_grid_points - 1, dtype=tf.int32)
+
+        self.lorentz_correction = lorentz_correction
 
         self.trainable_scale = trainable_scale
         if self.trainable_scale:
@@ -77,6 +80,12 @@ class TabulatedSpectralScaler(Scaler):
         y_lo = tf.gather(self.y_grid, idx_lo_int)
         y_hi = tf.gather(self.y_grid, idx_hi_int)
         scale = y_lo + weight * (y_hi - y_lo)
+
+        if self.lorentz_correction:
+            dinvsq = self.get_dHKL(inputs)
+            # L = 4 * lambda^2 * d^2
+            lorentz = 4.0 * tf.square(wavelengths) / (dinvsq + 1e-12)
+            scale = scale * lorentz
 
         if self.trainable_scale:
             scale = scale * self.bijector(self.global_w)

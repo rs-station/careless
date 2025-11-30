@@ -478,6 +478,7 @@ class DataManager():
                     y_grid=y_grid,
                     trainable_scale=parser.trainable_spectral_scale,
                     num_grid_points=parser.spectral_grid_points,
+                    lorentz_correction=parser.lorentz_correction,
                 )
             elif parser.image_layers > 0:
                 from careless.models.scaling.image import NeuralImageScaler

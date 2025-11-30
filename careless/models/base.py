@@ -28,6 +28,7 @@ class BaseModel(tfk.layers.Layer):
         'uncertainties' : 5,
         'wavelength'    : 6,
         'harmonic_id'   : 7,
+        'dHKL'          : 8,
     }
 
     def call(self, inputs):
@@ -120,3 +121,7 @@ class BaseModel(tfk.layers.Layer):
         """ Given a collection of inputs extract just the harmonic_id. This method only applies to Laue data."""
         return BaseModel.get_input_by_name(inputs, 'harmonic_id')
 
+    @staticmethod
+    def get_dHKL(inputs):
+        """ Given a collection of inputs extract just the inverse resolution squared (dHKL) in Angstroms^-1. """
+        return BaseModel.get_input_by_name(inputs, 'dHKL')
