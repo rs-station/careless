@@ -123,5 +123,5 @@ class BaseModel(tfk.layers.Layer):
 
     @staticmethod
     def get_dHKL(inputs):
-        """ Given a collection of inputs extract just the inverse resolution squared (dHKL) in Angstroms^-1. """
+        """ Given a collection of inputs extract just the inverse resolution squared (dHKL) in Angstroms^-2. """
         return BaseModel.get_input_by_name(inputs, 'dHKL')
