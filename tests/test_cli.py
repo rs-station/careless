@@ -227,4 +227,38 @@ def test_scale_bijector(off_file, scale_bijector, image_layers):
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
+@pytest.mark.parametrize("trainable", [True, False])
+@pytest.mark.parametrize("lorentz", [True, False])
+@pytest.mark.parametrize("grid_points", [None, 500])
+def test_spectral_poly(off_file, trainable, lorentz, grid_points):
+    """
+    Smoke test for TabulatedSpectralScaler features in poly mode.
+    """
+    with TemporaryDirectory() as td:
+        # 1. Create a dummy spectrum file (Wavelength, Scale)
+        # Covering a broad range to ensure test data wavelengths fall inside
+        spec_path = td + "/spectrum.txt"
+        with open(spec_path, "w") as f:
+            f.write("0.0 1.0\n")
+            f.write("100.0 1.0\n")
 
+        # 2. Base flags for Laue mode
+        # We include 'dHKL' in metadata args as is standard for CLI tests,
+        # though the scaler pulls dHKL from the distinct input slot.
+        flags = f"poly --disable-gpu --iterations={niter} dHKL,image_id"
+
+        # 3. Add Spectral flags
+        flags += f" --spectral-file={spec_path}"
+
+        if trainable:
+            flags += " --trainable-spectral-scale"
+
+        if lorentz:
+            flags += " --lorentz-correction"
+
+        if grid_points is not None:
+            flags += f" --spectral-grid-points={grid_points}"
+
+        # 4. Run test
+        # off_file is a standard fixture in test_cli.py providing an MTZ path
+        base_test_together(flags, [off_file])
