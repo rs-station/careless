@@ -41,6 +41,7 @@ The Laue Lorentz factor correction accounts for the geometric probability of dif
 $$ L \propto \frac{\lambda^4}{\sin^2 \theta} = 4 \lambda^2 d^2 $$
 
 When `--lorentz-correction` is enabled, the interpolated spectral scale $S(\lambda)$ is multiplied by this factor:
+
 $$ \text{Scale}_{total} = S(\lambda) \times 4 \lambda^2 d^2 $$
 
 ## Trainable Scale
