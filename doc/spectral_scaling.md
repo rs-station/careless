@@ -44,6 +44,9 @@ When `--lorentz-correction` is enabled, the interpolated spectral scale $S(\lamb
 
 $$ \text{Scale}_{total} = S(\lambda) \times 4 \lambda^2 d^2 $$
 
+<a name="lange">1</a>: Lange, J. "The Lorentz Factor for the Laue Technique." [Acta Crystallographica Section A 51, no. 4 (1995): 559–565.](https://doi.org/10.1107/S0108767395001358)
+
+
 ## Trainable Scale
 
 By default, the spectral curve is fixed. To allow the global intensity to float (matching the magnitude of the data) while preserving the spectral shape, add the `--trainable-spectral-scale` flag. This introduces a single learnable scalar multiplier $A$:
