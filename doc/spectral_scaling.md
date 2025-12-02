@@ -20,7 +20,7 @@ careless poly \
 
 The spectral file should be a whitespace-separated text file with two columns:
 
-1.  **Wavelength ($\text{\AA}$)**
+1.  **Wavelength ($\mathring{A}$)**
 2.  **Scale / Flux (Arbitrary Units)**
 
 <!-- end list -->
