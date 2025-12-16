@@ -96,7 +96,7 @@ These are symmetric probability distributions centered at the observed reflectio
 `careless` implements two primary approaches to scaling:
 
 1.  **Neural Network Scaling (Default)**: A sequential neural network that takes reflection metadata as input and learns a probability distribution of scale values. This is flexible and data-driven.
-2.  **Physics-Based Spectral Scaling**: For Laue data where the incident spectrum is known, you can use a tabulated spectral curve. This model interpolates the incident flux from a user-provided file and can optionally apply a geometric Lorentz correction ($\lambda^4$). This approach reduces the number of free parameters and is ideal for harmonic deconvolution when data redundancy is low.
+2.  **Physics-Based Spectral Scaling**: For neutron Laue data where the incident spectrum is known, you can use a tabulated spectral curve. This model interpolates the incident flux from a user-provided file and can optionally apply a geometric Lorentz correction ($\lambda^4$). This approach reduces the number of free parameters and is ideal for harmonic deconvolution when data redundancy is low.
 
 See [Spectral Scaling](doc/spectral_scaling.md) for detailed usage.
 
