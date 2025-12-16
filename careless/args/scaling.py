@@ -51,7 +51,7 @@ args_and_kwargs = (
         "choices" : ["exp", "softplus"],
     }),
     (("--spectral-file",), {
-        "help": "Path to a two-column text file (wavelength, scale) representing the incident flux spectrum. "
+        "help": "Path to a two-column whitespace-delimited text file ('wavelength scale') representing the incident flux spectrum."
                 "Disables neural network scaling. Used for harmonic deconvolution with a known spectrum.",
         "type": str,
         "default": None,
