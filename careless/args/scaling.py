@@ -53,6 +53,7 @@ args_and_kwargs = (
     (("--spectral-file",), {
         "help": "Path to a two-column whitespace-delimited text file ('wavelength scale') representing the incident flux spectrum."
                 "Disables neural network scaling. Used for harmonic deconvolution with a known spectrum.",
+                "See docs/spectral_scaling.md",
         "type": str,
         "default": None,
     }),

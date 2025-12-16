@@ -12,7 +12,7 @@ careless poly \
   "output_root" \
   --spectral-file source_spectrum.txt \
   --lorentz-correction \
-  --kl-weight 1e-6 \
+  --kl-weight 0.5 \
   --student-t-likelihood-dof 4
 ```
 
