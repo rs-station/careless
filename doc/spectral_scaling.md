@@ -1,6 +1,6 @@
 # Physics-Based Spectral Scaling
 
-For Laue diffraction experiments where the incident X-ray spectrum is well-characterized, `careless` allows you to bypass the neural network scaler and strictly enforce a physical scaling model. This is particularly useful for resolving the ambiguity between harmonic reflections ($n=1, 2, \dots$) when the dataset does not have sufficient wavelength redundancy to learn the spectral shape from scratch.
+For Laue diffraction experiments where the incident spectrum is well-characterized, `careless` allows you to bypass the neural network scaler and strictly enforce a physical scaling model. This is particularly useful for resolving the ambiguity between harmonic reflections ($n=1, 2, \dots$) when the dataset does not have sufficient wavelength redundancy to learn the spectral shape from scratch.
 
 ## Usage
 
