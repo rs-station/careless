@@ -4,7 +4,7 @@ For Laue diffraction experiments where the incident spectrum is well-characteriz
 
 ## Usage
 
-To enable this mode, provide a two-column text file containing the incident spectrum using the `--spectral-file` argument.
+To enable this mode, provide a two-column text file containing the incident spectrum using the `--spectral-file` argument. Note that a dummy metadata key (`WAVEL`) is still required, but it is unused.
 
 ```bash
 careless poly \
@@ -13,7 +13,8 @@ careless poly \
   --spectral-file source_spectrum.txt \
   --lorentz-correction \
   --kl-weight 0.5 \
-  --student-t-likelihood-dof 4
+  --student-t-likelihood-dof 4 \
+  "WAVEL"
 ```
 
 ## Spectrum File Format
