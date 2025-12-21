@@ -5,7 +5,7 @@ import reciprocalspaceship as rs
 import gemmi
 from careless.io.formatter import LaueFormatter
 from careless.io.asu import ReciprocalASU, ReciprocalASUCollection
-from careless.models.scaling.base import TabulatedSpectralScaler
+from careless.models.scaling.spectral import TabulatedSpectralScaler
 from careless.models.base import BaseModel
 
 class TestSpectralScaler:

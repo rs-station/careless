@@ -387,7 +387,7 @@ class DataManager():
         from careless.models.merging.variational import VariationalMergingModel
         from careless.models.scaling.image import HybridImageScaler,ImageScaler
         from careless.models.scaling.nn import MLPScaler
-        from careless.models.scaling.base import TabulatedSpectralScaler
+        from careless.models.scaling.spectral import TabulatedSpectralScaler
         if parser is None:
             parser = self.parser
         if parser is None:
