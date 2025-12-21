@@ -122,7 +122,7 @@ class TestSpectralScaler:
         # Since spectrum is 1.0, Final Scale == Lorentz Factor
         assert np.allclose(predicted_scale, expected_lorentz, rtol=1e-4)
 
-    def test_scaler_interpolation_real_data(self, mock_dataset, mock_rac, mock_formatter):
+    def test_scaler_interpolation_with_data(self, mock_dataset, mock_rac, mock_formatter):
         """
         Test combined spectral interpolation + Lorentz on the mock dataset.
         """
