@@ -1,6 +1,7 @@
 from careless.models.base import BaseModel
 import tf_keras as tfk
 import tensorflow as tf
+import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 from tensorflow_probability import bijectors as tfb
 import numpy as np
@@ -57,10 +58,12 @@ class TabulatedSpectralScaler(Scaler):
 
         self.trainable_scale = trainable_scale
         if self.trainable_scale:
-            self.bijector = tfb.Exp()
-            init_tensor = tf.constant(initial_value, dtype=tf.float32)
-            unconstrained_init = self.bijector.inverse(init_tensor)
-            self.global_w = tf.Variable(unconstrained_init, name='spectral_global_scale', trainable=True)
+            self.global_w = tfp.util.TransformedVariable(
+                initial_value=initial_value,
+                bijector=tfb.Exp(),
+                dtype=tf.float32,
+                name='spectral_global_scale'
+            )
 
     def call(self, inputs):
         wavelengths = self.get_wavelength(inputs)
@@ -88,7 +91,7 @@ class TabulatedSpectralScaler(Scaler):
             scale = scale * lorentz
 
         if self.trainable_scale:
-            scale = scale * self.bijector(self.global_w)
+            scale = scale * self.global_w
 
         # Force the output to be 1D (BatchSize,) instead of matching wavelengths (BatchSize, 1)
         scale = tf.reshape(scale, [-1])
