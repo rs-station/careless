@@ -41,6 +41,32 @@ def test_truncated_normal_gradients():
         assert torch.all(torch.isfinite(p.grad))
 
 
+def test_truncated_normal_samples_in_support():
+    """rsample must always produce values in [low, high] even for large scale."""
+    rng   = np.random.default_rng(0)
+    loc   = (rng.random(500) * 5 + 0.1).astype('float32')
+    scale = (rng.random(500) * 3 + 0.1).astype('float32')  # large scale stress test
+    q = TruncatedNormal.from_loc_and_scale(loc, scale, low=0.0)
+    for _ in range(50):
+        z = q.rsample((5,))
+        assert torch.all(z >= 0.0), \
+            f"rsample produced {(z < 0).sum().item()} negative values"
+
+
+def test_truncated_normal_irg_gradients_finite():
+    """IRG backward must produce finite gradients."""
+    rng   = np.random.default_rng(1)
+    loc   = (rng.random(100) * 3 + 0.5).astype('float32')
+    scale = (rng.random(100) * 0.5 + 0.1).astype('float32')
+    q = TruncatedNormal.from_loc_and_scale(loc, scale, low=0.0)
+    z  = q.rsample((3,))
+    z.sum().backward()
+    for p in q.parameters():
+        assert p.grad is not None
+        assert torch.all(torch.isfinite(p.grad)), \
+            f"Non-finite IRG gradient: {p.grad}"
+
+
 def test_moment_4():
     """Test truncated normal 4th moment against scipy.stats.truncnorm.moment."""
     from scipy.stats import truncnorm

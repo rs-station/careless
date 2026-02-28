@@ -3,6 +3,7 @@ Learnable distribution modules for careless.
 These are nn.Module subclasses whose parameters can be optimized by gradient descent.
 """
 
+import math
 import torch
 import torch.nn as nn
 import numpy as np
@@ -13,6 +14,75 @@ from torch.distributions.transforms import (
     ComposeTransform,
 )
 from torch.distributions import constraints, Normal
+
+
+def _accept_reject_truncnorm(loc, scale, low, high, shape, max_iter=100):
+    """Vectorized accept-reject from Normal(loc, scale) truncated to [low, high].
+    For careless (low=0, loc>0), acceptance rate is near 100% so max_iter=10 suffices."""
+    x    = torch.empty(shape, dtype=loc.dtype, device=loc.device)
+    done = torch.zeros(shape, dtype=torch.bool, device=loc.device)
+    for _ in range(max_iter):
+        if done.all():
+            break
+        cand   = loc + scale * torch.randn(shape, dtype=loc.dtype, device=loc.device)
+        accept = (cand >= low) & (cand <= high) & ~done
+        x      = torch.where(accept, cand, x)
+        done   = done | accept
+    # Fallback: clamp any unconverged entries (negligible bias, astronomically rare)
+    if not done.all():
+        x = torch.where(~done, loc.expand(shape).clamp(min=low, max=high), x)
+    return x
+
+
+class _TruncNormIRG(torch.autograd.Function):
+    """
+    Reparameterized sample via Implicit Reparameterization Gradient (Figurnov et al. 2018).
+
+    Forward : accept-reject sampling — always in [low, high], no gradient tape.
+    Backward: IRG formula
+        dx/dmu  = 1 + [Phi(t)-Phi(a)] * [phi(a)-phi(b)]       / [Z * phi(t)]
+        dx/dsig = t + [Phi(t)-Phi(a)] * [a*phi(a) - b*phi(b)] / [Z * phi(t)]
+    where t=(x-mu)/sig, a=(low-mu)/sig, b=(high-mu)/sig, Z=Phi(b)-Phi(a).
+    """
+
+    @staticmethod
+    def forward(ctx, loc, scale, low, high, shape_tuple):
+        shape = torch.Size(shape_tuple)
+        x = _accept_reject_truncnorm(loc, scale, low, high, shape)
+        ctx.save_for_backward(x, loc, scale, low, high)
+        return x
+
+    @staticmethod
+    def backward(ctx, grad_x):
+        x, loc, scale, low, high = ctx.saved_tensors
+        t = (x    - loc) / scale
+        a = (low  - loc) / scale
+        b = (high - loc) / scale
+
+        std   = Normal(torch.zeros_like(loc), torch.ones_like(loc))
+        phi_t = std.log_prob(t).exp()
+        phi_a = std.log_prob(a).exp()
+        phi_b = std.log_prob(b).exp()
+        Phi_t = std.cdf(t)
+        Phi_a = std.cdf(a)
+        Phi_b = std.cdf(b)
+        Z      = (Phi_b - Phi_a).clamp(min=1e-38)
+        phi_t  = phi_t.clamp(min=1e-38)
+
+        c          = (Phi_t - Phi_a) / (Z * phi_t)    # broadcasts over sample dim
+        dx_dloc    = 1.0 + c * (phi_a - phi_b)
+        dx_dscale  = t   + c * (a * phi_a - b * phi_b)
+
+        # Sum over all sample dimensions (grad_x may be (n_samples, n_reflections))
+        n_sample_dims = grad_x.ndim - loc.ndim
+        if n_sample_dims > 0:
+            sum_dims = list(range(n_sample_dims))
+            g_loc   = (grad_x * dx_dloc  ).sum(sum_dims)
+            g_scale = (grad_x * dx_dscale).sum(sum_dims)
+        else:
+            g_loc   = grad_x * dx_dloc
+            g_scale = grad_x * dx_dscale
+        return g_loc, g_scale, None, None, None
 
 
 class TruncatedNormal(nn.Module):
@@ -77,24 +147,14 @@ class TruncatedNormal(nn.Module):
 
     def rsample(self, sample_shape=torch.Size()):
         """
-        Reparameterized sample using the inverse-CDF transform.
-        Gradients flow through loc and scale.
+        Reparameterized sample via Implicit Reparameterization Gradient (IRG).
+        Forward uses accept-reject sampling (always in support).
+        Backward uses the IRG formula (Figurnov et al. 2018).
         """
-        loc, scale = self.loc, self.scale
-        alpha, beta = self._normalized_bounds()
-
-        std_normal = Normal(torch.zeros_like(loc), torch.ones_like(loc))
-        Phi_alpha = std_normal.cdf(alpha)
-        Phi_beta = std_normal.cdf(beta)
-
-        shape = sample_shape + loc.shape
-        u = torch.zeros(shape, dtype=loc.dtype, device=loc.device).uniform_()
-        # Inverse CDF: Phi_inv(Phi_alpha + u * (Phi_beta - Phi_alpha))
-        p = Phi_alpha + u * (Phi_beta - Phi_alpha)
-        p = p.clamp(1e-6, 1.0 - 1e-6)
-        # Phi_inv(p) = sqrt(2) * erfinv(2p - 1)
-        z = torch.erfinv(2.0 * p - 1.0) * (2.0 ** 0.5)
-        return loc + scale * z
+        shape = sample_shape + self.loc.shape
+        return _TruncNormIRG.apply(
+            self.loc, self.scale, self.low, self.high, tuple(shape)
+        )
 
     def log_prob(self, x):
         """Log probability of x under the truncated normal."""
