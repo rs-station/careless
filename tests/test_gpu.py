@@ -161,3 +161,24 @@ def test_run_careless_on_gpu(mode, off_file, on_file):
         # Verify GPU memory was actually used (non-zero allocation after run)
         assert torch.cuda.max_memory_allocated(0) > 0, \
             "No CUDA memory was allocated — model may not have run on GPU"
+
+
+@_xfail_no_gpu
+def test_run_careless_image_layers_on_gpu(off_file, on_file):
+    """NeuralImageScaler (--image-layers) must initialize weights on the GPU."""
+    from tempfile import TemporaryDirectory
+    from os.path import exists
+    from careless.careless import run_careless
+    from careless.parser import parser
+
+    with TemporaryDirectory() as td:
+        out = td + '/out'
+        command = (
+            f"mono --iterations={niter} --image-layers=2 dHKL,image_id"
+            f" {off_file} {out}"
+        )
+        args = parser.parse_args(command.split())
+        run_careless(args)
+        assert exists(out + '_0.mtz')
+        assert torch.cuda.max_memory_allocated(0) > 0, \
+            "No CUDA memory was allocated — ImageLayer may not have run on GPU"

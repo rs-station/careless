@@ -1,6 +1,9 @@
+import math
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
+from torch.nn.parameter import UninitializedParameter
+from torch.nn.modules.lazy import LazyModuleMixin
 from careless.models.scaling.base import Scaler
 
 
@@ -48,45 +51,44 @@ class HybridImageScaler(Scaler):
         return Normal(a * q.loc, a * q.scale)
 
 
-class ImageLayer(nn.Module):
+class ImageLayer(LazyModuleMixin, nn.Module):
     """
     A linear layer whose weight matrix is indexed by image ID.
     Each image has its own weight matrix and bias.
+
+    Uses LazyModuleMixin so that weights are allocated on the correct device
+    on the first forward pass (after model.to(device) has been called),
+    avoiding the fragile .to() reassignment pattern.
     """
+
+    w: UninitializedParameter
+    b: UninitializedParameter
 
     def __init__(self, units, max_images, activation=None):
         super().__init__()
         self.units = units
         self.max_images = max_images
         self.activation = activation
+        self.w = UninitializedParameter()
+        self.b = UninitializedParameter()
 
-        # weights: (max_images, units, in_features) — lazy initialisation
-        # We use LazyLinear-style approach: create weights at first call
-        self._initialized = False
-        self._units = units
-        self._max_images = max_images
+    def initialize_parameters(self, inputs):
+        if self.has_uninitialized_params():
+            data, image_id = inputs
+            in_features = data.shape[-1]
+            with torch.no_grad():
+                self.w.materialize((self.max_images, self.units, in_features))
+                self.b.materialize((self.max_images, self.units))
+                nn.init.kaiming_uniform_(self.w, a=math.sqrt(5))
+                fan_in = in_features
+                bound = 1.0 / math.sqrt(fan_in) if fan_in > 0 else 0.0
+                nn.init.uniform_(self.b, -bound, bound)
 
-    def _init_weights(self, in_features):
-        self.w = nn.Parameter(
-            torch.eye(self._units, in_features).unsqueeze(0)
-            .expand(self._max_images, -1, -1).clone()
-        )
-        self.b = nn.Parameter(torch.zeros(self._max_images, self._units))
-        self._initialized = True
-
-    def forward(self, metadata_and_image_id):
-        data, image_id = metadata_and_image_id
+    def forward(self, inputs):
+        data, image_id = inputs
         image_id = image_id.squeeze(-1).long()
-
-        if not self._initialized:
-            self._init_weights(data.shape[-1])
-            self.w = self.w.to(data.device)
-            self.b = self.b.to(data.device)
-
-        # Gather per-image weights: (batch, units, in_features)
         w = self.w[image_id]   # (batch, units, in_features)
         b = self.b[image_id]   # (batch, units)
-        # Matrix multiply: (batch, units, in_features) @ (batch, in_features, 1) → (batch, units)
         result = torch.bmm(w, data.unsqueeze(-1)).squeeze(-1) + b
         if self.activation is not None:
             result = self.activation(result)
