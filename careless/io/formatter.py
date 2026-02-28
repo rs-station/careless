@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 import reciprocalspaceship as rs
 import gemmi
 from functools import wraps

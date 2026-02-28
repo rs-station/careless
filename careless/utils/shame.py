@@ -1,6 +1,6 @@
-import tensorflow as tf
+import torch
+
 
 def sanitize_tensor(tensor, replacement_val=0.):
-    """Replace infinite entries `replacement_val`."""
-    return tf.where(~tf.math.is_finite(tensor), replacement_val*tf.ones_like(tensor), tensor)
-
+    """Replace non-finite entries with replacement_val."""
+    return torch.where(torch.isfinite(tensor), tensor, torch.full_like(tensor, replacement_val))

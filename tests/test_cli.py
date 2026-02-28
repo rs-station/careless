@@ -6,19 +6,10 @@ from os.path import exists
 import multiprocessing
 
 niter = 10
-# True will use multiprocessing to bypass the tf memory leak issue,
-# but it may result in less verbose error messages.
 use_mp = False
-eager=True
 
 
 def run_careless(parser):
-    """
-    Workaround for tensorflow memory leak.
-    see: https://github.com/tensorflow/tensorflow/issues/36465
-    """
-    if eager:
-        parser.run_eagerly=True
     if use_mp:
         proc = multiprocessing.Process(target=_run_careless, args=(parser,))
         proc.start()

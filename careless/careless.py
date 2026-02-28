@@ -8,18 +8,14 @@ def main():
     parser = parser.parse_args()
     run_careless(parser)
 
+
 def run_careless(parser):
-    # We defer all inputs to make sure the parser has priority in modifying tf parameters
-    import tensorflow as tf
     import numpy as np
+    import torch
     import reciprocalspaceship as rs
     from careless.io.manager import DataManager
-    from careless.io.formatter import MonoFormatter,LaueFormatter
+    from careless.io.formatter import MonoFormatter, LaueFormatter
     from careless.models.base import BaseModel
-    from careless.models.merging.surrogate_posteriors import TruncatedNormal
-    from careless.models.merging.variational import VariationalMergingModel
-    from careless.models.scaling.image import HybridImageScaler,ImageScaler
-    from careless.models.scaling.nn import MLPScaler
 
     if parser.type == 'poly':
         df = LaueFormatter.from_parser(parser)
@@ -27,73 +23,89 @@ def run_careless(parser):
         df = MonoFormatter.from_parser(parser)
     elif parser.type == 'devices':
         print("###############################################")
-        print("# TensorFlow can access the following devices #")
+        print("# PyTorch can access the following devices    #")
         print("###############################################")
-        for dev in tf.config.list_physical_devices():
-            print(f" - {dev.device_type}: {dev.name}")
+        print(f" - CPU")
+        if torch.cuda.is_available():
+            for i in range(torch.cuda.device_count()):
+                print(f" - CUDA:{i}: {torch.cuda.get_device_name(i)}")
         from sys import exit
         exit()
 
-
-    inputs,rac = df.format_files(parser.reflection_files)
+    inputs, rac = df.format_files(parser.reflection_files)
     dm = DataManager(inputs, rac, parser=parser)
 
     if parser.test_fraction is not None:
-        train,test = dm.split_data_by_refl(parser.test_fraction)
+        train, test = dm.split_data_by_refl(parser.test_fraction)
     else:
-        train,test = dm.inputs,None
+        train, test = dm.inputs, None
 
     model = dm.build_model()
 
+    # Initialize any LazyLinear layers before loading weights or freezing parameters
+    with torch.no_grad():
+        from careless.models.base import reset_losses_and_metrics
+        reset_losses_and_metrics()
+        _init_inputs = tuple(
+            torch.as_tensor(d, dtype=torch.float32) if d.dtype in (np.float64,) else torch.as_tensor(d)
+            for d in train
+        )
+        model(_init_inputs)
+
     if parser.scale_file is not None:
-        model.scaling_model.load_weights(parser.scale_file)
+        model.scaling_model.load_state_dict(torch.load(parser.scale_file, weights_only=True))
     if parser.freeze_scales:
-        model.scaling_model.trainable = False
+        for p in model.scaling_model.parameters():
+            p.requires_grad_(False)
 
     if parser.structure_factor_file is not None:
-        model.surrogate_posterior.load_weights(parser.structure_factor_file)
+        model.surrogate_posterior.load_state_dict(
+            torch.load(parser.structure_factor_file, weights_only=True)
+        )
     if parser.freeze_structure_factors:
-        model.surrogate_posterior.trainable = False
+        for p in model.surrogate_posterior.parameters():
+            p.requires_grad_(False)
 
     validation_frequency = parser.validation_frequency
     progress = not parser.disable_progress_bar
 
     history = model.train_model(
-        tuple(map(tf.convert_to_tensor, train)),
+        train,
         parser.iterations,
         message="Training",
         validation_data=test,
         validation_frequency=validation_frequency,
         progress=progress,
-        reduce_retracing=parser.reduce_retracing,
-        jit_compile=parser.jit_compile,
     )
 
-    for i,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
+    for i, ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)
 
-    filename = parser.output_base + f'_history.csv'
-    history = rs.DataSet(history).to_csv(filename, index_label='step')
+    filename = parser.output_base + '_history.csv'
+    rs.DataSet(history).to_csv(filename, index_label='step')
 
-    model.surrogate_posterior.save_weights(parser.output_base + '_structure_factor')
-    model.scaling_model.save_weights(parser.output_base + '_scale')
+    torch.save(
+        model.surrogate_posterior.state_dict(),
+        parser.output_base + '_structure_factor'
+    )
+    torch.save(
+        model.scaling_model.state_dict(),
+        parser.output_base + '_scale'
+    )
+
     if parser.save_data_manager:
         import pickle
         with open(parser.output_base + "_data_manager.pickle", "wb") as out:
             pickle.dump(dm, out)
 
-    predictions_data = None
     if test is not None:
         for file_id, (ds_train, ds_test) in enumerate(zip(
-                dm.get_predictions(model, train, test_value=0),
-                dm.get_predictions(model, test, test_value=1),
-                )):
+            dm.get_predictions(model, train, test_value=0),
+            dm.get_predictions(model, test, test_value=1),
+        )):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
-            rs.concat((
-                ds_train,
-                ds_test,
-            )).write_mtz(filename)
+            rs.concat((ds_train, ds_test)).write_mtz(filename)
     else:
         for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0)):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
@@ -101,21 +113,21 @@ def run_careless(parser):
 
     if parser.merge_half_datasets:
         scaling_model = model.scaling_model
-        scaling_model.trainable = False
+        for p in scaling_model.parameters():
+            p.requires_grad_(False)
+
         xval_data = [None] * len(dm.asu_collection)
         for repeat in range(parser.half_dataset_repeats):
             for half_id, half in enumerate(dm.split_data_by_image()):
                 model = dm.build_model(scaling_model=scaling_model)
                 history = model.train_model(
-                    tuple(map(tf.convert_to_tensor, half)), 
+                    half,
                     parser.iterations,
-                    message=f"Merging repeat {repeat+1} half {half_id+1}",
+                    message=f"Merging repeat {repeat + 1} half {half_id + 1}",
                     progress=progress,
-                    reduce_retracing=parser.reduce_retracing,
-                    jit_compile=parser.jit_compile,
                 )
 
-                for file_id,ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
+                for file_id, ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):
                     ds['repeat'] = rs.DataSeries(repeat, index=ds.index, dtype='I')
                     ds['half'] = rs.DataSeries(half_id, index=ds.index, dtype='I')
                     if xval_data[file_id] is None:
@@ -132,6 +144,5 @@ def run_careless(parser):
         embed(colors='Linux')
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
-

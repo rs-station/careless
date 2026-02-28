@@ -1,38 +1,74 @@
-from careless.models.base import BaseModel
-from careless.utils.shame import sanitize_tensor
-from careless.models.merging.surrogate_posteriors import TruncatedNormal
-import tf_keras as tfk
-from tqdm.autonotebook import tqdm
-import tensorflow_probability as tfp
-import tensorflow as tf
+import torch
+import torch.nn as nn
 import numpy as np
+import lightning as L
+from careless.models.base import (
+    BaseModel,
+    reset_losses_and_metrics,
+    get_accumulated_losses,
+    get_accumulated_metrics,
+)
+from careless.distributions import TruncatedNormal
 
 
-class VariationalMergingModel(tfk.models.Model, BaseModel):
+class VariationalMergingModel(L.LightningModule, BaseModel):
     """
-    Merge data with a posterior parameterized by a surrogate distribution.
+    Central variational merging model.
+
+    Maximises the ELBO:
+        ELBO = E_q[log p(I | F, Σ)] - KL[q(F) || p(F)]
+
+    Uses PyTorch Lightning for training orchestration and mirrors the Keras
+    add_loss / add_metric API via thread-local loss accumulation in BaseModel.
     """
-    def __init__(self, surrogate_posterior, prior, likelihood, scaling_model, mc_sample_size=1, kl_weight=None, scale_kl_weight=None, scale_prior=None):
-        """"
+
+    def __init__(
+        self,
+        surrogate_posterior,
+        prior,
+        likelihood,
+        scaling_model,
+        mc_sample_size=1,
+        kl_weight=None,
+        scale_kl_weight=None,
+        scale_prior=None,
+        # optimizer hyperparameters
+        learning_rate=1e-3,
+        beta_1=0.9,
+        beta_2=0.999,
+        clipnorm=None,
+        clipvalue=None,
+        global_clipnorm=None,
+    ):
+        """
         Parameters
         ----------
-        surrogate_posterior : tfd.Distribution
-            A surrogate posterior distribution to use. 
-            If non is supplied, the default truncated normal distribution will be used. 
-            Any posteriors passed in with this arg must have all properly transformed parameters in their
-            `self.trainable_variables` iterable.  Use `tfp.util.TransformedVariable` to ensure positivity constraints
-            where applicable.
-        prior : distribution
-            Prior distribution on merged, normalized structure factor amplitudes. 
-            Either a Distribution from tensorflow_probability.distributions or 
-            a Prior from careless.models.distributions. This must implement .log_prob. 
-            This distribution must have an `event_shape` equal to `np.max(miller_ids) + 1`.
-        likelihood : careless.models.likelihood.Likelihood
-            This is a Likelihood object from careless.
-        scaling_model : careless.models.base.BaseModel
-            An instance of a class from carless.model.scaling 
-        mc_sample_size : int (optional)
-            This sets how many reparameterized samples will be used to compute the loss function.
+        surrogate_posterior : TruncatedNormal or similar nn.Module
+            Learnable distribution over structure factor amplitudes q(F).
+        prior : Prior
+            Prior distribution p(F); must implement log_prob(F).
+        likelihood : Likelihood
+            Observation likelihood p(I | F, Σ).
+        scaling_model : Scaler
+            Maps reflection metadata → scale distribution q(Σ).
+        mc_sample_size : int
+            Number of MC samples for ELBO estimation.
+        kl_weight : float or None
+            If None, KL is summed (divided by mc_sample_size); otherwise it weights
+            a per-sample mean KL.
+        scale_kl_weight : float or None
+            Same as kl_weight but for the scale KL term.
+        scale_prior : distribution or None
+            Optional prior on scale factors.
+        learning_rate : float
+        beta_1, beta_2 : float
+            Adam betas.
+        clipnorm : float or None
+            Per-parameter gradient norm clip.
+        clipvalue : float or None
+            Per-parameter gradient value clip.
+        global_clipnorm : float or None
+            Global gradient norm clip (passed to Lightning Trainer via clip_grad_norm).
         """
         super().__init__()
         self.prior = prior
@@ -44,233 +80,330 @@ class VariationalMergingModel(tfk.models.Model, BaseModel):
         self.scale_kl_weight = scale_kl_weight
         self.scale_prior = scale_prior
 
-    def scale_mean_stddev(self, inputs):
-        """
-        Compute the moments of the posterior of reflection observation scale factors. 
+        self._learning_rate = learning_rate
+        self._beta_1 = beta_1
+        self._beta_2 = beta_2
+        self._clipnorm = clipnorm
+        self._clipvalue = clipvalue
+        self._global_clipnorm = global_clipnorm
 
-        Parameters
-        ----------
-        inputs : data
-            inputs is a data structure like [refl_id, image_id, metadata, intensity, uncertainty]. 
-            This can be a tf.DataSet, or a group of tensors. 
+        # Running history collected during train_model
+        self._history = {}
 
-        Returns
-        -------
-        mean : np.array
-            A numpy array containing the mean value of the scale predicted by the model for each input. 
-        stddev : np.array
-            A numpy array containing the standard deviation of the scale predicted by the model for each input. 
-            This is a reasonable estimate of the uncertainty of the model about each input.
-        """
-        refl_id = self.get_refl_id(inputs)
-
-        scale_dist = self.scaling_model(inputs)
-        mean = scale_dist.mean().numpy()
-        stddev = scale_dist.stddev().numpy()
-
-        # We need to convolve the predictions if this is laue data
-        from careless.models.likelihoods.laue import LaueBase
-        if isinstance(self.likelihood, LaueBase):
-            likelihood = self.likelihood(inputs)
-            mean = likelihood.convolve(mean)
-            stddev = np.sqrt(likelihood.convolve(stddev * stddev))
-
-        return mean, stddev
-
-    def prediction_mean_stddev(self, inputs):
-        """
-        Parameters
-        ----------
-        inputs : data
-            inputs is a data structure like [refl_id, image_id, metadata, intensity, uncertainty]. 
-            This can be a tf.DataSet, or a group of tensors. 
-
-        Returns
-        -------
-        mean : np.array
-            A numpy array containing the mean value predicted by the model for each input. 
-        stddev : np.array
-            A numpy array containing the standard deviation predicted by the model for each input. 
-            This is a reasonable estimate of the uncertainty of the model about each input.
-        """
-        refl_id = self.get_refl_id(inputs)
-        #Let's actually return the expected value of the data under the current model
-        #This is <F**2.>
-        scale_dist = self.scaling_model(inputs)
-        f2 = tf.square(self.surrogate_posterior.mean()) + tf.square(self.surrogate_posterior.stddev())
-        iexp = scale_dist.mean() * tf.gather(f2, tf.squeeze(refl_id, axis=-1), axis=-1)
-        iexp = iexp.numpy()
-
-        from scipy.stats import truncnorm
-        q = self.surrogate_posterior
-        f4 = q.moment_4(method='scipy')
-
-        s2 = np.square(scale_dist.mean().numpy()) + np.square(scale_dist.stddev().numpy())
-        # var(I) = <I^2> - <I>^2
-        # <I^2> = <F^4><Sigma^2>
-        ivar = f4[np.squeeze(refl_id)]*s2 - iexp*iexp
-
-        # We need to convolve the predictions if this is laue data
-        from careless.models.likelihoods.laue import LaueBase
-        if isinstance(self.likelihood, LaueBase):
-            likelihood = self.likelihood(inputs)
-            iexp = likelihood.convolve(iexp)
-            ivar = likelihood.convolve(ivar)
-            iexp,ivar = iexp.numpy(),ivar.numpy()
-
-        return iexp,np.sqrt(ivar)
+    # ------------------------------------------------------------------
+    # Keras-like add_kl_div helper
+    # ------------------------------------------------------------------
 
     def add_kl_div(self, posterior, prior, samples=None, weight=1., reduction='sum', name="KLDiv"):
+        """
+        Compute KL divergence (or MC estimate thereof), accumulate as a loss term,
+        and register it as a named metric.
+
+        Parameters
+        ----------
+        posterior, prior : distributions
+            Distributions supporting log_prob; analytical KL attempted first,
+            MC estimate used as fallback.
+        samples : Tensor or None
+            Pre-drawn samples from posterior for MC estimation.
+        weight : float
+            Multiplicative weight on the KL loss term.
+        reduction : 'sum' | 'mean' | callable
+            How to reduce the per-element KL before accumulation.
+        name : str
+            Metric name displayed during training.
+        """
         try:
-            kl_div = posterior.kl_divergence(prior)
-        except:
-            NotImplementedError
+            # Try analytical KL
+            p_dist = posterior._distribution() if hasattr(posterior, '_distribution') else posterior
+            q_dist = prior._distribution() if hasattr(prior, '_distribution') else prior
+            kl_div = torch.distributions.kl_divergence(p_dist, q_dist)
+        except NotImplementedError:
+            # Fall back to MC estimate
+            if samples is None:
+                samples = posterior.rsample((self.mc_sample_size,))
             kl_div = posterior.log_prob(samples) - prior.log_prob(samples)
 
         if reduction == 'sum':
-            kl_div = tf.reduce_sum(kl_div) / self.mc_sample_size
+            kl_div = kl_div.sum() / self.mc_sample_size
         elif reduction == 'mean':
-            kl_div = tf.reduce_mean(kl_div) 
-        else:
+            kl_div = kl_div.mean()
+        elif callable(reduction):
             kl_div = reduction(kl_div)
 
         self.add_loss(weight * kl_div)
-        self.add_metric(kl_div, name=name)
+        self.add_metric(kl_div, name)
         return kl_div
 
-    def call(self, inputs):
+    # ------------------------------------------------------------------
+    # forward
+    # ------------------------------------------------------------------
+
+    def forward(self, inputs):
         """
-        Parameters
-        ----------
-        inputs : data
-            inputs is a data structure like [refl_id, image_id, metadata, intensity, uncertainty]. 
-            This can be a tf.DataSet, or a group of tensors. 
+        Run one forward pass, accumulating loss/metric terms into the thread-local
+        context. Call reset_losses_and_metrics() before invoking.
 
         Returns
         -------
-        predictions : tf.Tensor
-            Values predicted by the model for this sample. 
+        ipred : Tensor, shape (mc_sample_size, n_obs)
+            Predicted intensities for each MC sample and observation.
         """
-        z_f = self.surrogate_posterior.sample(self.mc_sample_size)
+        # Reparameterized samples from q(F) and q(Σ)
+        z_f = self.surrogate_posterior.rsample((self.mc_sample_size,))
+        # z_f: (mc_sample_size, n_refls)
 
         scale_dist = self.scaling_model(inputs)
-        z_scale = scale_dist.sample(self.mc_sample_size)
+        z_scale = scale_dist.rsample((self.mc_sample_size,))
+        # z_scale: (mc_sample_size, n_obs)
 
+        # Optional scale KL
         if self.scale_prior is not None:
             if self.scale_kl_weight is None:
-                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=self.scale_kl_weight, reduction='sum', name="Σ KLDiv")
+                self.add_kl_div(
+                    scale_dist, self.scale_prior, z_scale,
+                    weight=self.scale_kl_weight,  # faithful reproduction of original (passes None)
+                    reduction='sum', name="Σ KLDiv"
+                )
             else:
-                self.add_kl_div(scale_dist, self.scale_prior, z_scale, weight=1., reduction='mean', name="Σ KLDiv")
+                self.add_kl_div(
+                    scale_dist, self.scale_prior, z_scale,
+                    weight=1.0, reduction='mean', name="Σ KLDiv"
+                )
 
-        refl_id = self.get_refl_id(inputs)
+        refl_id = self.get_refl_id(inputs).squeeze(-1).long()
 
-        ipred = z_scale * tf.square(tf.gather(z_f, tf.squeeze(refl_id, axis=-1), axis=-1))
+        # Predicted intensity: I = Σ * F²
+        ipred = z_scale * z_f[..., refl_id] ** 2
+        # ipred: (mc_sample_size, n_obs)
 
         likelihood = self.likelihood(inputs)
-
         ll = likelihood.log_prob(ipred)
-        if self.kl_weight is None:
-            self.add_kl_div(self.surrogate_posterior, self.prior, z_f, name='F KLDiv', reduction='sum')
-            ll = tf.reduce_sum(ll) / self.mc_sample_size
-        else:
-            self.add_kl_div(self.surrogate_posterior, self.prior, z_f, weight=self.kl_weight, name='F KLDiv', reduction='mean')
-            ll = tf.reduce_mean(ll) 
+        # ll: (mc_sample_size, n_obs)
 
-        #Do some keras-y stuff
+        # Structure factor KL and log likelihood reduction
+        if self.kl_weight is None:
+            self.add_kl_div(
+                self.surrogate_posterior, self.prior, z_f,
+                name='F KLDiv', reduction='sum'
+            )
+            ll = ll.sum() / self.mc_sample_size
+        else:
+            self.add_kl_div(
+                self.surrogate_posterior, self.prior, z_f,
+                weight=self.kl_weight, name='F KLDiv', reduction='mean'
+            )
+            ll = ll.mean()
+
         self.add_loss(-ll)
-        self.add_metric(-ll, name="NLL")
+        self.add_metric(-ll, "NLL")
 
         return ipred
 
-    def train_step_with_gradient_norm(self, data=None):
+    # ------------------------------------------------------------------
+    # Lightning interface
+    # ------------------------------------------------------------------
+
+    def training_step(self, batch, batch_idx):
+        reset_losses_and_metrics()
+        self(batch)
+        losses = get_accumulated_losses()
+        metrics = get_accumulated_metrics()
+
+        loss = sum(losses)
+        for name, val in metrics.items():
+            self.log(name, float(val), prog_bar=True, on_step=True, on_epoch=False)
+
+        # Gradient norm (computed by Lightning trainer after this step)
+        return loss
+
+    def configure_optimizers(self):
+        opt = torch.optim.Adam(
+            self.parameters(),
+            lr=self._learning_rate,
+            betas=(self._beta_1, self._beta_2),
+        )
+        return opt
+
+    # ------------------------------------------------------------------
+    # Custom training loop (mirrors original train_model API)
+    # ------------------------------------------------------------------
+
+    def train_model(
+        self,
+        data,
+        steps,
+        message=None,
+        format_string="{:0.2e}",
+        validation_data=None,
+        validation_frequency=10,
+        progress=True,
+        jit_compile=None,
+        reduce_retracing=False,
+    ):
         """
-        Conduct a training step with `data`. This method is the same as tfk.Model.train_step except that it
-        tracks the norm of the gradients as well. 
+        Train using a simple manual loop (whole-dataset batching).
+        Returns a history dict with one entry per step.
+
+        Parameters
+        ----------
+        data : tuple of Tensors
+            Full dataset as a tuple of tensors (already on device).
+        steps : int
+            Number of gradient steps.
+        message : str, optional
+            Description shown in progress bar.
+        format_string : str
+            Format string for metric display.
+        validation_data : tuple or None
+            Optional validation tensors evaluated every validation_frequency steps.
+        validation_frequency : int
+            Evaluate validation_data every this many steps.
+        progress : bool
+            Whether to display a tqdm progress bar.
         """
-        if data is None:
-            x = self.data
-        else:
-            x = data[0]
-        y = self.get_intensities(x)
+        from tqdm import trange
 
-        # Run forward pass.
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
-            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        optimizer = self.configure_optimizers()
+        history = {}
 
-        # Run backwards pass.
-        grads = tape.gradient(loss, self.trainable_variables)
-
-        # Compute the L2 norm of the gradients
-        grad_norm = tf.linalg.global_norm(grads)
-
-        # Only apply gradients if they are valid
-        grads = [tf.where(tf.math.is_finite(g), g, 0.) for g in grads]
-        self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
-
-        self.compiled_metrics.update_state(y, y_pred)
-
-        # Collect metrics to return
-        return_metrics = {
-            "Grad Norm" : grad_norm,
-        }
-        for metric in self.metrics:
-            result = metric.result()
-            if isinstance(result, dict):
-                return_metrics.update(result)
-            else:
-                return_metrics[metric.name] = result
-
-        return return_metrics
-
-    def train_model(self, data, steps, message=None, format_string="{:0.2e}", validation_data=None, validation_frequency=10, progress=True, use_custom_train_step=True, jit_compile=None, reduce_retracing=False):
-        """
-        Alternative to the keras backed VariationalMergingModel.fit method. This method is much faster at the moment but less flexible.
-        """
-        if use_custom_train_step:
-            def train_step(model_and_data):
-                model, data = model_and_data
-                model.reset_metrics()
-                history = model.train_step_with_gradient_norm((data,))
-                return history
-        else:
-            def train_step(model_and_data):
-                model, data = model_and_data
-                model.reset_metrics()
-                history = model.train_step((data,))
-                return history
-
-        if not self._run_eagerly:
-            train_step = tf.function(
-                train_step, reduce_retracing=reduce_retracing, jit_compile=jit_compile
-            )
-
+        # Move data to model's device
+        device = next(self.parameters()).device
+        data = tuple(
+            torch.as_tensor(d, dtype=torch.float32).to(device)
+            if d.dtype in (torch.float64, np.float64)
+            else torch.as_tensor(d).to(device)
+            for d in data
+        )
         if validation_data is not None:
             val_scale = len(data[0]) / len(validation_data[0])
+            validation_data = tuple(
+                torch.as_tensor(d).to(device) for d in validation_data
+            )
 
-        history = {}
-        from tqdm import trange
-        disable_progress = not progress
-        bar = trange(steps, desc=message, disable=disable_progress)
+        bar = trange(steps, desc=message, disable=not progress)
         for i in bar:
-            _history = train_step((self, data))
+            self.train()
+            optimizer.zero_grad()
+            reset_losses_and_metrics()
+
+            self(data)
+
+            losses = get_accumulated_losses()
+            metrics = get_accumulated_metrics()
+            loss = sum(losses)
+
+            # Check for NaN/Inf
+            if not torch.isfinite(loss):
+                print("Encountered numerical issues, terminating optimization early!")
+                break
+
+            loss.backward()
+
+            # Gradient clipping
+            if self._global_clipnorm is not None:
+                torch.nn.utils.clip_grad_norm_(self.parameters(), self._global_clipnorm)
+            if self._clipnorm is not None:
+                for p in self.parameters():
+                    if p.grad is not None:
+                        torch.nn.utils.clip_grad_norm_([p], self._clipnorm)
+            if self._clipvalue is not None:
+                torch.nn.utils.clip_grad_value_(self.parameters(), self._clipvalue)
+
+            # Compute grad norm for monitoring
+            grad_norm = torch.sqrt(
+                sum(p.grad.norm() ** 2 for p in self.parameters() if p.grad is not None)
+            )
+
+            optimizer.step()
+
+            # Validation
             if validation_data is not None:
-                if i%validation_frequency==0:
-                    validation_metrics = self.test_on_batch(validation_data, return_dict=True)
-                _history['NLL_val'] = val_scale * validation_metrics['NLL']
+                if i % validation_frequency == 0:
+                    self.eval()
+                    with torch.no_grad():
+                        reset_losses_and_metrics()
+                        self(validation_data)
+                        val_metrics = get_accumulated_metrics()
+                    metrics["NLL_val"] = float(val_metrics.get("NLL", float('nan'))) * val_scale
+                else:
+                    metrics["NLL_val"] = float('nan')
 
-            pf = {}
-            for k,v in _history.items():
+            metrics["Grad Norm"] = float(grad_norm)
+
+            # Update history
+            postfix = {}
+            for k, v in metrics.items():
                 v = float(v)
-                pf[k] = format_string.format(v)
-                if k not in history:
-                    history[k] = []
-                history[k].append(v)
+                postfix[k] = format_string.format(v)
+                history.setdefault(k, []).append(v)
+            bar.set_postfix(postfix)
 
-            bar.set_postfix(pf)
-            if use_custom_train_step:
-                if not tf.math.is_finite(_history['Grad Norm']):
-                    print("Encountered numerical issues, terminating optimization early!")
-                    break
         return history
 
+    # ------------------------------------------------------------------
+    # Inference helpers
+    # ------------------------------------------------------------------
+
+    @torch.no_grad()
+    def scale_mean_stddev(self, inputs):
+        """
+        Compute mean and standard deviation of the scale posterior for each observation.
+
+        Returns
+        -------
+        mean : np.ndarray
+        stddev : np.ndarray
+        """
+        scale_dist = self.scaling_model(inputs)
+        mean = scale_dist.mean.detach().cpu().numpy()
+        stddev = scale_dist.stddev.detach().cpu().numpy()
+
+        from careless.models.likelihoods.laue import LaueBase
+        if isinstance(self.likelihood, LaueBase):
+            likelihood = self.likelihood(inputs)
+            mean = likelihood.convolve(torch.as_tensor(mean)).cpu().numpy()
+            stddev = np.sqrt(
+                likelihood.convolve(torch.as_tensor(stddev ** 2)).cpu().numpy()
+            )
+
+        return mean, stddev
+
+    @torch.no_grad()
+    def prediction_mean_stddev(self, inputs):
+        """
+        Compute mean and standard deviation of the predicted intensity E[I].
+
+        Returns
+        -------
+        mean : np.ndarray
+        stddev : np.ndarray
+        """
+        refl_id = self.get_refl_id(inputs).squeeze(-1).long()
+        scale_dist = self.scaling_model(inputs)
+
+        F_mean = self.surrogate_posterior.mean.detach()
+        F_std = self.surrogate_posterior.stddev.detach()
+
+        # <I> = <Σ> * (<F²>) = <Σ> * (Var(F) + <F>²)
+        f2 = F_std ** 2 + F_mean ** 2
+        iexp = scale_dist.mean * f2[refl_id]
+        iexp = iexp.cpu().numpy()
+
+        # var(I) = <I²> - <I>² = <F⁴><Σ²> - <I>²
+        f4 = torch.as_tensor(
+            self.surrogate_posterior.moment_4(method='scipy'), dtype=torch.float32
+        )
+        s2 = scale_dist.mean ** 2 + scale_dist.stddev ** 2
+        ivar = f4[refl_id] * s2 - torch.as_tensor(iexp) ** 2
+        ivar = ivar.cpu().numpy()
+
+        from careless.models.likelihoods.laue import LaueBase
+        if isinstance(self.likelihood, LaueBase):
+            likelihood = self.likelihood(inputs)
+            iexp_t = torch.as_tensor(iexp)
+            ivar_t = torch.as_tensor(ivar)
+            iexp = likelihood.convolve(iexp_t).cpu().numpy()
+            ivar = likelihood.convolve(ivar_t).cpu().numpy()
+
+        return iexp, np.sqrt(np.maximum(ivar, 0.0))

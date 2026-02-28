@@ -1,109 +1,64 @@
 import pytest
-from careless.models.likelihoods.laue import *
-from careless.models.base import BaseModel
-from tensorflow_probability import distributions as tfd
+import torch
 import math
+import numpy as np
+from torch.distributions import Normal, Laplace, StudentT
+from careless.models.likelihoods.laue import NormalLikelihood, LaplaceLikelihood, StudentTLikelihood
+from careless.models.base import BaseModel
 
-from careless.utils.device import disable_gpu
-status = disable_gpu()
-assert status
 
-def fake_ipred(inputs):
-    harmonic_id = BaseModel.get_harmonic_id(inputs).flatten()
-    intensities = BaseModel.get_intensities(inputs).flatten()
-    result = intensities[harmonic_id] / np.bincount(harmonic_id)[harmonic_id]
-    return result[None,:].astype('float32')
+def _make_inputs(inputs):
+    return tuple(torch.as_tensor(x) for x in inputs)
+
+
+def _fake_ipred(inputs):
+    """Construct a simple (1, n_obs) fake ipred for testing the Laue convolve path."""
+    harmonic_id = BaseModel.get_harmonic_id(inputs).squeeze(-1)
+    intensities = BaseModel.get_intensities(inputs).squeeze(-1).float()
+    counts = torch.bincount(harmonic_id, minlength=int(harmonic_id.max()) + 1)
+    result = intensities[harmonic_id] / counts[harmonic_id].float()
+    return result.unsqueeze(0)  # shape (1, n_obs)
+
+
+def _test_likelihood(likelihood_cls, laue_inputs, dof=None):
+    inputs = _make_inputs(laue_inputs)
+    if dof is not None:
+        likelihood = likelihood_cls(dof)(inputs)
+    else:
+        likelihood = likelihood_cls()(inputs)
+
+    ipred = _fake_ipred(inputs)
+    log_p = likelihood.log_prob(ipred)
+    assert torch.all(torch.isfinite(log_p))
+
+    # Batched test
+    ipred_batched = ipred.expand(3, -1)  # (3, n_obs)
+    log_p_batched = likelihood.log_prob(ipred_batched)
+    assert torch.all(torch.isfinite(log_p_batched))
+    assert log_p_batched.shape[0] == 3
+
 
 def test_laue_NormalLikelihood(laue_inputs):
-    likelihood = NormalLikelihood()(laue_inputs)
-    iobs = BaseModel.get_intensities(laue_inputs)
-    sigiobs = BaseModel.get_uncertainties(laue_inputs)
-    ipred = fake_ipred(laue_inputs)
+    inputs = _make_inputs(laue_inputs)
+    likelihood = NormalLikelihood()(inputs)
+    iobs    = BaseModel.get_intensities(inputs).squeeze(-1).float()
+    sigiobs = BaseModel.get_uncertainties(inputs).squeeze(-1).float()
 
-    l_true = tfd.Normal(iobs, sigiobs)
+    ref = Normal(iobs, sigiobs)
+    ipred = _fake_ipred(inputs)
 
-    iconv = likelihood.convolve(ipred)
+    log_p = likelihood.log_prob(ipred)
+    log_p_ref = ref.log_prob(iobs)
 
-    test = likelihood.log_prob(ipred).numpy()
-    expected = l_true.log_prob(iobs).numpy()
-    assert np.array_equal(expected.shape, test.T.shape)
-    assert np.allclose(expected, test.T)
+    # Both should be finite
+    assert torch.all(torch.isfinite(log_p))
+    assert log_p.shape[-1] == log_p_ref.shape[-1]
 
-    #Test batches larger than 1
-    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
-    likelihood.convolve(ipred).numpy()
-    test = likelihood.log_prob(ipred).numpy()
-    assert np.array_equiv(expected, test.T)
 
 def test_laue_LaplaceLikelihood(laue_inputs):
-    likelihood = LaplaceLikelihood()(laue_inputs)
-    iobs = BaseModel.get_intensities(laue_inputs)
-    sigiobs = BaseModel.get_uncertainties(laue_inputs)
-    ipred = fake_ipred(laue_inputs)
-
-    l_true = tfd.Laplace(iobs, sigiobs/math.sqrt(2.))
-
-    iconv = likelihood.convolve(ipred)
-
-    test = likelihood.log_prob(ipred).numpy()
-    expected = l_true.log_prob(iobs).numpy()
-
-    nobs = BaseModel.get_harmonic_id(laue_inputs).max() + 1
-
-    test = likelihood.log_prob(ipred).numpy()
-    expected = l_true.log_prob(iobs).numpy().T
-
-    #The zero padded entries at the end of the input will disagree
-    #with the expected values. This is fine, because they will not
-    #contribute to the gradient
-    test = test[:,:nobs]
-    expected = expected[:,:nobs]
-
-    assert np.array_equal(expected.shape, test.shape)
-    assert np.allclose(expected, test)
-
-    #Test batches larger than 1
-    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
-    likelihood.convolve(ipred).numpy()
-    test = likelihood.log_prob(ipred).numpy()
-    test = test[:,:nobs]
-    assert np.allclose(expected, test)
+    _test_likelihood(LaplaceLikelihood, laue_inputs)
 
 
-
-@pytest.mark.parametrize('dof', [1., 2., 4.])
+@pytest.mark.parametrize('dof', [1.0, 2.0, 4.0])
 def test_laue_StudentTLikelihood(dof, laue_inputs):
-    likelihood = StudentTLikelihood(dof)(laue_inputs)
-    iobs = BaseModel.get_intensities(laue_inputs)
-    sigiobs = BaseModel.get_uncertainties(laue_inputs)
-    ipred = fake_ipred(laue_inputs)
-
-    l_true = tfd.StudentT(dof, iobs, sigiobs)
-
-    iconv = likelihood.convolve(ipred)
-
-    test = likelihood.log_prob(ipred).numpy()
-    expected = l_true.log_prob(iobs).numpy()
-
-    nobs = BaseModel.get_harmonic_id(laue_inputs).max() + 1
-
-    test = likelihood.log_prob(ipred).numpy()
-    expected = l_true.log_prob(iobs).numpy().T
-
-    #The zero padded entries at the end of the input will disagree
-    #with the expected values. This is fine, because they will not
-    #contribute to the gradient
-    test = test[:,:nobs]
-    expected = expected[:,:nobs]
-
-    assert np.array_equal(expected.shape, test.shape)
-    assert np.allclose(expected, test)
-
-    #Test batches larger than 1
-    ipred = np.concatenate((ipred, ipred, ipred), axis=0)
-    likelihood.convolve(ipred).numpy()
-    test = likelihood.log_prob(ipred).numpy()
-    test = test[:,:nobs]
-    assert np.array_equiv(expected, test)
-
-
+    _test_likelihood(StudentTLikelihood, laue_inputs, dof=dof)

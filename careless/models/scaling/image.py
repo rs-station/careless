@@ -1,126 +1,131 @@
-import tensorflow as tf
-import tf_keras as tfk
-from careless.models.base import BaseModel
+import torch
+import torch.nn as nn
+from torch.distributions import Normal
 from careless.models.scaling.base import Scaler
-import tensorflow_probability as tfp
-import numpy as np
 
 
 class ImageScaler(Scaler):
     """
-    Simple linear image scales. Average value pegged at 1.
+    Simple per-image scale factors. The first image is pegged to 1 (reference);
+    all others are freely learned.
     """
+
     def __init__(self, max_images):
         """
         Parameters
         ----------
         max_images : int
-            The maximum number of image variables to be learned
+            Number of images.
         """
         super().__init__()
-        self._scales = tf.Variable(tf.ones(max_images - 1))
+        # max_images - 1 free parameters; image 0 is always 1
+        self._scales = nn.Parameter(torch.ones(max_images - 1))
 
     @property
     def scales(self):
-        return tf.concat(([1.], self._scales), axis=-1)
+        return torch.cat([torch.ones(1, device=self._scales.device), self._scales], dim=0)
 
-    def call(self, inputs):
-        """
-        Parameters
-        ----------
-        inputs : list or tf.data.DataSet
-            A list of tensor inputs or a DataSet in the standard 
-            careless format.
+    def forward(self, inputs):
+        image_ids = self.get_image_id(inputs).squeeze(-1).long()
+        return self.scales[image_ids]
 
-        Returns
-        -------
-        scales : tf.Tensor(float32)
-            A tensor the same shape as image_ids.
-        """
-        image_ids = self.get_image_id(inputs)
-        w = self.scales
-        return tf.squeeze(tf.gather(w, image_ids))
 
 class HybridImageScaler(Scaler):
     """
-    A scaler that combines an `ImageScaler` with an `MLPScaler`
+    Combines an MLPScaler (returns Normal distribution) with per-image scalar scales.
+    The image scale multiplies both loc and scale of the MLP-predicted Normal.
     """
+
     def __init__(self, mlp_scaler, image_scaler):
         super().__init__()
         self.mlp_scaler = mlp_scaler
         self.image_scaler = image_scaler
 
-    def call(self, inputs):
-        """
-        Parameters
-        ----------
-        """
-        q = self.mlp_scaler(inputs)
-        a = self.image_scaler(inputs)
-        return tfp.distributions.TransformedDistribution(
-            q,
-            tfp.bijectors.Scale(scale=a),
-        )
+    def forward(self, inputs):
+        q = self.mlp_scaler(inputs)          # Normal(loc, scale)
+        a = self.image_scaler(inputs)        # scalar per observation
+        # Scale the distribution: Normal(a*loc, a*scale)
+        return Normal(a * q.loc, a * q.scale)
 
 
-class ImageLayer(Scaler):
-    def __init__(self, units, max_images, activation=None, **kwargs):
-        super().__init__(**kwargs)
-        self.activation = tfk.activations.get(activation)
+class ImageLayer(nn.Module):
+    """
+    A linear layer whose weight matrix is indexed by image ID.
+    Each image has its own weight matrix and bias.
+    """
+
+    def __init__(self, units, max_images, activation=None):
+        super().__init__()
         self.units = units
         self.max_images = max_images
+        self.activation = activation
 
-    def build(self, input_shape):
-        def initializer(shape, dtype=tf.float32, **kwargs):
-            return tf.eye(shape[1], shape[2], (shape[0],), dtype=dtype)
+        # weights: (max_images, units, in_features) — lazy initialisation
+        # We use LazyLinear-style approach: create weights at first call
+        self._initialized = False
+        self._units = units
+        self._max_images = max_images
 
-        self.w = self.add_weight(
-            name='kernel',
-            shape=(self.max_images, self.units, input_shape[0][-1]),
-            initializer=initializer,
-            trainable=True,
+    def _init_weights(self, in_features):
+        self.w = nn.Parameter(
+            torch.eye(self._units, in_features).unsqueeze(0)
+            .expand(self._max_images, -1, -1).clone()
         )
-        self.b = self.add_weight(
-            name='bias', 
-            shape=(self.max_images, self.units),
-            initializer='zeros',
-            trainable=True,
-        )
+        self.b = nn.Parameter(torch.zeros(self._max_images, self._units))
+        self._initialized = True
 
-    def call(self, metadata_and_image_id, *args, **kwargs):
-        data,image_id = metadata_and_image_id
-        image_id = tf.squeeze(image_id)
-        w = tf.gather(self.w, image_id, axis=0)
-        b = tf.gather(self.b, image_id, axis=0)
-        result = self.activation(tf.squeeze(tf.matmul(w, data[...,None]), axis=-1) + b)
+    def forward(self, metadata_and_image_id):
+        data, image_id = metadata_and_image_id
+        image_id = image_id.squeeze(-1).long()
+
+        if not self._initialized:
+            self._init_weights(data.shape[-1])
+            self.w = self.w.to(data.device)
+            self.b = self.b.to(data.device)
+
+        # Gather per-image weights: (batch, units, in_features)
+        w = self.w[image_id]   # (batch, units, in_features)
+        b = self.b[image_id]   # (batch, units)
+        # Matrix multiply: (batch, units, in_features) @ (batch, in_features, 1) → (batch, units)
+        result = torch.bmm(w, data.unsqueeze(-1)).squeeze(-1) + b
+        if self.activation is not None:
+            result = self.activation(result)
         return result
+
 
 class NeuralImageScaler(Scaler):
-    def __init__(self, image_layers, max_images, mlp_layers, mlp_width, leakiness=0.01, epsilon=1e-7, scale_bijector=None, scale_multiplier=None):
+    """
+    Per-image neural network scaler: a stack of per-image linear layers followed by
+    an MLP distribution head.
+    """
+
+    def __init__(self, image_layers, max_images, mlp_layers, mlp_width,
+                 leakiness=0.01, epsilon=1e-7, scale_bijector=None, scale_multiplier=None):
         super().__init__()
-        layers = []
-        if leakiness is None:
-            activation = 'ReLU'
-        else:
-            activation = tfk.layers.LeakyReLU(leakiness)
+        activation = nn.LeakyReLU(leakiness) if leakiness is not None else nn.ReLU()
 
-        for i in range(image_layers):
-            layers.append(
-                ImageLayer(mlp_width, max_images, activation)
-            )
+        self.image_layer_list = nn.ModuleList([
+            ImageLayer(mlp_width, max_images, activation)
+            for _ in range(image_layers)
+        ])
 
-        self.image_layers = layers
         from careless.models.scaling.nn import MetadataScaler
-        self.metadata_scaler = MetadataScaler(mlp_layers, mlp_width, leakiness, epsilon=epsilon, scale_bijector=scale_bijector, scale_multiplier=scale_multiplier)
+        self.metadata_scaler = MetadataScaler(
+            mlp_layers, mlp_width, leakiness, epsilon=epsilon,
+            scale_bijector=scale_bijector, scale_multiplier=scale_multiplier
+        )
 
-    def call(self, inputs):
-        result = self.get_metadata(inputs)
-        image_id = self.get_image_id(inputs),
+    def forward(self, inputs):
+        result = self.get_metadata(inputs).float()
+        image_id = self.get_image_id(inputs)
 
+        # Pass through the MLP network layers first
         result = self.metadata_scaler.network(result)
 
-        for layer in self.image_layers:
+        # Then through per-image layers
+        for layer in self.image_layer_list:
             result = layer((result, image_id))
-        result = self.metadata_scaler.distribution(result)
-        return result
 
+        # Finally through the distribution output layer
+        out = self.metadata_scaler.output_linear(result)
+        return self.metadata_scaler._to_distribution(out)

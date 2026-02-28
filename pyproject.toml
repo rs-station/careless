@@ -14,11 +14,12 @@ requires-python = ">= 3.9,<3.13"
 dependencies = [
     "reciprocalspaceship>=0.9.16",
     "tqdm",
-    "tensorflow-probability[tf]==0.25",
-    "tensorflow==2.18.0",
+    "torch>=2.0",
+    "lightning>=2.0",
+    "rs-distributions",
+    "scipy",
     "matplotlib",
     "seaborn",
-    "ray",
 ]
 
 license={text = "MIT"}
@@ -30,7 +31,7 @@ dev = [
     "pytest-xdist",
 ]
 cuda = [
-    "tensorflow[and-cuda]==2.18.0",
+    "torch>=2.0",  # install with --index-url https://download.pytorch.org/whl/cu121
 ]
 
 [project.urls]

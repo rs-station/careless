@@ -1,121 +1,100 @@
-import tensorflow as tf
-import tf_keras as tfk
-from tensorflow_probability import distributions as tfd
-from tensorflow_probability import bijectors as tfb
-import tensorflow_probability as tfp
+import torch
+import torch.nn as nn
+from torch.distributions import Normal
 from careless.models.scaling.base import Scaler
-import numpy as np
 
 
-class NormalLayer(tfk.layers.Layer):
-    def __init__(self, scale_bijector=None, epsilon=1e-7, **kwargs): 
-        super().__init__(**kwargs)
+class NormalOutputLayer(nn.Module):
+    """
+    Converts a 2-channel linear output into a Normal distribution.
+    The second channel (scale) is passed through softplus + epsilon shift.
+    """
+
+    def __init__(self, epsilon=1e-7):
+        super().__init__()
         self.epsilon = epsilon
-        if scale_bijector is None:
-            self.scale_bijector = tfb.Chain([
-                tfb.Shift(epsilon),
-                tfb.Softplus(),
-            ])
-        else:
-            self.scale_bijector = scale_bijector
 
-    def call(self, x, **kwargs):
-        loc, scale = tf.unstack(x, axis=-1)
-        scale = self.scale_bijector(scale)
-        return tfd.Normal(loc, scale)
+    def forward(self, x):
+        loc, raw_scale = x.unbind(dim=-1)
+        scale = torch.nn.functional.softplus(raw_scale) + self.epsilon
+        return Normal(loc, scale)
+
 
 class MetadataScaler(Scaler):
     """
-    Neural network based scaler with simple dense layers.
-    This neural network outputs a normal distribution.
+    Neural-network scaler that maps reflection metadata → Normal scale distribution.
     """
-    def __init__(self, n_layers, width, leakiness=0.01, epsilon=1e-7, scale_bijector=None, scale_multiplier=None):
+
+    def __init__(self, n_layers, width, leakiness=0.01, epsilon=1e-7,
+                 scale_bijector=None, scale_multiplier=None):
         """
         Parameters
         ----------
-        n_layers : int 
-            Number of layers
+        n_layers : int
+            Number of hidden MLP layers.
         width : int
-            Width of layers
+            Width of each hidden layer.
         leakiness : float or None
-            If float, use LeakyReLU activation with provided parameter. Otherwise 
-            use a simple ReLU
+            LeakyReLU negative slope; if None, use ReLU.
         epsilon : float
-            A small constant for numerical stability. This is passed to the distribution layer.
-        scale_bijector : tfp.bijectors.Bijector
-            Optional scale bijector for the ouptut distibution
-        scale_multiplier : float
-            Optional constant to multiply the output location and scale by. This can increase
-            numerical stability. 
+            Minimum scale value for numerical stability.
+        scale_bijector : callable, optional
+            Alternative activation for scale output. Ignored if None (uses softplus).
+        scale_multiplier : float, optional
+            Constant added to output location and scale for stability.
         """
         super().__init__()
+        self.scale_multiplier = scale_multiplier
 
         mlp_layers = []
-
+        in_features = None  # determined at first forward call via lazy init
         for i in range(n_layers):
-            if leakiness is None:
-                activation = tfk.layers.ReLU()
+            act = nn.LeakyReLU(leakiness) if leakiness is not None else nn.ReLU()
+            if i == 0:
+                mlp_layers.append(nn.LazyLinear(width))
             else:
-                activation = tfk.layers.LeakyReLU(leakiness)
+                mlp_layers.append(nn.Linear(width, width))
+            mlp_layers.append(act)
 
-            mlp_layers.append(
-                tfk.layers.Dense(
-                    width, 
-                    activation=activation, 
-                    use_bias=True, 
-                    kernel_initializer='identity',
-                    )
-                )
+        self.network = nn.Sequential(*mlp_layers)
 
-        #The last layer is linear and generates location/scale params
-        tfp_layers = []
-        tfp_layers.append(
-            tfk.layers.Dense(
-                2, 
-                activation='linear', 
-                use_bias=True, 
-                kernel_initializer='identity',
-            )
-        )
+        # Output: 2 channels → (loc, scale)
+        self.output_linear = nn.LazyLinear(2)
+        self.epsilon = epsilon
+        self._scale_bijector = scale_bijector  # e.g. 'exp' or 'softplus' string
 
-        #The final layer converts the output to a Normal distribution
-        #tfp_layers.append(tfp.layers.IndependentNormal())
-        tfp_layers.append(NormalLayer(epsilon=epsilon, scale_bijector=scale_bijector))
-        if scale_multiplier is not None:
-            tfp_layers.append(
-                tfk.layers.Lambda(lambda x: tfb.Shift(scale_multiplier)(x))
-            )
-
-        self.network = tfk.Sequential(mlp_layers)
-        self.distribution = tfk.Sequential(tfp_layers)
+    def _to_distribution(self, x):
+        loc, raw_scale = x.unbind(dim=-1)
+        if self._scale_bijector == 'exp':
+            scale = torch.exp(raw_scale) + self.epsilon
+        else:  # default: softplus
+            scale = torch.nn.functional.softplus(raw_scale) + self.epsilon
+        if self.scale_multiplier is not None:
+            loc = loc + self.scale_multiplier
+            scale = scale + self.scale_multiplier
+        return Normal(loc, scale)
 
     def call(self, metadata):
         """
         Parameters
         ----------
-        metadata : tf.Tensor(float32)
+        metadata : Tensor (float32), shape (n_obs, n_features)
 
         Returns
         -------
-        dist : tfp.distributions.Distribution
-            A tfp distribution instance.
+        dist : torch.distributions.Normal
         """
-        return self.distribution(self.network(metadata))
+        h = self.network(metadata.float())
+        out = self.output_linear(h)
+        return self._to_distribution(out)
+
+    def forward(self, metadata):
+        return self.call(metadata)
 
 
 class MLPScaler(MetadataScaler):
-    def call(self, inputs):
-        """
-        Parameters
-        ----------
-        inputs : tf.Tensor(float32)
-            An arbitrarily batched input tensor
+    """MLPScaler that extracts metadata from careless input tuples."""
 
-        Returns
-        -------
-        dist : tfp.distributions.Distribution
-            A tfp distribution instance.
-        """
+    def forward(self, inputs):
         metadata = self.get_metadata(inputs)
-        return super().call(metadata)
-
+        return self.call(metadata)

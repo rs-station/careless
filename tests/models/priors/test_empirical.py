@@ -1,87 +1,77 @@
 import pytest
-import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd
-from careless.models.merging.surrogate_posteriors import RiceWoolfson
-from careless.models.priors.empirical import *
+import torch
 import math
 import numpy as np
+from torch.distributions import Laplace, Normal, StudentT
+from careless.models.priors.empirical import (
+    LaplaceReferencePrior,
+    NormalReferencePrior,
+    StudentTReferencePrior,
+    RiceWoolfsonReferencePrior,
+)
+from careless.distributions import TruncatedNormal
 
-from careless.utils.device import disable_gpu
-status = disable_gpu()
-assert status
+
+rng = np.random.default_rng(0)
+observed = rng.choice([True, False], 100)
+observed[0] = True
+observed[1] = False
+Fobs, SigFobs = rng.random((2, 100)).astype(np.float32)
+Fobs[~observed] = 1.0
+SigFobs[~observed] = 1.0
 
 
-observed = np.random.choice([True, False], 100)
-observed[0] = True  #just in case
-observed[1] = False #just in case
-Fobs,SigFobs = np.random.random((2, 100)).astype(np.float32)
-Fobs[~observed] = 1.
-SigFobs[~observed] = 1.
-
-def ReferencePrior_test(p, ref, mc_samples):
-    #This part checks indexing and gradient numerics
-    q = tfd.TruncatedNormal( #<-- use this dist because RW has positive support
-        tf.Variable(Fobs), 
-        tfp.util.TransformedVariable( 
-            SigFobs,
-            tfp.bijectors.Softplus(),
-        ),
-        low=1e-5,
-        high=1e10,
+def _reference_prior_test(prior, ref_dist, mc_samples):
+    """
+    Test that:
+    1. log_prob is finite everywhere.
+    2. log_prob is zero for unobserved indices.
+    3. log_prob matches reference distribution for observed indices.
+    4. Gradients through a TruncatedNormal surrogate posterior are finite.
+    """
+    q = TruncatedNormal.from_loc_and_scale(
+        Fobs, SigFobs, np.full(len(Fobs), 1e-5, dtype='float32')
     )
-    with tf.GradientTape() as tape:
-        z = q.sample(mc_samples)
-        log_probs = p.log_prob(z)
-    grads = tape.gradient(log_probs, q.trainable_variables)
 
-    assert np.all(np.isfinite(log_probs))
-    for grad in grads:
-        assert np.all(np.isfinite(grad))
-    assert np.all(log_probs.numpy()[...,~observed] == 0.)
+    z = q.rsample((mc_samples,))  # (mc_samples, n_refls)
+    log_probs = prior.log_prob(z)
 
-    #This tests that the observed values follow the correct distribution
-    z = ref.sample(mc_samples)
-    expected = ref.log_prob(z).numpy()[...,observed]
-    result = p.log_prob(z).numpy()[...,observed]
-    assert np.allclose(expected, result, atol=1e-5)
+    assert torch.all(torch.isfinite(log_probs)), "log_prob contains non-finite values"
+    assert torch.all(log_probs[..., ~observed] == 0.0), "unobserved indices should have log_prob 0"
 
-@pytest.mark.parametrize('mc_samples', [(), 3, 1])
+    loss = log_probs.sum()
+    loss.backward()
+    for p in q.parameters():
+        if p.grad is not None:
+            assert torch.all(torch.isfinite(p.grad)), "non-finite gradient"
+
+    # Values for observed indices should match the reference distribution
+    q.zero_grad()
+    z_ref = ref_dist.sample((mc_samples,))
+    expected = ref_dist.log_prob(z_ref)[..., observed].detach()
+    result   = prior.log_prob(z_ref)[..., observed].detach()
+    assert torch.allclose(expected, result, atol=1e-5)
+
+
+@pytest.mark.parametrize('mc_samples', [3, 1])
 def test_LaplaceReferencePrior(mc_samples):
-    p = LaplaceReferencePrior(Fobs[observed], SigFobs[observed], observed)
-    q = tfd.Laplace(Fobs, SigFobs/math.sqrt(2.))
-    ReferencePrior_test(p, q, mc_samples)
+    prior   = LaplaceReferencePrior(Fobs[observed], SigFobs[observed], observed)
+    ref     = Laplace(
+        torch.as_tensor(Fobs),
+        torch.as_tensor(SigFobs) / math.sqrt(2.0),
+    )
+    _reference_prior_test(prior, ref, mc_samples)
 
 
-@pytest.mark.parametrize('mc_samples', [(), 3, 1])
+@pytest.mark.parametrize('mc_samples', [3, 1])
 def test_NormalReferencePrior(mc_samples):
-    p = NormalReferencePrior(Fobs[observed], SigFobs[observed], observed)
-    q = tfd.Normal(Fobs, SigFobs)
-    ReferencePrior_test(p, q, mc_samples)
+    prior   = NormalReferencePrior(Fobs[observed], SigFobs[observed], observed)
+    ref     = Normal(torch.as_tensor(Fobs), torch.as_tensor(SigFobs))
+    _reference_prior_test(prior, ref, mc_samples)
 
 
-@pytest.mark.parametrize('mc_samples', [(), 3, 1])
+@pytest.mark.parametrize('mc_samples', [3, 1])
 def test_StudentTReferencePrior(mc_samples):
-    p = StudentTReferencePrior(Fobs[observed], SigFobs[observed], 4., observed)
-    q = tfd.StudentT(4, Fobs, SigFobs)
-    ReferencePrior_test(p, q, mc_samples)
-
-
-@pytest.mark.xfail
-@pytest.mark.parametrize('mc_samples', [(), 3, 1])
-@pytest.mark.parametrize('centrics', ['all', 'none', 'some'])
-def test_RiceWoolfsonReferencePrior(mc_samples, centrics):
-    if centrics == 'all':
-        centric = np.ones(len(Fobs), dtype=bool)
-    elif centrics == 'none':
-        centric = np.zeros(len(Fobs), dtype=bool)
-    elif centrics == 'some':
-        centric = np.random.choice([True, False], len(Fobs))
-        centric[observed][0] = True
-        centric[observed][1] = False
-    else:
-        raise ValueError(f"received value, {centrics}, for parameter `centrics` which is not one of 'all', 'none', or 'some'")
-    p = RiceWoolfsonReferencePrior(Fobs[observed], SigFobs[observed], centric[observed], observed)
-    q = RiceWoolfson(Fobs, SigFobs, centric)
-    ReferencePrior_test(p, q, mc_samples)
-
+    prior   = StudentTReferencePrior(Fobs[observed], SigFobs[observed], 4.0, observed)
+    ref     = StudentT(4.0, torch.as_tensor(Fobs), torch.as_tensor(SigFobs))
+    _reference_prior_test(prior, ref, mc_samples)

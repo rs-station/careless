@@ -1,23 +1,44 @@
-import tensorflow as tf
-import tf_keras as tfk
+import threading
+import torch
+import torch.nn as nn
 import numpy as np
 
 
+# Thread-local context for accumulating losses and metrics during forward passes,
+# mirroring the Keras add_loss / add_metric idiom.
+_loss_ctx = threading.local()
 
-class BaseModel(tfk.layers.Layer):
-    """ 
-    Base class for all models in `careless`. 
-    It encodes accessors for the standard format inputs to the model. 
-    When extending this class, use the get_{
-        metadata,
-        refl_id,
-        image_id,
-        intensities,
-        uncertainties,
-        wavelength,
-        harmonic_id
-    } static methods to parse your inputs. This ensures it is easy to
-    change the data format in the future.
+
+def _get_losses():
+    return getattr(_loss_ctx, 'losses', None)
+
+
+def _get_metrics():
+    return getattr(_loss_ctx, 'metrics', None)
+
+
+def reset_losses_and_metrics():
+    _loss_ctx.losses = []
+    _loss_ctx.metrics = {}
+
+
+def get_accumulated_losses():
+    return list(getattr(_loss_ctx, 'losses', []))
+
+
+def get_accumulated_metrics():
+    return dict(getattr(_loss_ctx, 'metrics', {}))
+
+
+class BaseModel(nn.Module):
+    """
+    Base class for all models in `careless`.
+    Encodes accessors for the standard format inputs and provides Keras-style
+    add_loss / add_metric accumulation via thread-local storage.
+
+    Input tuple ordering:
+        [refl_id, image_id, file_id, metadata, intensities, uncertainties]
+        [refl_id, image_id, file_id, metadata, intensities, uncertainties, wavelength, harmonic_id]  (Laue)
     """
     input_index = {
         'refl_id'       : 0,
@@ -30,36 +51,40 @@ class BaseModel(tfk.layers.Layer):
         'harmonic_id'   : 7,
     }
 
-    def call(self, inputs):
-        raise NotImplementedError(
-            "All Scaler classes must implement a call method which accepts inputs "
-            "defined by this class.                                               "
-        )
+    def add_loss(self, loss):
+        """Accumulate a scalar loss term (mirrors keras Model.add_loss)."""
+        losses = _get_losses()
+        if losses is not None:
+            losses.append(loss)
+
+    def add_metric(self, value, name):
+        """Accumulate a named metric (mirrors keras Model.add_metric)."""
+        metrics = _get_metrics()
+        if metrics is not None:
+            if hasattr(value, 'detach'):
+                metrics[name] = value.detach().item()
+            else:
+                metrics[name] = float(value)
 
     @staticmethod
-    def is_laue(inputs : tuple) -> bool:
-        """
-        Test if the inputs are from Laue or Mono data
-        """
-        laue_size = BaseModel.get_index_by_name("harmonic_id") + 1
-        if len(inputs) >= laue_size:
-            return True
-        return False
+    def is_laue(inputs: tuple) -> bool:
+        laue_size = BaseModel.input_index['harmonic_id'] + 1
+        return len(inputs) >= laue_size
 
     @staticmethod
-    def get_name_by_index(index : int) -> str:
-        for k,v in BaseModel.input_index.items():
+    def get_name_by_index(index: int) -> str:
+        for k, v in BaseModel.input_index.items():
             if v == index:
                 return k
         raise ValueError(
-            f"index, {index}, not a valid index. Valid indices are {BaseModel.input_index.values()}."
+            f"index {index} not valid. Valid indices: {list(BaseModel.input_index.values())}"
         )
 
     @staticmethod
     def get_index_by_name(name):
         if name not in BaseModel.input_index:
             raise ValueError(
-                f"name, {name}, not a valid key. Valid keys are {BaseModel.input_index.keys()}."
+                f"name '{name}' not valid. Valid keys: {list(BaseModel.input_index.keys())}"
             )
         return BaseModel.input_index[name]
 
@@ -67,56 +92,49 @@ class BaseModel(tfk.layers.Layer):
     def get_input_by_name(inputs, name):
         if name not in BaseModel.input_index:
             raise ValueError(
-                f"name, {name}, not a valid key. Valid keys are {BaseModel.input_index.keys()}."
+                f"name '{name}' not valid. Valid keys: {list(BaseModel.input_index.keys())}"
             )
         idx = BaseModel.input_index[name]
         try:
             datum = inputs[idx]
-        except:
+        except Exception:
             raise ValueError(
-                f"Attempting to gather {name} data from input tensors, {inputs}, with length {len(inputs)} failed."
+                f"Attempting to gather '{name}' from inputs with length {len(inputs)} failed."
             )
-        if datum.shape[0] == 1:
-            datum = tf.squeeze(datum, axis=0)
+        if isinstance(datum, torch.Tensor) and datum.shape[0] == 1:
+            datum = datum.squeeze(0)
+        elif isinstance(datum, np.ndarray) and datum.shape[0] == 1:
+            datum = datum.squeeze(0)
         return datum
 
     @staticmethod
     def get_refl_id(inputs):
-        """ Given a collection of inputs extract just the reflection_id """
         return BaseModel.get_input_by_name(inputs, 'refl_id')
 
     @staticmethod
     def get_file_id(inputs):
-        """ Given a collection of inputs extract just the file_id """
         return BaseModel.get_input_by_name(inputs, 'file_id')
 
     @staticmethod
     def get_image_id(inputs):
-        """ Given a collection of inputs extract just the image_id """
         return BaseModel.get_input_by_name(inputs, 'image_id')
 
     @staticmethod
     def get_metadata(inputs):
-        """ Given a collection of inputs extract just the metadata """
         return BaseModel.get_input_by_name(inputs, 'metadata')
 
     @staticmethod
     def get_intensities(inputs):
-        """ Given a collection of inputs extract just the intensities """
         return BaseModel.get_input_by_name(inputs, 'intensities')
 
     @staticmethod
     def get_uncertainties(inputs):
-        """ Given a collection of inputs extract just the uncertainty estimates """
         return BaseModel.get_input_by_name(inputs, 'uncertainties')
 
     @staticmethod
     def get_wavelength(inputs):
-        """ Given a collection of inputs extract just the wavelength. This method only applies to Laue data."""
         return BaseModel.get_input_by_name(inputs, 'wavelength')
 
     @staticmethod
     def get_harmonic_id(inputs):
-        """ Given a collection of inputs extract just the harmonic_id. This method only applies to Laue data."""
         return BaseModel.get_input_by_name(inputs, 'harmonic_id')
-

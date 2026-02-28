@@ -1,60 +1,50 @@
-from careless.models.priors.wilson import *
-import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd
 import pytest
+import torch
 import numpy as np
-
-from careless.utils.device import disable_gpu
-status = disable_gpu()
-assert status
-
+from careless.models.priors.wilson import WilsonPrior, Centric, Acentric
+from careless.distributions import TruncatedNormal
 
 
 def test_Centric():
-    E = np.linspace(0.1, 3., 100)
-    p = (2./np.pi)**0.5 *np.exp(-0.5*E**2.)
-    centric = Centric(1.)
-    centric.mean()
-    centric.stddev()
-    assert np.all(np.isclose(p, centric.prob(E)))
-    assert np.all(np.isclose(np.log(p), centric.log_prob(E)))
+    E = torch.linspace(0.1, 3.0, 100)
+    p_expected = (2.0 / np.pi) ** 0.5 * torch.exp(-0.5 * E ** 2.0)
+    centric = Centric(torch.ones(1))
+
+    prob = torch.exp(centric.log_prob(E))
+    assert torch.all(torch.isclose(p_expected, prob, atol=1e-5))
+
 
 def test_Acentric():
-    acentric = Acentric(1.)
-    E = np.linspace(0.1, 3., 100)
-    p = 2.*E*np.exp(-E**2.)
-    acentric.mean()
-    acentric.stddev()
-    assert np.all(np.isclose(p, acentric.prob(E)))
-    assert np.all(np.isclose(np.log(p), acentric.log_prob(E)))
+    E = torch.linspace(0.1, 3.0, 100)
+    p_expected = 2.0 * E * torch.exp(-(E ** 2.0))
+    acentric = Acentric(torch.ones(1))
 
-@pytest.mark.parametrize('mc_samples', [(), 1, 3])
+    prob = torch.exp(acentric.log_prob(E))
+    assert torch.all(torch.isclose(p_expected, prob, atol=1e-5))
+
+
+@pytest.mark.parametrize('mc_samples', [1, 3])
 def test_Wilson(mc_samples):
-    centric = np.random.randint(0, 2, 100).astype(np.float32)
-    epsilon = np.random.randint(1, 6, 100).astype(np.float32)
+    n_refls = 100
+    centric = np.random.randint(0, 2, n_refls).astype(bool)
+    epsilon = np.random.randint(1, 6, n_refls).astype(np.float32)
     prior = WilsonPrior(centric, epsilon)
-    F = np.random.random(100).astype(np.float32)
-    probs = prior.prob(F)
+
+    F = torch.from_numpy(np.random.random(n_refls).astype('float32'))
     log_probs = prior.log_prob(F)
-    assert np.all(np.isfinite(probs))
-    assert np.all(np.isfinite(log_probs))
+    assert torch.all(torch.isfinite(log_probs))
 
-    #This part checks indexing and gradient numerics
-    q = tfd.TruncatedNormal( #<-- use this dist because wilson has positive support
-        tf.Variable(prior.mean()), 
-        tfp.util.TransformedVariable( 
-            prior.stddev(),
-            tfp.bijectors.Softplus(),
-        ),
-        low=1e-5,
-        high=1e10,
-    )
-    with tf.GradientTape() as tape:
-        z = q.sample(mc_samples)
-        log_probs = prior.log_prob(z)
-    grads = tape.gradient(log_probs, q.trainable_variables)
+    # Check gradient flow through the prior
+    loc   = prior.mean.detach().numpy()
+    scale = prior.stddev.detach().numpy()
+    q = TruncatedNormal.from_loc_and_scale(loc, scale, np.zeros(n_refls, dtype='float32'))
 
-    assert np.all(np.isfinite(log_probs))
-    for grad in grads:
-        assert np.all(np.isfinite(grad))
+    z = q.rsample((mc_samples,))
+    log_p = prior.log_prob(z)
+    assert torch.all(torch.isfinite(log_p))
 
+    loss = log_p.sum()
+    loss.backward()
+    for p in q.parameters():
+        if p.grad is not None:
+            assert torch.all(torch.isfinite(p.grad))

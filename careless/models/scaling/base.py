@@ -1,6 +1,10 @@
 from careless.models.base import BaseModel
-import tf_keras as tfk
 
 
-class Scaler(tfk.models.Model, BaseModel):
-    """ Base class for scaling models """
+class Scaler(BaseModel):
+    """Base class for scaling models."""
+
+    def forward(self, inputs):
+        raise NotImplementedError(
+            "Scaler subclasses must implement forward(inputs) returning a distribution."
+        )

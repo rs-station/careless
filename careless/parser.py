@@ -4,40 +4,21 @@ from os.path import exists
 
 class EnvironmentSettingsMixin(argparse.ArgumentParser):
     """
-    This will automagically set tensorflow environment variables when parse_args is called.
+    Sets random seeds and device configuration when parse_args is called.
+    (TensorFlow-specific flags are accepted but treated as no-ops for compatibility.)
     """
     def parse_args(self, *args, **kwargs):
         parser = super().parse_args(*args, **kwargs)
 
-        from os import environ
-        environ["TF_USE_LEGACY_KERAS"] = "1" #use keras 2
-        if parser.tf_debug:
-            # This is very noisy
-            environ['TF_CPP_MIN_LOG_LEVEL'] = "1"
-        else:
-            # This is very quiet
-            environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-
-        import tensorflow as tf
+        import torch
         np.random.seed(parser.seed)
-        tf.random.set_seed(parser.seed)
+        torch.manual_seed(parser.seed)
 
-        #Disable the GPU if requested. This can be useful for training multiple models at the same time
+        # --disable-gpu: force CPU-only execution in PyTorch
         if parser.disable_gpu:
-            tf.config.set_visible_devices([], 'GPU')
-        #For multi-gpu machines allocate only the zeroth GPU.
-        else:
-            #Set active GPU
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            gpu_id = parser.gpu_id
-
-            try:
-                gpu = gpus.pop(gpu_id)
-                if not parser.disable_memory_growth:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                tf.config.experimental.set_visible_devices(gpu, 'GPU')
-            except:
-                tf.config.experimental.set_visible_devices([], 'GPU')
+            # Prevent CUDA from being used by making no GPUs available from this process
+            import os
+            os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
         return parser
 
