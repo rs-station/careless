@@ -42,12 +42,19 @@ def run_careless(parser):
 
     model = dm.build_model()
 
+    # Select compute device
+    if not parser.disable_gpu and torch.cuda.is_available():
+        device = torch.device(f'cuda:{parser.gpu_id}')
+    else:
+        device = torch.device('cpu')
+    model.to(device)
+
     # Initialize any LazyLinear layers before loading weights or freezing parameters
     with torch.no_grad():
         from careless.models.base import reset_losses_and_metrics
         reset_losses_and_metrics()
         _init_inputs = tuple(
-            torch.as_tensor(d, dtype=torch.float32) if d.dtype in (np.float64,) else torch.as_tensor(d)
+            torch.as_tensor(d, dtype=torch.float32).to(device) if d.dtype in (np.float64,) else torch.as_tensor(d).to(device)
             for d in train
         )
         model(_init_inputs)
@@ -120,6 +127,7 @@ def run_careless(parser):
         for repeat in range(parser.half_dataset_repeats):
             for half_id, half in enumerate(dm.split_data_by_image()):
                 model = dm.build_model(scaling_model=scaling_model)
+                model.to(device)
                 history = model.train_model(
                     half,
                     parser.iterations,
