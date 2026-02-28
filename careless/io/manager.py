@@ -118,6 +118,8 @@ class DataManager:
         sig_iobs = np.asarray(BaseModel.get_uncertainties(inputs)).flatten()
 
         torch_inputs = self.get_torch_dataset(inputs)
+        device = next(model.parameters()).device
+        torch_inputs = tuple(t.to(device) for t in torch_inputs)
         model.eval()
         with torch.no_grad():
             ipred, sigipred = model.prediction_mean_stddev(torch_inputs)

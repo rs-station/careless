@@ -15,6 +15,12 @@ class Centric(HalfNormal):
         sigma = torch.as_tensor(sigma, dtype=torch.float32)
         super().__init__(torch.sqrt(epsilon * sigma))
 
+    @classmethod
+    def _from_scale(cls, scale):
+        obj = cls.__new__(cls)
+        HalfNormal.__init__(obj, scale)
+        return obj
+
 
 class Acentric(Weibull):
     """Weibull Wilson prior for acentric reflections."""
@@ -25,6 +31,12 @@ class Acentric(Weibull):
             torch.sqrt(epsilon * sigma),
             torch.tensor(2.0),
         )
+
+    @classmethod
+    def _from_scale(cls, scale):
+        obj = cls.__new__(cls)
+        Weibull.__init__(obj, scale, torch.full_like(scale, 2.0))
+        return obj
 
 
 class WilsonPrior(Prior):
@@ -46,9 +58,17 @@ class WilsonPrior(Prior):
         centric_bool = np.array(centric, dtype=bool)
         sigma = np.array(sigma, dtype=np.float32) * np.ones_like(epsilon)
 
+        # Store distribution parameters as buffers so .to(device) moves them.
         self.register_buffer('centric', torch.from_numpy(centric_bool))
-        self.p_centric = Centric(epsilon, sigma)
-        self.p_acentric = Acentric(epsilon, sigma)
+        self.register_buffer('_scale', torch.from_numpy(np.sqrt(epsilon * sigma)))
+
+    @property
+    def p_centric(self):
+        return Centric._from_scale(self._scale)
+
+    @property
+    def p_acentric(self):
+        return Acentric._from_scale(self._scale)
 
     def log_prob(self, x):
         log_p_c = self.p_centric.log_prob(x)

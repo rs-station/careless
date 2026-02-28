@@ -355,6 +355,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         mean : np.ndarray
         stddev : np.ndarray
         """
+        device = next(self.parameters()).device
         scale_dist = self.scaling_model(inputs)
         mean = scale_dist.mean.detach().cpu().numpy()
         stddev = scale_dist.stddev.detach().cpu().numpy()
@@ -362,9 +363,9 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         from careless.models.likelihoods.laue import LaueBase
         if isinstance(self.likelihood, LaueBase):
             likelihood = self.likelihood(inputs)
-            mean = likelihood.convolve(torch.as_tensor(mean)).cpu().numpy()
+            mean = likelihood.convolve(torch.as_tensor(mean, device=device)).cpu().numpy()
             stddev = np.sqrt(
-                likelihood.convolve(torch.as_tensor(stddev ** 2)).cpu().numpy()
+                likelihood.convolve(torch.as_tensor(stddev ** 2, device=device)).cpu().numpy()
             )
 
         return mean, stddev
@@ -379,6 +380,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         mean : np.ndarray
         stddev : np.ndarray
         """
+        device = next(self.parameters()).device
         refl_id = self.get_refl_id(inputs).squeeze(-1).long()
         scale_dist = self.scaling_model(inputs)
 
@@ -392,17 +394,17 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
 
         # var(I) = <I²> - <I>² = <F⁴><Σ²> - <I>²
         f4 = torch.as_tensor(
-            self.surrogate_posterior.moment_4(method='scipy'), dtype=torch.float32
+            self.surrogate_posterior.moment_4(method='scipy'), dtype=torch.float32, device=device
         )
         s2 = scale_dist.mean ** 2 + scale_dist.stddev ** 2
-        ivar = f4[refl_id] * s2 - torch.as_tensor(iexp) ** 2
+        ivar = f4[refl_id] * s2 - torch.as_tensor(iexp, device=device) ** 2
         ivar = ivar.cpu().numpy()
 
         from careless.models.likelihoods.laue import LaueBase
         if isinstance(self.likelihood, LaueBase):
             likelihood = self.likelihood(inputs)
-            iexp_t = torch.as_tensor(iexp)
-            ivar_t = torch.as_tensor(ivar)
+            iexp_t = torch.as_tensor(iexp, device=device)
+            ivar_t = torch.as_tensor(ivar, device=device)
             iexp = likelihood.convolve(iexp_t).cpu().numpy()
             ivar = likelihood.convolve(ivar_t).cpu().numpy()
 

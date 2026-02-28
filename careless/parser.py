@@ -14,12 +14,6 @@ class EnvironmentSettingsMixin(argparse.ArgumentParser):
         np.random.seed(parser.seed)
         torch.manual_seed(parser.seed)
 
-        # --disable-gpu: force CPU-only execution in PyTorch
-        if parser.disable_gpu:
-            # Prevent CUDA from being used by making no GPUs available from this process
-            import os
-            os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
-
         return parser
 
 class CustomParser(EnvironmentSettingsMixin):

@@ -48,9 +48,12 @@ class LaplaceReferencePrior(ReferencePrior):
 
     def __init__(self, Fobs, SigFobs, observed=None):
         super().__init__(observed)
-        loc = torch.as_tensor(np.array(Fobs, dtype=np.float32))
-        scale = torch.as_tensor(np.array(SigFobs, dtype=np.float32)) / math.sqrt(2.0)
-        self.base_dist = Laplace(loc, scale)
+        self.register_buffer('_loc', torch.as_tensor(np.array(Fobs, dtype=np.float32)))
+        self.register_buffer('_scale', torch.as_tensor(np.array(SigFobs, dtype=np.float32)) / math.sqrt(2.0))
+
+    @property
+    def base_dist(self):
+        return Laplace(self._loc, self._scale)
 
 
 class NormalReferencePrior(ReferencePrior):
@@ -58,9 +61,12 @@ class NormalReferencePrior(ReferencePrior):
 
     def __init__(self, Fobs, SigFobs, observed=None):
         super().__init__(observed)
-        loc = torch.as_tensor(np.array(Fobs, dtype=np.float32))
-        scale = torch.as_tensor(np.array(SigFobs, dtype=np.float32))
-        self.base_dist = Normal(loc, scale)
+        self.register_buffer('_loc', torch.as_tensor(np.array(Fobs, dtype=np.float32)))
+        self.register_buffer('_scale', torch.as_tensor(np.array(SigFobs, dtype=np.float32)))
+
+    @property
+    def base_dist(self):
+        return Normal(self._loc, self._scale)
 
 
 class StudentTReferencePrior(ReferencePrior):
@@ -68,9 +74,13 @@ class StudentTReferencePrior(ReferencePrior):
 
     def __init__(self, Fobs, SigFobs, dof, observed=None):
         super().__init__(observed)
-        loc = torch.as_tensor(np.array(Fobs, dtype=np.float32))
-        scale = torch.as_tensor(np.array(SigFobs, dtype=np.float32))
-        self.base_dist = StudentT(float(dof), loc, scale)
+        self._dof = float(dof)
+        self.register_buffer('_loc', torch.as_tensor(np.array(Fobs, dtype=np.float32)))
+        self.register_buffer('_scale', torch.as_tensor(np.array(SigFobs, dtype=np.float32)))
+
+    @property
+    def base_dist(self):
+        return StudentT(self._dof, self._loc, self._scale)
 
 
 class RiceWoolfsonReferencePrior(ReferencePrior):
@@ -78,34 +88,32 @@ class RiceWoolfsonReferencePrior(ReferencePrior):
 
     def __init__(self, Fobs, SigFobs, centric, observed=None):
         super().__init__(observed)
-        loc = torch.as_tensor(np.array(Fobs, dtype=np.float32))
-        scale = torch.as_tensor(np.array(SigFobs, dtype=np.float32))
-        centric_t = torch.as_tensor(np.array(centric, dtype=bool))
-
-        # Store as a hybrid distribution wrapper
-        self._loc = loc
-        self._scale = scale
-        self.register_buffer('centric', centric_t)
-
-        self._rice = Rice(loc.abs(), scale)
-        self._folded = FoldedNormal(loc, scale)
+        self.register_buffer('_loc', torch.as_tensor(np.array(Fobs, dtype=np.float32)))
+        self.register_buffer('_scale', torch.as_tensor(np.array(SigFobs, dtype=np.float32)))
+        self.register_buffer('centric', torch.as_tensor(np.array(centric, dtype=bool)))
 
     @property
     def mean(self):
-        return torch.where(self.centric, self._folded.mean, self._rice.mean)
+        return torch.where(self.centric,
+                           FoldedNormal(self._loc, self._scale).mean,
+                           Rice(self._loc.abs(), self._scale).mean)
 
     @property
     def stddev(self):
-        return torch.where(self.centric, self._folded.variance.sqrt(), self._rice.variance.sqrt())
+        return torch.where(self.centric,
+                           FoldedNormal(self._loc, self._scale).variance.sqrt(),
+                           Rice(self._loc.abs(), self._scale).variance.sqrt())
 
     def log_prob(self, values):
         if self.idx is None:
-            log_p_c = self._folded.log_prob(values)
-            log_p_a = self._rice.log_prob(values)
+            log_p_c = FoldedNormal(self._loc, self._scale).log_prob(values)
+            log_p_a = Rice(self._loc.abs(), self._scale).log_prob(values)
             return torch.where(self.centric, log_p_c, log_p_a)
         obs = values[..., self.idx]
-        log_p_c = FoldedNormal(self._loc[self.idx], self._scale[self.idx]).log_prob(obs)
-        log_p_a = Rice(self._loc[self.idx].abs(), self._scale[self.idx]).log_prob(obs)
+        loc_obs   = self._loc[self.idx]
+        scale_obs = self._scale[self.idx]
+        log_p_c = FoldedNormal(loc_obs, scale_obs).log_prob(obs)
+        log_p_a = Rice(loc_obs.abs(), scale_obs).log_prob(obs)
         log_p_obs = torch.where(self.centric[self.idx], log_p_c, log_p_a)
         n_refls = values.shape[-1]
         shape = values.shape[:-1] + (n_refls,)
