@@ -346,7 +346,7 @@ class DataManager:
             loc = prior.mean.detach().cpu().numpy()
             scale = prior.stddev.detach().cpu().numpy()
             scale = scale * parser.structure_factor_init_scale
-            low = (1e-32 * ~self.asu_collection.centric).astype('float32')
+            low = np.full(len(self.asu_collection.centric), parser.epsilon, dtype='float32')
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(
                 loc, scale, low, scale_shift=parser.epsilon
             )

@@ -71,8 +71,13 @@ class WilsonPrior(Prior):
         return Acentric._from_scale(self._scale)
 
     def log_prob(self, x):
-        log_p_c = self.p_centric.log_prob(x)
-        log_p_a = self.p_acentric.log_prob(x)
+        # Clamp to the smallest positive float32 before evaluating both branches.
+        # WilsonPrior evaluates p_acentric (Weibull, support x > 0) for all
+        # reflections before torch.where selects the correct branch, so x = 0
+        # for centric reflections would raise a support validation error.
+        safe_x = x.clamp(min=torch.finfo(x.dtype).tiny)
+        log_p_c = self.p_centric.log_prob(safe_x)
+        log_p_a = self.p_acentric.log_prob(safe_x)
         return torch.where(self.centric, log_p_c, log_p_a)
 
     def prob(self, x):

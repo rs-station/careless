@@ -48,3 +48,41 @@ def test_Wilson(mc_samples):
     for p in q.parameters():
         if p.grad is not None:
             assert torch.all(torch.isfinite(p.grad))
+
+
+def test_wilson_log_prob_handles_zero_samples():
+    """WilsonPrior.log_prob must not raise when x=0 is passed for centric reflections.
+
+    Previously, log_prob evaluated p_acentric (Weibull, support x>0) for ALL
+    reflections before the torch.where selection, causing a support validation
+    error when centric samples at exactly x=0 were passed in.
+    """
+    n_refls = 200
+    centric = np.zeros(n_refls, dtype=bool)
+    centric[:100] = True   # first half centric, second half acentric
+    epsilon = np.ones(n_refls, dtype=np.float32)
+    prior = WilsonPrior(centric, epsilon)
+
+    # Explicitly include x=0 for centric positions (the previously failing case)
+    x = torch.ones(n_refls)
+    x[:100] = 0.0   # centric reflections at exactly zero
+
+    log_p = prior.log_prob(x)   # must not raise
+    assert torch.all(torch.isfinite(log_p[100:]))   # acentric are always finite for x>0
+
+
+def test_truncated_normal_lower_bound_positive_for_all_reflections():
+    """Surrogate posterior lower bound must be > 0 for both centric and acentric."""
+    n_refls = 100
+    centric = np.zeros(n_refls, dtype=bool)
+    centric[:50] = True   # half centric
+    epsilon = 1e-7
+
+    loc = np.ones(n_refls, dtype='float32')
+    scale = np.ones(n_refls, dtype='float32') * 0.1
+    low = np.full(n_refls, epsilon, dtype='float32')   # matches manager.py fix
+
+    q = TruncatedNormal.from_loc_and_scale(loc, scale, low=low)
+    for _ in range(20):
+        z = q.rsample((5,))
+        assert torch.all(z > 0), "Sampled structure factors must be strictly positive"
