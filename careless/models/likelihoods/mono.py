@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import math
 import numpy as np
-from torch.distributions import Normal, Laplace, StudentT
+from torch.distributions import Normal, Laplace
+from careless.distributions import StudentT
 from rs_distributions.modules import TransformedParameter
 from torch.distributions.transforms import SoftplusTransform
 from careless.models.likelihoods.base import Likelihood

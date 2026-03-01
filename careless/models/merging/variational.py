@@ -39,6 +39,8 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
+        adam_epsilon=1e-7,
+        filter_nan_gradients=True,
     ):
         """
         Parameters
@@ -86,6 +88,8 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         self._clipnorm = clipnorm
         self._clipvalue = clipvalue
         self._global_clipnorm = global_clipnorm
+        self._adam_epsilon = adam_epsilon
+        self._filter_nan_gradients = filter_nan_gradients
 
         # Running history collected during train_model
         self._history = {}
@@ -222,6 +226,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             self.parameters(),
             lr=self._learning_rate,
             betas=(self._beta_1, self._beta_2),
+            eps=self._adam_epsilon,
         )
         return opt
 
@@ -299,6 +304,12 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
                 break
 
             loss.backward()
+
+            # Per-element NaN/Inf gradient filter (matches TF behaviour)
+            if self._filter_nan_gradients:
+                for p in self.parameters():
+                    if p.grad is not None:
+                        p.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
 
             # Gradient clipping
             if self._global_clipnorm is not None:

@@ -406,6 +406,8 @@ class DataManager:
             clipnorm=parser.clipnorm,
             clipvalue=parser.clipvalue,
             global_clipnorm=parser.global_clipnorm,
+            adam_epsilon=parser.adam_epsilon,
+            filter_nan_gradients=parser.filter_nan_gradients,
         )
 
         return model

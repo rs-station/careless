@@ -1,6 +1,7 @@
 import torch
 import math
-from torch.distributions import Normal, Laplace, StudentT
+from torch.distributions import Normal, Laplace
+from careless.distributions import StudentT
 from careless.models.likelihoods.base import Likelihood
 from careless.models.likelihoods.mono import (
     NormalEv11Likelihood as MonoNormalEv11Likelihood,

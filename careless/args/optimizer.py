@@ -39,9 +39,24 @@ args_and_kwargs = (
     }),
 
     (("--global-clipnorm",), {
-        "help":"Optionally clip the norm of all the gradients to be no larger than this value.", 
-        "type": float, 
+        "help":"Optionally clip the norm of all the gradients to be no larger than this value.",
+        "type": float,
         "default": None,
+    }),
+
+    (("--adam-epsilon",), {
+        "help": "Epsilon parameter for the Adam optimizer. Default is 1e-7.",
+        "type": float,
+        "default": 1e-7,
+    }),
+
+    (("--disable-gradient-nan-filter",), {
+        "help": "Disable per-element filtering of non-finite gradients. "
+                "By default, NaN/Inf values in gradients are replaced with zero "
+                "before the optimizer step (matching TF behaviour).",
+        "action": "store_false",
+        "dest": "filter_nan_gradients",
+        "default": True,
     }),
 
 )
