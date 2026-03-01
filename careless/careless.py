@@ -85,6 +85,11 @@ def run_careless(parser):
         progress=progress,
     )
 
+    import os
+    out_dir = os.path.dirname(parser.output_base)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     for i, ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=train)):
         filename = parser.output_base + f'_{i}.mtz'
         ds.write_mtz(filename)

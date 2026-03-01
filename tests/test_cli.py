@@ -198,6 +198,19 @@ def test_clipping(off_file, clip_type):
         out_file = out + f"_0.mtz"
         assert exists(out_file)
 
+def test_output_dir_created_if_missing(off_file):
+    """CLI must create the output directory if it does not yet exist."""
+    with TemporaryDirectory() as td:
+        # Point output_base into a subdirectory that does not exist yet
+        out = td + '/new/nested/dir/out'
+        flags = f"mono --disable-gpu --iterations={niter} dHKL,image_id"
+        command = flags + f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+        run_careless(parser)
+
+        assert exists(out + "_0.mtz")
+
 
 @pytest.mark.parametrize('scale_bijector', ['exp', 'softplus'])
 @pytest.mark.parametrize('image_layers', [None, 2])
