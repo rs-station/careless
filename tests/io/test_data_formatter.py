@@ -53,6 +53,53 @@ def test_mono_formatter(
     metadata = BaseModel.get_metadata(inputs)
 
 
+def test_mono_formatter_standardizes_metadata_by_default(mono_data_set):
+    """With standardize=True (default), non-constant metadata columns must be ≈ z-scored."""
+    import numpy as np
+    ds = mono_data_set.copy()
+    f = MonoFormatter(
+        None, None, None,
+        ['dHKL', 'Hobs', 'image_id'],
+        False, False, 0., None, None, 5,
+        standardize=True,
+    )
+    inputs, _ = f([ds])
+    metadata = np.asarray(BaseModel.get_metadata(inputs))
+
+    for col_idx in range(metadata.shape[1]):
+        col = metadata[:, col_idx]
+        if col.std() > 0:
+            assert abs(col.mean()) < 0.1, \
+                f"Column {col_idx} mean {col.mean():.4f} not near zero after standardization"
+            assert abs(col.std() - 1.0) < 0.1, \
+                f"Column {col_idx} std {col.std():.4f} not near 1.0 after standardization"
+
+
+def test_mono_formatter_no_standardize(mono_data_set):
+    """With standardize=False, metadata must NOT be z-scored."""
+    import numpy as np
+    ds = mono_data_set.copy()
+    f_raw = MonoFormatter(
+        None, None, None,
+        ['dHKL', 'Hobs', 'image_id'],
+        False, False, 0., None, None, 5,
+        standardize=False,
+    )
+    f_std = MonoFormatter(
+        None, None, None,
+        ['dHKL', 'Hobs', 'image_id'],
+        False, False, 0., None, None, 5,
+        standardize=True,
+    )
+    inputs_raw, _ = f_raw([ds])
+    inputs_std, _ = f_std([ds])
+    meta_raw = np.asarray(BaseModel.get_metadata(inputs_raw))
+    meta_std = np.asarray(BaseModel.get_metadata(inputs_std))
+    # They must differ for at least one column
+    assert not np.allclose(meta_raw, meta_std), \
+        "Standardized and raw metadata are identical — standardization has no effect"
+
+
 @pytest.mark.parametrize('lam_min', [None, 0.8])
 @pytest.mark.parametrize('lam_max', [None, 1.5])
 @pytest.mark.parametrize('intensity_key', ['I', None])

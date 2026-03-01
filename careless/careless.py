@@ -59,6 +59,20 @@ def run_careless(parser):
         )
         model(_init_inputs)
 
+        # Apply TF v0.5.4-style identity initialization to the scaling model.
+        # All nn.LazyLinear layers are now materialized after the forward pass above.
+        # Weights: identity matrix in the top-left min(out, in) block, zeros elsewhere.
+        # Biases: zeros.  This matches Keras kernel_initializer='identity' + default
+        # bias_initializer='zeros', giving scale_raw ≈ 0 → scale ≈ 1 at init for
+        # standardized metadata inputs.
+        for m in model.scaling_model.modules():
+            if isinstance(m, torch.nn.Linear):
+                torch.nn.init.zeros_(m.weight)
+                k = min(m.weight.shape)
+                m.weight.data[:k, :k] = torch.eye(k, device=m.weight.device)
+                if m.bias is not None:
+                    torch.nn.init.zeros_(m.bias)
+
     if parser.scale_file is not None:
         model.scaling_model.load_state_dict(torch.load(parser.scale_file, weights_only=True))
     if parser.freeze_scales:
