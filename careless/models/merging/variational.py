@@ -297,6 +297,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             losses = get_accumulated_losses()
             metrics = get_accumulated_metrics()
             loss = sum(losses)
+            metrics["Loss"] = loss.detach().item()
 
             # Check for NaN/Inf
             if not torch.isfinite(loss):

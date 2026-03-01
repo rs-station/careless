@@ -80,3 +80,26 @@ def test_mono(likelihood_cls, prior_cls, scaling_cls, mono_inputs, mc_samples):
     for p in merger.parameters():
         if p.grad is not None:
             assert torch.all(torch.isfinite(p.grad)), f"non-finite grad in {p.shape}"
+
+
+def test_train_model_history_contains_total_loss(mono_inputs):
+    """train_model history must include 'Loss' (the total -ELBO), not only its components."""
+    inputs = _make_inputs(mono_inputs)
+    nrefls   = int(BaseModel.get_refl_id(inputs).max()) + 1
+    n_images = int(BaseModel.get_image_id(inputs).max()) + 1
+
+    prior = WilsonPrior(
+        np.random.choice([True, False], nrefls),
+        np.ones(nrefls, dtype='float32'),
+    )
+    loc   = prior.mean.detach().numpy()
+    scale = prior.stddev.detach().numpy() / 10.0
+    surrogate_posterior = TruncatedNormal.from_loc_and_scale(loc, scale, np.zeros(nrefls, 'float32'))
+    scaler  = MLPScaler(2, 8)
+    merger  = VariationalMergingModel(surrogate_posterior, prior, NormalLikelihood(), scaler)
+
+    history = merger.train_model(inputs, steps=3, progress=False)
+
+    assert "Loss" in history, "train_model history is missing the 'Loss' key"
+    assert len(history["Loss"]) == 3
+    assert all(np.isfinite(v) for v in history["Loss"]), "Loss history contains non-finite values"
