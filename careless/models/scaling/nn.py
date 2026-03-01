@@ -26,7 +26,7 @@ class MetadataScaler(Scaler):
     """
 
     def __init__(self, n_layers, width, leakiness=0.01, epsilon=1e-7,
-                 scale_bijector=None, scale_multiplier=None):
+                 scale_bijector='exp', scale_multiplier=None):
         """
         Parameters
         ----------
@@ -38,8 +38,8 @@ class MetadataScaler(Scaler):
             LeakyReLU negative slope; if None, use ReLU.
         epsilon : float
             Minimum scale value for numerical stability.
-        scale_bijector : callable, optional
-            Alternative activation for scale output. Ignored if None (uses softplus).
+        scale_bijector : str, optional
+            Activation for scale output: 'exp' (default) or 'softplus'.
         scale_multiplier : float, optional
             Constant added to output location and scale for stability.
         """
@@ -65,10 +65,10 @@ class MetadataScaler(Scaler):
 
     def _to_distribution(self, x):
         loc, raw_scale = x.unbind(dim=-1)
-        if self._scale_bijector == 'exp':
-            scale = torch.exp(raw_scale) + self.epsilon
-        else:  # default: softplus
+        if self._scale_bijector == 'softplus':
             scale = torch.nn.functional.softplus(raw_scale) + self.epsilon
+        else:  # default: exp
+            scale = torch.exp(raw_scale) + self.epsilon
         if self.scale_multiplier is not None:
             loc = loc + self.scale_multiplier
             scale = scale + self.scale_multiplier

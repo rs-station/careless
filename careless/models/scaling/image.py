@@ -102,7 +102,7 @@ class NeuralImageScaler(Scaler):
     """
 
     def __init__(self, image_layers, max_images, mlp_layers, mlp_width,
-                 leakiness=0.01, epsilon=1e-7, scale_bijector=None, scale_multiplier=None):
+                 leakiness=0.01, epsilon=1e-7, scale_bijector='exp', scale_multiplier=None):
         super().__init__()
         activation = nn.LeakyReLU(leakiness) if leakiness is not None else nn.ReLU()
 
