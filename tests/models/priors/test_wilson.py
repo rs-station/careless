@@ -71,18 +71,60 @@ def test_wilson_log_prob_handles_zero_samples():
     assert torch.all(torch.isfinite(log_p[100:]))   # acentric are always finite for x>0
 
 
-def test_truncated_normal_lower_bound_positive_for_all_reflections():
-    """Surrogate posterior lower bound must be > 0 for both centric and acentric."""
+def test_truncated_normal_asymmetric_lower_bounds():
+    """
+    Surrogate posterior lower bounds must match TF v0.5.4 physics:
+      centric  → low = 0.0   (HalfNormal support starts at 0; samples are >= 0)
+      acentric → low = 1e-32 (Weibull support is strictly positive; samples are > 0)
+    """
     n_refls = 100
-    centric = np.zeros(n_refls, dtype=bool)
-    centric[:50] = True   # half centric
-    epsilon = 1e-7
+    centric_mask = np.zeros(n_refls, dtype=bool)
+    centric_mask[:50] = True   # first half centric
 
+    low = np.where(centric_mask, 0.0, 1e-32).astype('float32')
     loc = np.ones(n_refls, dtype='float32')
     scale = np.ones(n_refls, dtype='float32') * 0.1
-    low = np.full(n_refls, epsilon, dtype='float32')   # matches manager.py fix
 
     q = TruncatedNormal.from_loc_and_scale(loc, scale, low=low)
     for _ in range(20):
         z = q.rsample((5,))
-        assert torch.all(z > 0), "Sampled structure factors must be strictly positive"
+        # All samples must be non-negative (low >= 0 for all)
+        assert torch.all(z >= 0), "Sampled structure factors must be non-negative"
+        # Acentric samples must be strictly positive
+        assert torch.all(z[..., 50:] > 0), \
+            "Acentric structure factors must be strictly positive"
+
+
+def test_build_model_uses_asymmetric_posterior_bounds(
+    mono_inputs, mono_reciprocal_asu_collection
+):
+    """
+    build_model() must set low=0 for centric and low=1e-32 for acentric reflections,
+    matching TF v0.5.4 surrogate posterior initialization.
+    """
+    from types import SimpleNamespace
+    import torch
+    from careless.io.manager import DataManager
+
+    dm = DataManager(mono_inputs, mono_reciprocal_asu_collection)
+    parser = SimpleNamespace(
+        type='mono', parents=None, dwr=None, wilson_prior_b=None,
+        epsilon=1e-7, structure_factor_init_scale=1.0,
+        studentt_likelihood_dof=None, refine_uncertainties=False,
+        mlp_layers=2, mlp_width=None, scale_bijector='exp',
+        image_layers=0, use_image_scales=False, mc_samples=1,
+        kl_weight=None, learning_rate=1e-3, beta_1=0.9, beta_2=0.99,
+        clipnorm=None, clipvalue=None, global_clipnorm=None,
+        adam_epsilon=1e-7, filter_nan_gradients=True,
+        reindexing_ops=None, optimize_double_wilson_r=False,
+    )
+    model = dm.build_model(parser=parser)
+    q = model.surrogate_posterior
+
+    centric = mono_reciprocal_asu_collection.centric  # boolean array
+
+    low = q.low.cpu().numpy()
+    assert np.all(low[centric] == 0.0), \
+        "Centric reflections must have low=0.0"
+    assert np.all(low[~centric] == pytest.approx(1e-32)), \
+        "Acentric reflections must have low=1e-32"

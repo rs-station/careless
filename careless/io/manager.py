@@ -346,7 +346,13 @@ class DataManager:
             loc = prior.mean.detach().cpu().numpy()
             scale = prior.stddev.detach().cpu().numpy()
             scale = scale * parser.structure_factor_init_scale
-            low = np.full(len(self.asu_collection.centric), parser.epsilon, dtype='float32')
+            # Asymmetric lower bounds matching TF v0.5.4:
+            #   centric     → low = 0.0   (HalfNormal has support [0, ∞))
+            #   acentric    → low = 1e-32 (Weibull has strict positive support)
+            # WilsonPrior.log_prob already clamps x before evaluating either branch,
+            # so centric samples at exactly zero are handled safely.
+            centric_mask = np.array(self.asu_collection.centric, dtype=bool)
+            low = np.where(centric_mask, 0.0, 1e-32).astype('float32')
             surrogate_posterior = TruncatedNormal.from_loc_and_scale(
                 loc, scale, low, scale_shift=parser.epsilon
             )
@@ -367,6 +373,14 @@ class DataManager:
 
             scale_bijector = parser.scale_bijector.lower()
 
+            # Empirical std of observed intensities used to shift the initial
+            # predicted scale to the right order of magnitude (mirrors TF v0.5.4
+            # tfb.Shift(istd) applied to the scale distribution output).
+            intensities = BaseModel.get_intensities(self.inputs).flatten()
+            istd = float(np.std(intensities))
+            if istd == 0.0:
+                istd = 1.0
+
             if parser.image_layers > 0:
                 n_images = int(np.max(BaseModel.get_image_id(self.inputs))) + 1
                 scaling_model = NeuralImageScaler(
@@ -376,12 +390,14 @@ class DataManager:
                     mlp_width,
                     epsilon=parser.epsilon,
                     scale_bijector=scale_bijector,
+                    scale_multiplier=istd,
                 )
             else:
                 mlp_scaler = MLPScaler(
                     parser.mlp_layers, mlp_width,
                     epsilon=parser.epsilon,
                     scale_bijector=scale_bijector,
+                    scale_multiplier=istd,
                 )
                 if parser.use_image_scales:
                     n_images = int(np.max(BaseModel.get_image_id(self.inputs))) + 1

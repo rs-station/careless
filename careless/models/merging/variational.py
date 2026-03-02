@@ -9,6 +9,7 @@ from careless.models.base import (
     get_accumulated_metrics,
 )
 from careless.distributions import TruncatedNormal
+from careless.optim import AdamEpsInsideSqrt
 
 
 class VariationalMergingModel(L.LightningModule, BaseModel):
@@ -222,7 +223,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         return loss
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(
+        opt = AdamEpsInsideSqrt(
             self.parameters(),
             lr=self._learning_rate,
             betas=(self._beta_1, self._beta_2),

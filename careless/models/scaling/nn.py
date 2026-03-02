@@ -41,7 +41,11 @@ class MetadataScaler(Scaler):
         scale_bijector : str, optional
             Activation for scale output: 'exp' (default) or 'softplus'.
         scale_multiplier : float, optional
-            Constant added to output location and scale for stability.
+            Constant added to the output loc (mean scale factor).  Equivalent to
+            TF-Keras ``tfb.Shift(scale_multiplier)`` applied to the output
+            distribution.  Typically set to the empirical standard deviation of
+            the observed intensities so the initial predicted scale is in the
+            right ballpark even before any learning.
         """
         super().__init__()
         self.scale_multiplier = scale_multiplier
@@ -71,7 +75,6 @@ class MetadataScaler(Scaler):
             scale = torch.exp(raw_scale) + self.epsilon
         if self.scale_multiplier is not None:
             loc = loc + self.scale_multiplier
-            scale = scale + self.scale_multiplier
         return Normal(loc, scale)
 
     def call(self, metadata):
