@@ -2,9 +2,15 @@
 def getVersionNumber():
     version = None
     try:
-        from setuptools.version import metadata
+        from importlib.metadata import version, PackageNotFoundError
+        __version__ = version("package-name")
+        return __version__
+    except:
+        pass
 
-        version = metadata.version("careless")
+    from setuptools.version import metadata
+
+    version = metadata.version("careless")
     except ImportError:
         from setuptools.version import pkg_resources
 
