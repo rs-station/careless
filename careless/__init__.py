@@ -10,7 +10,8 @@ def getVersionNumber():
 
     from setuptools.version import metadata
 
-    version = metadata.version("careless")
+    try:
+        version = metadata.version("careless")
     except ImportError:
         from setuptools.version import pkg_resources
 
