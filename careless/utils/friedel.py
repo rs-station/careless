@@ -8,12 +8,12 @@ def get_split_friedel_parser():
     parser.add_argument("-m", "--friedel-minus-mtz", help="Output mtz with Minus Friedel mates. Default 'friedel_minus.mtz'", default="friedel_minus.mtz", type=str)
     return parser
 
-def split_friedel(parser=None):
-    if parser is None:
+def split_friedel(args=None):
+    if args is None:
         parser = get_split_friedel_parser()
-        parser = parser.parse_args()
+        args = parser.parse_args()
 
-    ds = rs.read_mtz(parser.unmerged_mtz)
+    ds = rs.read_mtz(args.unmerged_mtz)
     # M/ISYM is part of the MTZ specification and can be used
     # to determine the sign of a Friedel mate. More info at:
     # https://www.ccp4.ac.uk/html/mtzformat.html#column-labels-and-standard-names
@@ -23,8 +23,8 @@ def split_friedel(parser=None):
     centrics = ds.label_centrics().CENTRIC.to_numpy()
     plus_or_centric = plus | centrics
 
-    ds[plus_or_centric].write_mtz(parser.friedel_plus_mtz)
-    ds[~plus_or_centric].write_mtz(parser.friedel_minus_mtz)
+    ds[plus_or_centric].write_mtz(args.friedel_plus_mtz)
+    ds[~plus_or_centric].write_mtz(args.friedel_minus_mtz)
 
 
 def get_combine_friedel_parser():
@@ -34,13 +34,13 @@ def get_combine_friedel_parser():
     parser.add_argument("out_mtz")
     return parser
 
-def combine_friedel(parser=None):
-    if parser is None:
+def combine_friedel(args=None):
+    if args is None:
         parser = get_combine_friedel_parser()
-        parser = parser.parse_args()
+        args = parser.parse_args()
 
-    plus = rs.read_mtz(parser.plus_mtz)
-    minus = rs.read_mtz(parser.minus_mtz)
+    plus = rs.read_mtz(args.plus_mtz)
+    minus = rs.read_mtz(args.minus_mtz)
 
     is_xval_mtz = False
     if ('repeat' in plus) or ('half' in plus):
@@ -71,5 +71,5 @@ def combine_friedel(parser=None):
     out['SigF(+)']=out['SigF(+)'].astype("L")
     out['SigF(-)']=out['SigF(-)'].astype("L")
 
-    out.write_mtz(parser.out_mtz)
+    out.write_mtz(args.out_mtz)
 
