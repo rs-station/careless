@@ -1,4 +1,5 @@
 from tempfile import TemporaryDirectory
+import pytest
 from careless.utils import friedel
 from os.path import exists
 import reciprocalspaceship as rs
@@ -23,6 +24,10 @@ def run_careless(pfile, mfile, directory, extra_flags=''):
     _run_careless(parser)
     return f"{directory}/out_0.mtz", f"{directory}/out_1.mtz"
 
+def test_split_friedel_merged(merged_mtz):
+    with TemporaryDirectory() as td:
+        with pytest.raises(ValueError):
+            pfile,mfile = run_split_friedel(merged_mtz, td)
 
 def test_split_friedel(off_file):
     mtz=off_file

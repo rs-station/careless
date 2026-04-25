@@ -14,6 +14,9 @@ def split_friedel(args=None):
         args = parser.parse_args()
 
     ds = rs.read_mtz(args.unmerged_mtz)
+    if ds.merged:
+        raise ValueError(f"Expected an unmerged Mtz, but {args.unmerged_mtz} is merged.")
+
     # M/ISYM is part of the MTZ specification and can be used
     # to determine the sign of a Friedel mate. More info at:
     # https://www.ccp4.ac.uk/html/mtzformat.html#column-labels-and-standard-names
