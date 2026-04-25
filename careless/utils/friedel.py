@@ -1,6 +1,5 @@
-
-import reciprocalspaceship as rs
 from argparse import ArgumentParser
+import reciprocalspaceship as rs
 
 def get_split_friedel_parser():
     parser = ArgumentParser("Split an mtz into anomalous half-datasets")
