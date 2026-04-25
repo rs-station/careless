@@ -9,8 +9,8 @@ from careless.careless import run_careless as _run_careless
 
 
 def run_split_friedel(mtz, directory):
-    pfile=directory + "/plus.mtz"
-    mfile=directory + "/minus.mtz"
+    pfile = directory + "/plus.mtz"
+    mfile = directory + "/minus.mtz"
     parser = friedel.get_split_friedel_parser()
     args = f" {mtz} -p {pfile} -m {mfile} "
     parser = parser.parse_args(args.split())
