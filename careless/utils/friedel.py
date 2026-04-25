@@ -53,7 +53,7 @@ def combine_friedel(args=None):
     # and 'repeat' columns to make it compatible with the stats 
     # submodule
     is_xval_mtz = False
-    if ('repeat' in plus) or ('half' in plus):
+    if ('repeat' in plus) and ('half' in plus):
         is_xval_mtz = True
 
     anom_keys = [
