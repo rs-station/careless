@@ -69,10 +69,5 @@ def combine_friedel(args=None):
     else:
         out = out.unstack_anomalous()[anom_keys]
 
-    out['F(+)']=out['F(+)'].astype("G")
-    out['F(-)']=out['F(-)'].astype("G")
-    out['SigF(+)']=out['SigF(+)'].astype("L")
-    out['SigF(-)']=out['SigF(-)'].astype("L")
-
     out.write_mtz(args.out_mtz)
 
