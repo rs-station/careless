@@ -93,7 +93,7 @@ def run_analysis(args):
         for key in ds:
             if ds[key].dtype == "Q" and key.endswith(ikey):
                 sigkey = key
-
+                
     if args.overall:
         grouper = ds.groupby(["bin"])
     else:
@@ -126,27 +126,29 @@ def run_analysis(args):
     else:
         plot_kwargs["hue"] = "file"
         plot_kwargs["palette"] = "Dark2"
+        
+    if args.image or args.show:
+        plt.figure(figsize=(args.width, args.height))
+        ax = sns.lineplot(**plot_kwargs)
+        if args.log:
+            ax.set(yscale="log")
+        plt.xticks(
+            range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor"
+        )
+        plt.ylabel(r"$\mathrm{I/\sigma(I)}$ ")
+        plt.xlabel(r"Resolution ($\mathrm{\AA}$)")
+        plt.grid(which="both", axis="both", ls="dashdot")
+        plt.ylim(args.ylim)
+    
+        plt.tight_layout()
+        
+        if args.image: 
+            plt.savefig(args.image)
+    
+        if args.show:
+            plt.show()
 
-    plt.figure(figsize=(args.width, args.height))
-    ax = sns.lineplot(**plot_kwargs)
-    if args.log:
-        ax.set(yscale="log")
-    plt.xticks(
-        range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor"
-    )
-    plt.ylabel(r"$\mathrm{I/\sigma(I)}$ ")
-    plt.xlabel(r"Resolution ($\mathrm{\AA}$)")
-    plt.grid(which="both", axis="both", ls="dashdot")
-    plt.ylim(args.ylim)
-
-    plt.tight_layout()
-
-    if args.image is not None:
-        plt.savefig(args.image)
-
-    if args.show:
-        plt.show()
-
+    return result
 
 def main():
     parser = ArgumentParser().parse_args()

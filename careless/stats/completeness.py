@@ -44,28 +44,32 @@ def run_analysis(args):
         results.to_csv(args.output, index=False)
     else:
         print(results.to_string(index=False))
-
-    plt.figure(figsize=(args.width, args.height))
-    ax = sns.lineplot(
-        data=results.melt(xlabel),
-        x=xlabel,
-        y='value',
-        hue='variable',
-        palette='Dark2',
-    )
-    plt.xticks(rotation=45, rotation_mode='anchor', ha='right')
-    plt.legend(title="")
-    plt.ylabel(r"Completeness")
-    plt.grid(which='both', axis='both', ls='dashdot')
-    if args.ylim is not None:
-        plt.ylim(args.ylim)
-    plt.tight_layout()
-
-    if args.image is not None:
-        plt.savefig(args.image)
-
-    if args.show:
-        plt.show()
+        
+    if args.image or args.show: 
+        plt.figure(figsize=(args.width, args.height))
+        ax = sns.lineplot(
+            data=results.melt(xlabel),
+            x=xlabel,
+            y='value',
+            hue='variable',
+            palette='Dark2',
+        )
+        plt.xticks(rotation=45, rotation_mode='anchor', ha='right')
+        plt.legend(title="")
+        plt.ylabel(r"Completeness")
+        plt.grid(which='both', axis='both', ls='dashdot')
+        
+        if args.ylim is not None:
+            plt.ylim(args.ylim)
+        plt.tight_layout()
+    
+        if args.image is not None:
+            plt.savefig(args.image)
+    
+        if args.show:
+            plt.show()
+    
+    return results
 
 def main():
     parser = ArgumentParser().parse_args()
