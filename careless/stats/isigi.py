@@ -1,27 +1,28 @@
 """
 Compute I/sigI from careless output.
 """
-import argparse
-import numpy as np
-import matplotlib.pyplot as plt
-import reciprocalspaceship as rs
-import seaborn as sns
+
 import os
 
+import matplotlib.pyplot as plt
+import numpy as np
+import reciprocalspaceship as rs
+import seaborn as sns
 
 from careless.io.formatter import get_first_key_of_dtype
 from careless.stats.parser import BaseParser
+from careless.utils.friedel import is_anomalous_output
+
+
 class ArgumentParser(BaseParser):
     def __init__(self):
-        super().__init__(
-            description=__doc__
-        )
+        super().__init__(description=__doc__)
 
         # Required arguments
         self.add_argument(
             "mtz",
             nargs="+",
-            help="MTZs containing crossvalidation data from careless",
+            help="MTZs containing merged data from careless",
         )
 
         self.add_argument(
@@ -64,71 +65,78 @@ def run_analysis(args):
     for m in args.mtz:
         _ds = rs.read_mtz(m)
         print(m)
-        #non-isomorphism could lead to different resolution for each mtz
-        #need to calculate dHKL before concatenating 
+        # non-isomorphism could lead to different resolution for each mtz
+        # need to calculate dHKL before concatenating
         _ds.compute_dHKL(inplace=True)
-        if len(m)<50:
-            _ds['file'] = m
+        if len(m) < 50:
+            _ds["file"] = m
         else:
-            _ds['file'] = os.path.basename(m)
-        _ds['Spacegroup'] = _ds.spacegroup.xhm()
+            _ds["file"] = os.path.basename(m)
+        _ds["Spacegroup"] = _ds.spacegroup.xhm()
         ds.append(_ds)
     ds = rs.concat(ds, check_isomorphous=False)
-    bins,edges = rs.utils.bin_by_percentile(ds.dHKL, args.bins, ascending=False)
-    ds['bin'] = bins
-    labels = [
-        f"{e1:0.2f} - {e2:0.2f}"
-        for e1, e2 in zip(edges[:-1], edges[1:])
-    ]
+    bins, edges = rs.utils.bin_by_percentile(ds.dHKL, args.bins, ascending=False)
+    ds["bin"] = bins
+    labels = [f"{e1:0.2f} - {e2:0.2f}" for e1, e2 in zip(edges[:-1], edges[1:])]
+
+    if is_anomalous_output(ds):
+        ds = ds.stack_anomalous()
 
     ikey = args.I_col
+    sigkey = args.sigI_col
+
     if ikey is None:
-        ikey = get_first_key_of_dtype(ds, 'J')
-    sigkey=args.sigI_col
+        ikey = get_first_key_of_dtype(ds, "J")
+
     if sigkey is None:
-        sigkey = get_first_key_of_dtype(ds, 'Q')
-        
+        sigkey = get_first_key_of_dtype(ds, "Q")
+        for key in ds:
+            if ds[key].dtype == "Q" and key.endswith(ikey):
+                sigkey = key
+
     if args.overall:
         grouper = ds.groupby(["bin"])
     else:
         grouper = ds.groupby(["file", "bin"])
 
-    result = grouper.apply(lambda x : np.mean(x[ikey]/x[sigkey]))
-    result = rs.DataSet({"I/sigI" : result}).reset_index()
-    result['Resolution Range (Å)'] = np.array(labels)[result.bin]
-    result['Spacegroup'] = grouper['Spacegroup'].apply('first').to_numpy()
-    if not args.overall:
-        result['file'] = grouper['file'].apply('first').to_numpy()
-        result = result[['file', 'Resolution Range (Å)', 'bin', 'Spacegroup', 'I/sigI']]
-    else:
-        result = result[['Resolution Range (Å)', 'bin', 'Spacegroup', 'I/sigI']]
+    result = grouper.apply(lambda x: np.mean(x[ikey] / x[sigkey]))
+    result = rs.DataSet({"I/sigI": result}).reset_index()
+    result["Resolution Range (Å)"] = np.array(labels)[result.bin]
+    result["Spacegroup"] = grouper["Spacegroup"].apply("first").to_numpy()
 
+    if not args.overall:
+        result["file"] = grouper["file"].apply("first").to_numpy()
+        result = result[["file", "Resolution Range (Å)", "bin", "Spacegroup", "I/sigI"]]
+    else:
+        result = result[["Resolution Range (Å)", "bin", "Spacegroup", "I/sigI"]]
 
     if args.output is not None:
         result.to_csv(args.output)
     else:
         print(result.to_string())
-    
+
     plot_kwargs = {
-        'data' : result,
-        'x' : 'bin',
-        'y' : 'I/sigI',
+        "data": result,
+        "x": "bin",
+        "y": "I/sigI",
     }
 
     if args.overall:
-        plot_kwargs['color'] = 'k'
+        plot_kwargs["color"] = "k"
     else:
-        plot_kwargs['hue'] = 'file'
-        plot_kwargs['palette'] = "Dark2"
+        plot_kwargs["hue"] = "file"
+        plot_kwargs["palette"] = "Dark2"
 
     plt.figure(figsize=(args.width, args.height))
-    ax=sns.lineplot(**plot_kwargs)
+    ax = sns.lineplot(**plot_kwargs)
     if args.log:
-        ax.set(yscale='log')
-    plt.xticks(range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor")
+        ax.set(yscale="log")
+    plt.xticks(
+        range(args.bins), labels, rotation=45, ha="right", rotation_mode="anchor"
+    )
     plt.ylabel(r"$\mathrm{I/\sigma(I)}$ ")
-    plt.xlabel("Resolution ($\mathrm{\AA}$)")
-    plt.grid(which='both', axis='both', ls='dashdot')
+    plt.xlabel(r"Resolution ($\mathrm{\AA}$)")
+    plt.grid(which="both", axis="both", ls="dashdot")
     plt.ylim(args.ylim)
 
     plt.tight_layout()
@@ -144,6 +152,7 @@ def main():
     parser = ArgumentParser().parse_args()
     # print(parser)
     run_analysis(parser)
+
 
 if __name__ == "__main__":
     main()

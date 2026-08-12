@@ -1,11 +1,20 @@
-from careless.stats import cchalf,ccanom,ccpred,rsplit,image_cc,filter_by_image_cc,isigi
-from tempfile import TemporaryDirectory
-from os.path import exists
 from os import symlink
+from os.path import exists
+from tempfile import TemporaryDirectory
+
 import pandas as pd
 import pytest
 import reciprocalspaceship as rs
 
+from careless.stats import (
+    ccanom,
+    cchalf,
+    ccpred,
+    filter_by_image_cc,
+    image_cc,
+    isigi,
+    rsplit,
+)
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -25,7 +34,7 @@ def test_rsplit(xval_mtz, method, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins 
+    assert len(df) == 3 * bins
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -35,7 +44,7 @@ def test_cchalf(xval_mtz, method, bins, use_structure_factors):
     tf = TemporaryDirectory()
     csv = f"{tf.name}/out.csv"
     png = f"{tf.name}/out.png"
-    sf = ''
+    sf = ""
     if use_structure_factors:
         sf = "--use-structure-factors"
 
@@ -50,7 +59,7 @@ def test_cchalf(xval_mtz, method, bins, use_structure_factors):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins 
+    assert len(df) == 3 * bins
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -70,7 +79,7 @@ def test_ccanom(xval_mtz, method, bins):
     assert exists(png)
 
     df = pd.read_csv(csv)
-    assert len(df) == 3*bins 
+    assert len(df) == 3 * bins
 
 
 @pytest.mark.parametrize("bins", [1, 5])
@@ -83,11 +92,11 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
     png = f"{tf.name}/out.png"
     command = f"-o {csv} -i {png} -b {bins} "
     if overall:
-        command = command + ' --overall '
+        command = command + " --overall "
 
     if multi:
-        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
-        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        mtz_0 = f"{tf.name}/test_predictions_0.mtz"
+        mtz_1 = f"{tf.name}/test_predictions_1.mtz"
         symlink(predictions_mtz, mtz_0)
         symlink(predictions_mtz, mtz_1)
         command = command + f" {mtz_0} "
@@ -106,9 +115,10 @@ def test_ccpred(predictions_mtz, method, bins, overall, multi):
     df = pd.read_csv(csv)
 
     if multi and not overall:
-        assert len(df) == 4*bins 
+        assert len(df) == 4 * bins
     else:
-        assert len(df) == 2*bins
+        assert len(df) == 2 * bins
+
 
 @pytest.mark.parametrize("bins", [1, 5])
 @pytest.mark.parametrize("overall", [True, False])
@@ -120,11 +130,11 @@ def test_isigi(predictions_mtz, method, bins, overall, multi):
     png = f"{tf.name}/out.png"
     command = f"-o {csv} -i {png} -b {bins} "
     if overall:
-        command = command + ' --overall '
+        command = command + " --overall "
 
     if multi:
-        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
-        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        mtz_0 = f"{tf.name}/out_0.mtz"
+        mtz_1 = f"{tf.name}/out_1.mtz"
         symlink(predictions_mtz, mtz_0)
         symlink(predictions_mtz, mtz_1)
         command = command + f" {mtz_0} "
@@ -143,9 +153,9 @@ def test_isigi(predictions_mtz, method, bins, overall, multi):
     df = pd.read_csv(csv)
 
     if multi and not overall:
-        assert len(df) == 2*bins 
+        assert len(df) == 2 * bins
     else:
-        assert len(df) == 1*bins
+        assert len(df) == 1 * bins
 
 
 @pytest.mark.parametrize("method", ["weighted", "spearman", "pearson"])
@@ -157,8 +167,8 @@ def test_image_cc(predictions_mtz, method, multi):
     command = f"-o {csv} -i {png} "
 
     if multi:
-        mtz_0 = f'{tf.name}/test_predictions_0.mtz'
-        mtz_1 = f'{tf.name}/test_predictions_1.mtz'
+        mtz_0 = f"{tf.name}/test_predictions_0.mtz"
+        mtz_1 = f"{tf.name}/test_predictions_1.mtz"
         symlink(predictions_mtz, mtz_0)
         symlink(predictions_mtz, mtz_1)
         command = command + f" {mtz_0} "
@@ -175,6 +185,7 @@ def test_image_cc(predictions_mtz, method, multi):
     assert exists(png)
 
     df = pd.read_csv(csv)
+
 
 @pytest.mark.parametrize("method", ["weighted", "spearman", "pearson"])
 def test_filter_by_image_cc(predictions_mtz, method, off_file, on_file):
@@ -194,4 +205,3 @@ def test_filter_by_image_cc(predictions_mtz, method, off_file, on_file):
 
     rs.read_mtz(out_1)
     rs.read_mtz(out_2)
-
