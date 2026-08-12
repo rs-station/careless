@@ -6,9 +6,10 @@ Merging crystallography data without much physics.
 [![codecov](https://codecov.io/gh/rs-station/careless/branch/main/graph/badge.svg)](https://codecov.io/gh/rs-station/careless)
 [![PyPI](https://img.shields.io/pypi/v/careless?color=blue)](https://pypi.org/project/careless/)
 [![DOI](http://img.shields.io/badge/bioRxiv-10.1101/2021.01.05.425510-BD2736.svg)](https://doi.org/10.1101/2021.01.05.425510)
+[![Forum](http://img.shields.io/badge/Get-Help-purple)](https://discourse.rs-station.org/c/software/careless/6)
 
 ## Installation
-As described in the [TensorFlow docs](https://www.tensorflow.org/install/pip#step-by-step_instructions), it is best practice to install `careless` in a fresh [anaconda](https://www.anaconda.com/products/distribution) environment to avoid conflicts with previously installed dependencies. 
+As described in the [PyTorch docs](https://pytorch.org/get-started/locally/), it is best practice to install `careless` in a fresh [anaconda](https://www.anaconda.com/products/distribution) environment to avoid conflicts with previously installed dependencies. 
 
 Create a new environment using the following commands.
 ```bash
@@ -28,23 +29,18 @@ pip install careless[cuda]
 You may run `careless devices` to check whether GPU support was successfully installed. If you run into issues please [File an issue](https://github.com/rs-station/careless/issues/new/choose).
 
 
-
-## Installation with GPU Support
-Careless supports GPU acceleration on NVIDIA GPUs through the CUDA library. We strongly encourage users to take advantage of this feature. To streamline installation, we maintain a script which installs careless with CUDA support. The following section will guide you through installing careless for the GPU. 
-
-
 ## Dependencies
 
-`careless` is likely to run on any operating system and python version which is compatible with TensorFlow. 
+`careless` is likely to run on any operating system and python version which is compatible with PyTorch. 
 `careless` uses mostly tools from the conventional scientific python stack plus
- - optimization routines from [TensorFlow](https://www.tensorflow.org/)
- - statistical distributions from [Tensorflow-Probability](https://www.tensorflow.org/probability)
+ - automatic differentiation and optimization routines from [PyTorch](https://pytorch.org/)
+ - statistical distributions from [torch.distributions](https://pytorch.org/docs/stable/distributions.html) and [rs-distributions](https://github.com/rs-station/rs-distributions)
  - crystallographic computing resources from 
     - [ReciprocalSpaceship](https://rs-station.github.io/reciprocalspaceship/)
     - [GEMMI](https://gemmi.readthedocs.io/en/latest/)
 
 
-`careless` does not require but may take advantage of various accelator cards supported by TensorFlow.
+`careless` does not require but may take advantage of various accelator cards supported by PyTorch.
 
 ## Get Help
 For help with command line arguments, type `careless mono --help` for monochromatic or `careless poly --help` for Laue processing options. 
