@@ -2,6 +2,7 @@ from os import symlink
 from os.path import exists
 from tempfile import TemporaryDirectory
 
+import numpy as np
 import pandas as pd
 import pytest
 import reciprocalspaceship as rs
@@ -156,6 +157,57 @@ def test_isigi(predictions_mtz, method, bins, overall, multi):
         assert len(df) == 2 * bins
     else:
         assert len(df) == 1 * bins
+
+
+@pytest.mark.parametrize("bins", [1, 5])
+@pytest.mark.parametrize("overall", [True, False])
+def test_isigi_anomalous(merged_mtz, bins, overall):
+    """
+    Regression test for anomalous input.
+
+    An mtz merged with --anomalous carries I(+)/I(-) rather than a plain
+    intensity column, which used to break isigi in two ways:
+
+      1. get_first_key_of_dtype(ds, "J") found nothing and returned None,
+         so the run died with `KeyError: None`.
+      2. Once stacked, "SigF" precedes "SigI" in column order, so naively
+         taking the first "Q" column silently computed I/SigF -- a wrong
+         number rather than a crash.
+
+    Guards both: the run must succeed, and the reported value must match
+    I/SigI computed independently.
+    """
+    tf = TemporaryDirectory()
+    csv = f"{tf.name}/out.csv"
+    png = f"{tf.name}/out.png"
+    command = f"-o {csv} -i {png} -b {bins} "
+    if overall:
+        command = command + " --overall "
+    command = command + f" {merged_mtz} "
+
+    parser = isigi.ArgumentParser().parse_args(command.split())
+
+    assert not exists(csv)
+    assert not exists(png)
+    isigi.run_analysis(parser)
+    assert exists(csv)
+    assert exists(png)
+
+    df = pd.read_csv(csv)
+    assert len(df) == bins
+    assert len(df) == len(df.dropna())
+
+    # With a single input file and one bin the reported statistic is just the
+    # mean over the whole stacked dataset, so it can be checked directly.
+    if bins == 1:
+        ds = rs.read_mtz(merged_mtz).stack_anomalous()
+        expected = np.mean(ds["I"] / ds["SigI"])
+        assert np.isclose(df["I/sigI"].iloc[0], expected)
+
+        # ...and must not be the I/SigF value the naive key lookup produced.
+        wrong = np.mean(ds["I"] / ds["SigF"])
+        assert not np.isclose(expected, wrong), "fixture cannot detect the bug"
+        assert not np.isclose(df["I/sigI"].iloc[0], wrong)
 
 
 @pytest.mark.parametrize("method", ["weighted", "spearman", "pearson"])
