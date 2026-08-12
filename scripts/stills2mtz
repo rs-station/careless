@@ -80,7 +80,7 @@ df = pd.DataFrame({
   'cartesian_fixed_x'     : table['cartesian_fixed'].as_numpy_array()[:,0],
   'cartesian_fixed_y'     : table['cartesian_fixed'].as_numpy_array()[:,1],
   'cartesian_fixed_z'     : table['cartesian_fixed'].as_numpy_array()[:,2],
-  'ewald_offset' : table['Rh'],
+  'ewald_offset' : table['Rh'].as_numpy_array(),
   'I' : table['intensity.sum.value'].as_numpy_array(),
   'SigI' : table['intensity.sum.variance'].as_numpy_array()**0.5,
   'xcal' : table['xyzcal.px'].as_numpy_array()[:,0], 
