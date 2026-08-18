@@ -271,6 +271,10 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             Evaluate validation_data every this many steps.
         progress : bool
             Whether to display a tqdm progress bar.
+        jit_compile : bool, optional
+            If truthy, wrap the forward pass with torch.compile.
+        reduce_retracing : bool
+            If True, allow dynamic shapes in torch.compile to avoid recompilation.
         """
         from tqdm import trange
 
@@ -279,6 +283,8 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
 
         optimizer = self.configure_optimizers()
         history = {}
+
+        forward_fn = torch.compile(self, dynamic=reduce_retracing) if jit_compile else self
 
         # Move data to model's device
         device = next(self.parameters()).device
@@ -300,7 +306,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             optimizer.zero_grad()
             reset_losses_and_metrics()
 
-            self(data)
+            forward_fn(data)
 
             losses = get_accumulated_losses()
             metrics = get_accumulated_metrics()
@@ -343,7 +349,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
                     self.eval()
                     with torch.no_grad():
                         reset_losses_and_metrics()
-                        self(validation_data)
+                        forward_fn(validation_data)
                         val_metrics = get_accumulated_metrics()
                     metrics["NLL_val"] = float(val_metrics.get("NLL", float('nan'))) * val_scale
                 else:
