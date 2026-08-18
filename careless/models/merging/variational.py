@@ -179,7 +179,11 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         refl_id = self.get_refl_id(inputs).squeeze(-1).long()
 
         # Predicted intensity: I = Σ * F²
-        ipred = z_scale * z_f[..., refl_id] ** 2
+        # NOTE: use embedding (not fancy indexing) for the gather — its backward uses a
+        # sort+segment-reduce instead of atomic scatter-add, which matters a lot here
+        # because refl_id has heavy duplication (many obs -> one reflection).
+        f_gathered = torch.nn.functional.embedding(refl_id, z_f.t()).t()
+        ipred = z_scale * f_gathered ** 2
         # ipred: (mc_sample_size, n_obs)
 
         likelihood = self.likelihood(inputs)
