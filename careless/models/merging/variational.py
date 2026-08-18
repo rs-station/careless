@@ -270,6 +270,9 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         """
         from tqdm import trange
 
+        # Allow TF32 on Ampere+ GPUs for faster matmuls in the scaling MLP
+        torch.set_float32_matmul_precision('high')
+
         optimizer = self.configure_optimizers()
         history = {}
 
