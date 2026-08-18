@@ -221,7 +221,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
 
         loss = sum(losses)
         for name, val in metrics.items():
-            self.log(name, float(val), prog_bar=True, on_step=True, on_epoch=False)
+            self.log(name, val, prog_bar=True, on_step=True, on_epoch=False)
 
         # Gradient norm (computed by Lightning trainer after this step)
         return loss
@@ -311,7 +311,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             losses = get_accumulated_losses()
             metrics = get_accumulated_metrics()
             loss = sum(losses)
-            metrics["Loss"] = loss.detach().item()
+            metrics["Loss"] = loss.detach()
 
             # Check for NaN/Inf
             if not torch.isfinite(loss):
@@ -351,13 +351,20 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
                         reset_losses_and_metrics()
                         forward_fn(validation_data)
                         val_metrics = get_accumulated_metrics()
-                    metrics["NLL_val"] = float(val_metrics.get("NLL", float('nan'))) * val_scale
+                    metrics["NLL_val"] = val_metrics.get("NLL", torch.tensor(float('nan'), device=device)) * val_scale
                 else:
                     metrics["NLL_val"] = float('nan')
 
-            metrics["Grad Norm"] = float(grad_norm)
+            metrics["Grad Norm"] = grad_norm
 
-            # Update history
+            # Update history: batch all tensor-valued metrics into a single
+            # device sync instead of syncing each one individually.
+            tensor_keys = [k for k, v in metrics.items() if torch.is_tensor(v)]
+            if tensor_keys:
+                synced = torch.stack([metrics[k] for k in tensor_keys]).tolist()  # single sync
+                for k, val in zip(tensor_keys, synced):
+                    metrics[k] = val
+
             postfix = {}
             for k, v in metrics.items():
                 v = float(v)

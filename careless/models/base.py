@@ -61,10 +61,7 @@ class BaseModel(nn.Module):
         """Accumulate a named metric (mirrors keras Model.add_metric)."""
         metrics = _get_metrics()
         if metrics is not None:
-            if hasattr(value, 'detach'):
-                metrics[name] = value.detach().item()
-            else:
-                metrics[name] = float(value)
+            metrics[name] = value.detach() if hasattr(value, 'detach') else value
 
     @staticmethod
     def is_laue(inputs: tuple) -> bool:
