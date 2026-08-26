@@ -8,6 +8,16 @@ args_and_kwargs = (
         "default":10000,
     }),
 
+    (("--num-batches",), {
+        "help":"Number of gradient accumulation batches per training step. The "
+               "reflections are split into this many contiguous mini-batches which "
+               "are forward/backward-ed in turn before a single optimizer step. "
+               "Peak accelerator memory falls roughly as 1/num-batches while the "
+               "update is mathematically unchanged. The default is 1 (no accumulation).",
+        "type":int,
+        "default":1,
+    }),
+
     (("--learning-rate",), {
         "help":"Adam learning rate. The default is 0.001", 
         "type":float, 
