@@ -225,6 +225,15 @@ cell is Grad Norm at 4.47e-7, `--num-batches=1` compiled with
 knobs compose without drift. This is the same float32 reassociation floor as
 [Equivalence](#equivalence) above, and again it is 40 steps, not 10,000.
 
+## Scaling-model width
+
+A width scan at `--num-batches=32` is in [width.md](width.md). The short version:
+the compiled step time is a **staircase with steps at multiples of 16** -- one
+channel past 16 costs 56% -- so pick a multiple of 16; the compiler's advantage is
+U-shaped in width, 4.0x at 8 and 1.7x at 33; and the pipeline's real ceiling is
+the whole-dataset gather in the *prediction* stage, which caps this card at width
+48 even though training at width 128 fits in under 10 GiB.
+
 ## Reproducing
 
 `sync_ablation.py` reproduces the sync table above; `ABLATE=loop,sampler` selects
