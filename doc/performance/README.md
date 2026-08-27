@@ -234,7 +234,19 @@ U-shaped in width, 4.0x at 8 and 1.7x at 33; and the whole-dataset gather in
 the *prediction* stage used to cap this card at width 48 -- `--num-batches` now
 reaches inference too, so width 128 completes end to end at 11,965 MiB.
 
-## Reproducing
+## Reproducing, here or on other hardware
+
+**Re-running this on a different GPU: start from [PORTING.md](PORTING.md).** It has
+a one-command driver, the Perlmutter/Slurm specifics, which conclusions should
+travel and which should not, and the traps already paid for.
+
+```bash
+export CARELESS_DATA=/path/to/small_friedel_mtz_directory
+./doc/performance/sweeps.sh $SCRATCH/careless-perf     # ~80 min of GPU time
+python doc/performance/analyze.py $SCRATCH/careless-perf
+```
+
+## Reproducing a single measurement
 
 `sync_ablation.py` reproduces the sync table above; `ABLATE=loop,sampler` selects
 which syncs to remove. `bench_compile_mode.py` forwards everything after `--` to

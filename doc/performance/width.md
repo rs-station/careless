@@ -148,6 +148,14 @@ On this card, for this dataset:
 
 ## Reproducing
 
+The whole width scan is one command; see [PORTING.md](PORTING.md), which also
+covers what to expect on other hardware -- in particular that the width-16 quantum
+is a property of the kernels Triton selected here and must be re-derived, not
+assumed. `analyze.py` prints the excess for Q = 8, 16 and 32 side by side for
+exactly that reason.
+
+### By hand
+
 `doc/performance/bench_compile_mode.py` with `--mlp-width` varied and
 `BENCH_STOP_AFTER_TRAIN=1`; see [README.md](README.md#reproducing) for the
 invocation. Drop `BENCH_STOP_AFTER_TRAIN` to exercise the prediction pass as well.
