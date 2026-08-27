@@ -760,9 +760,52 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
     # ------------------------------------------------------------------
 
     @torch.no_grad()
-    def scale_mean_stddev(self, inputs):
+    def scale_moments(self, inputs, num_batches=1):
+        """
+        Per-observation mean and standard deviation of q(Sigma), evaluated in
+        `num_batches` contiguous chunks and returned at full length.
+
+        Only the scaling model is chunked, and deliberately so. `ImageLayer` gathers
+        an (n_obs, width, width) weight tensor, which makes this the one place where
+        inference memory grows with width**2 -- n_obs * width**2 * 4 bytes is 35 GiB
+        at width 48 on a 4.1M-reflection dataset. Everything downstream of it is
+        O(n_obs). Assembling full-length results here means the Laue convolution,
+        which ranges over harmonic groups and indexes by a global harmonic_id, still
+        sees the whole array exactly as it did before.
+
+        Returns
+        -------
+        mean, stddev : Tensors of shape (n_obs,)
+        """
+        n_obs = int(self.get_refl_id(inputs).shape[0])
+        # A one-row chunk would be squashed by BaseModel.get_input_by_name's
+        # leading-singleton squeeze, so keep every chunk at least two rows.
+        num_batches = max(1, min(int(num_batches), max(1, n_obs // 2)))
+        if num_batches == 1:
+            dist = self.scaling_model(inputs)
+            return dist.mean.detach(), dist.stddev.detach()
+
+        mean = stddev = None
+        for lo, hi in self._batch_boundaries(inputs, num_batches):
+            dist = self.scaling_model(self._slice_inputs(inputs, lo, hi))
+            chunk_mean, chunk_std = dist.mean.detach(), dist.stddev.detach()
+            if mean is None:
+                mean = torch.empty(n_obs, dtype=chunk_mean.dtype, device=chunk_mean.device)
+                stddev = torch.empty(n_obs, dtype=chunk_std.dtype, device=chunk_std.device)
+            mean[lo:hi] = chunk_mean
+            stddev[lo:hi] = chunk_std
+        return mean, stddev
+
+    @torch.no_grad()
+    def scale_mean_stddev(self, inputs, num_batches=1):
         """
         Compute mean and standard deviation of the scale posterior for each observation.
+
+        Parameters
+        ----------
+        num_batches : int
+            Evaluate the scaling model in this many contiguous chunks. See
+            `scale_moments`; 1 (default) reproduces the whole-dataset call.
 
         Returns
         -------
@@ -770,9 +813,9 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         stddev : np.ndarray
         """
         device = next(self.parameters()).device
-        scale_dist = self.scaling_model(inputs)
-        mean = scale_dist.mean.detach().cpu().numpy()
-        stddev = scale_dist.stddev.detach().cpu().numpy()
+        mean_t, stddev_t = self.scale_moments(inputs, num_batches)
+        mean = mean_t.cpu().numpy()
+        stddev = stddev_t.cpu().numpy()
 
         from careless.models.likelihoods.laue import LaueBase
         if isinstance(self.likelihood, LaueBase):
@@ -785,9 +828,15 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         return mean, stddev
 
     @torch.no_grad()
-    def prediction_mean_stddev(self, inputs):
+    def prediction_mean_stddev(self, inputs, num_batches=1):
         """
         Compute mean and standard deviation of the predicted intensity E[I].
+
+        Parameters
+        ----------
+        num_batches : int
+            Evaluate the scaling model in this many contiguous chunks. See
+            `scale_moments`; 1 (default) reproduces the whole-dataset call.
 
         Returns
         -------
@@ -796,21 +845,21 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         """
         device = next(self.parameters()).device
         refl_id = self.get_refl_id(inputs).squeeze(-1).long()
-        scale_dist = self.scaling_model(inputs)
+        scale_mean, scale_stddev = self.scale_moments(inputs, num_batches)
 
         F_mean = self.surrogate_posterior.mean.detach()
         F_std = self.surrogate_posterior.stddev.detach()
 
-        # <I> = <Σ> * (<F²>) = <Σ> * (Var(F) + <F>²)
+        # <I> = <Sigma> * (<F^2>) = <Sigma> * (Var(F) + <F>^2)
         f2 = F_std ** 2 + F_mean ** 2
-        iexp = scale_dist.mean * f2[refl_id]
+        iexp = scale_mean * f2[refl_id]
         iexp = iexp.cpu().numpy()
 
-        # var(I) = <I²> - <I>² = <F⁴><Σ²> - <I>²
+        # var(I) = <I^2> - <I>^2 = <F^4><Sigma^2> - <I>^2
         f4 = torch.as_tensor(
             self.surrogate_posterior.moment_4(method='scipy'), dtype=torch.float32, device=device
         )
-        s2 = scale_dist.mean ** 2 + scale_dist.stddev ** 2
+        s2 = scale_mean ** 2 + scale_stddev ** 2
         ivar = f4[refl_id] * s2 - torch.as_tensor(iexp, device=device) ** 2
         ivar = ivar.cpu().numpy()
 

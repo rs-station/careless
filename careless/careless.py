@@ -136,13 +136,13 @@ def run_careless(parser):
 
     if test is not None:
         for file_id, (ds_train, ds_test) in enumerate(zip(
-            dm.get_predictions(model, train, test_value=0),
-            dm.get_predictions(model, test, test_value=1),
+            dm.get_predictions(model, train, test_value=0, num_batches=parser.num_batches),
+            dm.get_predictions(model, test, test_value=1, num_batches=parser.num_batches),
         )):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             rs.concat((ds_train, ds_test)).write_mtz(filename)
     else:
-        for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0)):
+        for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0, num_batches=parser.num_batches)):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             ds_train.write_mtz(filename)
 

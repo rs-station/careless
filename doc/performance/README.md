@@ -230,9 +230,9 @@ knobs compose without drift. This is the same float32 reassociation floor as
 A width scan at `--num-batches=32` is in [width.md](width.md). The short version:
 the compiled step time is a **staircase with steps at multiples of 16** -- one
 channel past 16 costs 56% -- so pick a multiple of 16; the compiler's advantage is
-U-shaped in width, 4.0x at 8 and 1.7x at 33; and the pipeline's real ceiling is
-the whole-dataset gather in the *prediction* stage, which caps this card at width
-48 even though training at width 128 fits in under 10 GiB.
+U-shaped in width, 4.0x at 8 and 1.7x at 33; and the whole-dataset gather in
+the *prediction* stage used to cap this card at width 48 -- `--num-batches` now
+reaches inference too, so width 128 completes end to end at 11,965 MiB.
 
 ## Reproducing
 

@@ -9,7 +9,7 @@ runs use the default `--jit-compile-mode=max-autotune-no-cudagraphs`.
 
 30 steps per cell, median of steps 11-30, one run each. Cold compile is the first
 step with a fresh `TORCHINDUCTOR_CACHE_DIR`. Timing is of the training loop only
-(`BENCH_STOP_AFTER_TRAIN=1`); see [the ceiling](#the-real-ceiling-is-inference-not-training).
+(`BENCH_STOP_AFTER_TRAIN=1`).
 
 | width | eager ms | eager MiB | compiled ms | compiled MiB | speedup | memory | cold compile |
 |---:|---:|---:|---:|---:|---:|---:|---:|
@@ -81,33 +81,40 @@ Flat at 35-65 s from width 8 through 64, then 144 s at 96 and 177 s at 128. Widt
 with the staircase -- more tile configurations to autotune. All of this is once per
 machine per shape; the inductor cache makes later runs far cheaper.
 
-## The real ceiling is inference, not training
+## Inference used to be the ceiling; it is batched now
 
-`--num-batches` applies only to the training loop. The prediction and mtz-writing
-stage that follows runs the scaling model over the **whole** dataset in one call,
-so `ImageLayer`'s per-observation weight gather materializes `n_obs x width^2`
-floats at once:
+`--num-batches` originally applied only to the training loop. The prediction and
+mtz-writing stage that follows ran the scaling model over the **whole** dataset in
+one call, so `ImageLayer`'s per-observation weight gather materialized
+`n_obs x width^2` floats at once -- 35.4 GiB at width 48, 62.9 at 64, 251.6 at 128.
+Measured on this 48 GB card, width 48 completed at 39,960 MiB peak and **width 64
+died with "tried to allocate 62.89 GiB" after training had already finished
+successfully**. Accumulation had moved the bottleneck out of training and into the
+output stage.
 
-| width | 8 | 16 | 32 | 48 | 64 | 96 | 128 |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| whole-dataset gather | 1.0 GiB | 3.9 | 15.7 | **35.4** | 62.9 | 141.5 | 251.6 |
+`scale_moments` now evaluates the scaling model in the same contiguous chunks
+training uses, and `--num-batches` reaches the prediction pass. Only the scaling
+model is chunked; the full-length arrays are assembled before anything downstream
+runs, so the Laue convolution -- which ranges over harmonic groups and indexes by a
+global `harmonic_id` -- still sees the whole array exactly as before.
 
-Measured end to end through the full CLI on this 48 GB card:
+| width | peak, whole-dataset inference | peak, `--num-batches=32` |
+|---:|---:|---:|
+| 32 | 18,565 MiB | 1,077 MiB |
+| 48 | 39,960 MiB | -- |
+| 64 | **OOM at 62.9 GiB** | 3,258 MiB |
+| 128 | **OOM at 251.6 GiB** | 11,965 MiB |
 
-* width 32 -- completes, 18,565 MiB peak
-* width 48 -- completes, 39,960 MiB peak
-* width 64 -- **CUDA OOM, "tried to allocate 62.89 GiB"**, after training finished
+Width 128 now completes the full pipeline, writes its mtz files, and peaks at
+11,965 MiB -- below what width 32 used to need just to write output.
 
-So on this card the pipeline caps at width 48, even though *training* at width 128
-fits in 9,774 MiB with accumulation and compilation. Accumulation moved the
-bottleneck out of training and into the output stage, and nothing in this branch
-addresses that. Two known routes: `image-major-scaling` replaces the gather with a
-batched GEMM over a padded image-major layout and removes the `width^2`
-per-observation term outright, or the prediction stage could simply reuse
-`_batch_boundaries` and loop.
-
-Note also that the eager training column crosses the same territory: 32,757 MiB at
-width 128 is already two thirds of the card before inference is reached.
+The batched path is bit-identical on the `Scale` and `SigScale` columns across
+2.15 M predicted reflections. `Ipred` and `SigIpred` differ by 1-5e-7 of column
+scale, but so do two runs of the *same* build: the residual is run-to-run training
+nondeterminism, not the batching. `tests/models/merging/test_batched_inference.py`
+pins the equivalence in-process, where there is no such noise, on mono and Laue
+inputs over cpu and cuda, and counts the scaling-model calls so a silent fallback
+to the whole-dataset path cannot pass.
 
 ## Equivalence
 
@@ -136,12 +143,11 @@ On this card, for this dataset:
   most.
 * **Width 32-48**: 327-583 ms/step, 1.1-1.9 GiB training, still writes output.
   Width 48 is the largest that completes the pipeline.
-* **Above 48**: training works and is comfortable on memory, but the run cannot
-  write its results without the inference gather being fixed first.
+* **Above 48**: now runs end to end. Width 128 trains in 9,774 MiB and completes
+  the whole pipeline at 11,965 MiB.
 
 ## Reproducing
 
 `doc/performance/bench_compile_mode.py` with `--mlp-width` varied and
 `BENCH_STOP_AFTER_TRAIN=1`; see [README.md](README.md#reproducing) for the
-invocation. Drop `BENCH_STOP_AFTER_TRAIN` to exercise the inference path and find
-the ceiling on a different card.
+invocation. Drop `BENCH_STOP_AFTER_TRAIN` to exercise the prediction pass as well.
