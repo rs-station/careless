@@ -240,9 +240,18 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _compile_kwargs(jit_compile_mode, reduce_retracing):
+    def _torch_compile_kwargs(jit_compile_mode, reduce_retracing):
         """
         Build the torch.compile keyword arguments for a given mode.
+
+        The name matters. lightning patches torch.compile globally
+        (lightning.fabric.wrappers._capture_compile_kwargs) so that it writes a
+        ``_compile_kwargs`` dict onto the module it returns, and
+        OptimizedModule.__setattr__ forwards any unknown attribute to _orig_mod --
+        so after one compile, ``model._compile_kwargs`` is a dict on *this* model.
+        A helper called ``_compile_kwargs`` would be shadowed by it, and the second
+        train_model call on the same instance would die with "'dict' object is not
+        callable".
 
         Raises on the one combination that is known to be broken: handing a
         dynamic-shape graph to CUDA graphs segfaults the process (SIGSEGV
@@ -326,7 +335,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         forward_fn = self
         if jit_compile:
             forward_fn = torch.compile(
-                self, **self._compile_kwargs(jit_compile_mode, reduce_retracing)
+                self, **self._torch_compile_kwargs(jit_compile_mode, reduce_retracing)
             )
 
         # Move data to model's device

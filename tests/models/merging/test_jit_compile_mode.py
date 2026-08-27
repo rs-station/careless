@@ -55,7 +55,7 @@ def test_parser_accepts_every_mode_and_rejects_others(dummy_mtz, tmp_path):
 
 @pytest.mark.parametrize("mode", JIT_COMPILE_MODES)
 def test_compile_kwargs_passes_the_mode_through(mode):
-    kwargs = VariationalMergingModel._compile_kwargs(mode, reduce_retracing=False)
+    kwargs = VariationalMergingModel._torch_compile_kwargs(mode, reduce_retracing=False)
     assert kwargs["dynamic"] is False
     if mode == "default":
         # torch.compile has no "default" mode string; omitting it *is* the default.
@@ -65,7 +65,7 @@ def test_compile_kwargs_passes_the_mode_through(mode):
 
 
 def test_compile_kwargs_honours_reduce_retracing():
-    kwargs = VariationalMergingModel._compile_kwargs(
+    kwargs = VariationalMergingModel._torch_compile_kwargs(
         "max-autotune-no-cudagraphs", reduce_retracing=True
     )
     assert kwargs["dynamic"] is True
@@ -75,9 +75,56 @@ def test_compile_kwargs_honours_reduce_retracing():
 def test_cuda_graph_modes_refuse_dynamic_shapes(mode):
     """The combination segfaults, so it must be rejected before torch sees it."""
     with pytest.raises(ValueError, match="segfault"):
-        VariationalMergingModel._compile_kwargs(mode, reduce_retracing=True)
+        VariationalMergingModel._torch_compile_kwargs(mode, reduce_retracing=True)
 
 
 def test_unknown_mode_is_rejected():
     with pytest.raises(ValueError, match="Unknown jit_compile_mode"):
-        VariationalMergingModel._compile_kwargs("turbo", reduce_retracing=False)
+        VariationalMergingModel._torch_compile_kwargs("turbo", reduce_retracing=False)
+
+
+def test_train_model_survives_a_second_jit_compiled_call(mono_inputs, monkeypatch):
+    """
+    Regression: the compile-kwargs helper must not be named `_compile_kwargs`.
+
+    lightning patches torch.compile globally so that the module it returns carries a
+    `_compile_kwargs` dict, and OptimizedModule.__setattr__ forwards unknown
+    attributes to `_orig_mod` -- so that dict lands on the careless model itself.
+    A helper of the same name is shadowed by it, and the *second* train_model call
+    on an instance raises "'dict' object is not callable".
+    """
+    import numpy as np
+    import torch
+
+    from careless.distributions import TruncatedNormal
+    from careless.models.base import BaseModel
+    from careless.models.likelihoods.mono import NormalLikelihood
+    from careless.models.priors.wilson import WilsonPrior
+    from careless.models.scaling.nn import MLPScaler
+
+    inputs = tuple(torch.as_tensor(x) for x in mono_inputs)
+    nrefls = int(BaseModel.get_refl_id(inputs).max()) + 1
+    prior = WilsonPrior(
+        np.random.choice([True, False], nrefls), np.ones(nrefls, dtype="float32")
+    )
+    surrogate_posterior = TruncatedNormal.from_loc_and_scale(
+        prior.mean.detach().numpy(),
+        prior.stddev.detach().numpy() / 10.0,
+        np.zeros(nrefls, dtype="float32"),
+    )
+    merger = VariationalMergingModel(
+        surrogate_posterior, prior, NormalLikelihood(), MLPScaler(2, 8)
+    )
+
+    def fake_compile(module, **kwargs):
+        """Stands in for lightning's patched torch.compile, minus the compilation."""
+        module._compile_kwargs = dict(kwargs)
+        return module
+
+    monkeypatch.setattr(torch, "compile", fake_compile)
+
+    merger.train_model(inputs, steps=2, progress=False, jit_compile=True)
+    assert isinstance(merger._compile_kwargs, dict), (
+        "the stand-in did not reproduce lightning's attribute write"
+    )
+    merger.train_model(inputs, steps=2, progress=False, jit_compile=True)

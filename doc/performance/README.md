@@ -57,7 +57,7 @@ graphs ever paying off, and it needs its own equivalence check.
 after compilation, no traceback; reproduced on both `reduce-overhead` and
 `max-autotune`, and *not* on the two non-CUDA-graphs modes, which is what
 identifies CUDA graphs rather than autotuning as the culprit.
-`VariationalMergingModel._compile_kwargs` raises a `ValueError` on the
+`VariationalMergingModel._torch_compile_kwargs` raises a `ValueError` on the
 combination rather than letting the process die. `--reduce-retracing` is
 pointless here anyway: careless' shapes are fixed for a whole run, and
 `dynamic=True` measured within noise of `dynamic=False`.
