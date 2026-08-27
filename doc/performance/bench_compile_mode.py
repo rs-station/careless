@@ -16,7 +16,13 @@ only the progress bar is replaced. The compile mode comes from the real
 `--jit-compile-mode` flag, so this measures the shipped code path.
 
 Optional environment variables:
-    BENCH_NOVALIDATE=1   disable torch.distributions argument validation
+    BENCH_NOVALIDATE=1        disable torch.distributions argument validation
+    BENCH_STOP_AFTER_TRAIN=1  return as soon as training finishes, skipping the
+                              prediction and mtz-writing stage. That stage runs the
+                              scaling model over the *whole* dataset in one go, so it
+                              ignores --num-batches and can exhaust the card at wide
+                              settings long before training does. Set this when you are
+                              benchmarking the training step and nothing else.
 """
 import argparse
 import json
@@ -77,6 +83,10 @@ from careless.models.merging.variational import VariationalMergingModel  # noqa:
 _train_model = VariationalMergingModel.train_model
 
 
+class _StopAfterTraining(BaseException):
+    """Unwinds out of run_careless once the timed region is over."""
+
+
 def _timed_train_model(self, data, steps, **kwargs):
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
@@ -89,6 +99,8 @@ def _timed_train_model(self, data, steps, **kwargs):
     STATE["jit_compile"] = bool(kwargs.get("jit_compile"))
     STATE["jit_compile_mode"] = kwargs.get("jit_compile_mode")
     STATE["reduce_retracing"] = kwargs.get("reduce_retracing")
+    if os.environ.get("BENCH_STOP_AFTER_TRAIN") == "1":
+        raise _StopAfterTraining
     return history
 
 
@@ -99,6 +111,8 @@ from careless.careless import main  # noqa: E402
 status = "ok"
 try:
     main()
+except _StopAfterTraining:
+    status = "ok (stopped after training)"
 except SystemExit as exc:
     if exc.code not in (None, 0):
         status = f"exit {exc.code}"

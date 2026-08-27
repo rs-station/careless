@@ -37,8 +37,12 @@ given shape -- `max-autotune` compilation drops from ~42 s to ~12 s.
 
 ## Why the default is `max-autotune-no-cudagraphs`
 
-It was both the fastest and the least memory hungry, and it has the steadiest
-step time (sd 0.3 ms against 13.7 ms for `max-autotune` over the same window).
+It was both the fastest and the least memory hungry, and it reaches steady state
+immediately. Over steps 1-29 -- the window that includes warm-up -- its step time
+has a standard deviation of 0.4 ms against 13.9 ms for `max-autotune` and 13.3 ms
+for `reduce-overhead`; that spread is the CUDA-graphs warm-up and recording step,
+not ongoing jitter. Once warm (steps 6-29) the four modes are all steady, at
+0.4-0.9 ms.
 
 **CUDA graphs buy nothing here, and cost a little.** `reduce-overhead` is
 indistinguishable from `default` (0.1 ms apart), and `max-autotune` is 0.7 ms per
@@ -70,8 +74,9 @@ Over 30 steps, every compiled mode tracks the eager run to:
 |---|---|
 | `Loss`, `NLL` | 2.1e-7 |
 | `F KLDiv` | 4.1e-6 (7.7e-6 for `max-autotune-no-cudagraphs`) |
-| `Grad Norm` | 8e-7 |
-| merged `F`, `SigF` | 1.3e-7, median deviation exactly 0, CC = 1.0000000000 |
+| `Grad Norm` | 7.5e-7 |
+| merged `F` | 1.3e-7, median deviation exactly 0, CC = 1.0000000000 |
+| merged `SigF` | 2.3e-7, median deviation exactly 0 |
 
 That is float32 reassociation, and it is the same size as the deviation between
 the modes themselves. The eager run is bit-reproducible from run to run at a
@@ -130,7 +135,7 @@ different files, so half the work gets much less than half the payoff. And
 measuring this needs the final `torch.cuda.synchronize()`: with every sync
 removed the host runs far ahead of the GPU, and per-iteration wall times then
 measure launch speed rather than throughput -- an earlier version of this
-measurement without the drain reported 23 ms/step for a step that really takes 39.
+measurement without the drain reported 23.5 ms/step for a step that really takes 38.9.
 
 Two things follow from the table above. The metric-sync commit's "single batched
 host sync per step"
@@ -138,8 +143,11 @@ is really four: the `torch.isfinite(loss)` divergence check two lines above the
 batched read is a second sync, and the sampler adds two more. And three of
 eager's seven are `torch.distributions` argument validation, which
 `torch.compile` removes for free -- part of why compiling wins. Disabling that
-validation directly is worth 4.3% eager, 1.3% `default`, 0.4%
-`max-autotune-no-cudagraphs`, with a bit-identical loss:
+validation directly is worth 4.3% in eager, with a bit-identical loss. For the
+compiled backends it is not measurable: the runs below are single, unrepeated, and
+scoring them against the two eager repeats separately swings `default` between
+0.3% and 1.3% and `max-autotune-no-cudagraphs` between 0.4% and 1.6% -- larger
+than the effect. Read it as "worth a few percent in eager, nothing once compiled":
 
 ```python
 torch.distributions.Distribution.set_default_validate_args(False)
@@ -162,8 +170,8 @@ Same dataset and parameters as above, 40 steps, median of steps 13-40:
 | 2 | 124.4 | 3361 | 45.6 | 1426 | 2.73x |
 | 4 | 132.2 | 1863 | 44.3 | 905 | 2.99x |
 | 8 | 149.8 | 1102 | 46.3 | 626 | 3.24x |
-| 16 | 181.9 | 718 | 48.8 | 486 | 3.73x |
-| 32 | 238.3 | 532 | 57.0 | 417 | 4.18x |
+| 16 | 181.8 | 718 | 48.8 | 486 | 3.73x |
+| 32 | 238.2 | 532 | 57.0 | 417 | 4.18x |
 
 Cost of accumulation *within* each backend, relative to `--num-batches=1`:
 
@@ -174,7 +182,7 @@ Cost of accumulation *within* each backend, relative to `--num-batches=1`:
 | compiled, memory saved | 1.76x | 2.77x | 4.00x | 5.16x | 6.02x |
 
 **Accumulation is close to free once the step is compiled.** Eager pays 24% at
-`--num-batches=8` and doubles by 32; compiled pays 3% and 26%. The compiler's own
+`--num-batches=8` and 98% by 32; compiled pays 3% and 26%. The compiler's own
 speedup *grows* with the batch count -- 2.67x at 1, 4.18x at 32 -- because what
 accumulation adds is per-batch fixed cost, and that is what compilation removes.
 
@@ -202,15 +210,18 @@ distinct shape and the result covers every later batch. No `cache_size_limit`
 warning appears at any batch count, so nothing silently falls back to eager.
 
 **`--reduce-retracing` is still not worth it.** It compiles one graph instead of
-two and saves 20-30 s of one-time compilation, but costs 11% at
-`--num-batches=8` (51.4 vs 46.3 ms) and 26% at 32 (71.7 vs 57.0 ms) for the whole
-run. Pay the extra compile.
+two, which saves 31 s of one-time compilation at `--num-batches=4` and 17 s at 16
+-- and *costs* 20 s at `--num-batches=1`, where the static path already needed
+only one graph. Against that it costs 11% of every step at `--num-batches=8`
+(51.4 vs 46.3 ms) and 26% at 32 (71.7 vs 57.0 ms). Pay the extra compile.
 
 ### Equivalence under accumulation
 
-Every cell of the grid -- six batch counts, eager and compiled, with and without
-`--reduce-retracing` -- tracks the eager `--num-batches=1` trajectory to
-**4.3e-7 or better** on Loss, NLL, F KLDiv and Grad Norm over 40 steps. The two
+Every cell of the grid -- 18 runs: six batch counts eager, the same six compiled,
+and the same six compiled with `--reduce-retracing` -- tracks the eager `--num-batches=1` trajectory to
+**4.5e-7 or better** on Loss, NLL, F KLDiv and Grad Norm over 40 steps (the worst
+cell is Grad Norm at 4.47e-7, `--num-batches=1` compiled with
+`--reduce-retracing`; the worst without it is 4.31e-7). The two
 knobs compose without drift. This is the same float32 reassociation floor as
 [Equivalence](#equivalence) above, and again it is 40 steps, not 10,000.
 
