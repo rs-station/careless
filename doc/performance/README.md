@@ -99,7 +99,41 @@ warning hook, per training step:
 | `distributions/student_t.py` `_validate_sample(value)` | 1 | 0 |
 | **total** | **7** | **4** |
 
-Two things follow. The metric-sync commit's "single batched host sync per step"
+### Are they a bottleneck? No -- about 5% of the compiled step, nothing in eager
+
+Measured by ablation: rebuild `train_model` from `inspect.getsource` with
+`if not torch.isfinite(loss):` and the batched `.tolist()` edited out (everything
+else byte-identical), and/or swap `_accept_reject_truncnorm` for a single draw
+plus a clamp fallback, which has no `done.all()`. 60 steps after a 15-step
+warm-up, with `torch.cuda.synchronize()` at both ends of the timed region:
+
+| syncs removed | max-autotune-no-cudagraphs | eager |
+|---|---:|---:|
+| none | 41.19 ms | 122.37 ms |
+| the two in `train_model` | 40.25 (-2.3%) | 122.16 (-0.2%) |
+| the two in the sampler | 40.67 (-1.3%) | 122.56 (+0.2%) |
+| all four | 38.94 (**-5.5%**) | 121.93 (-0.4%) |
+
+**In eager the syncs are free.** Removing four of the seven changes nothing
+measurable, because the GPU is saturated: the host blocks on a sync only after
+the GPU has already been given more work than the host can produce, so the stall
+costs wall clock it was going to spend waiting anyway.
+
+Compiling shrinks the GPU work per step by 3x without shrinking the host work by
+as much, so host overhead becomes a larger share and the syncs start to show --
+but still only 5.5%. Treat that as an upper bound: the sampler ablation also
+removes a dynamo graph break and does slightly less arithmetic than the real
+accept-reject, so not all of its 1.3% is the sync.
+
+Two practical notes. The effect is close to all-or-nothing and the pieces are in
+different files, so half the work gets much less than half the payoff. And
+measuring this needs the final `torch.cuda.synchronize()`: with every sync
+removed the host runs far ahead of the GPU, and per-iteration wall times then
+measure launch speed rather than throughput -- an earlier version of this
+measurement without the drain reported 23 ms/step for a step that really takes 39.
+
+Two things follow from the table above. The metric-sync commit's "single batched
+host sync per step"
 is really four: the `torch.isfinite(loss)` divergence check two lines above the
 batched read is a second sync, and the sampler adds two more. And three of
 eager's seven are `torch.distributions` argument validation, which
@@ -115,7 +149,9 @@ It is not wired to a flag; `BENCH_NOVALIDATE=1` turns it on in the harness below
 
 ## Reproducing
 
-`bench_compile_mode.py` forwards everything after `--` to the ordinary CLI. It
+`sync_ablation.py` reproduces the sync table above; `ABLATE=loop,sampler` selects
+which syncs to remove. `bench_compile_mode.py` forwards everything after `--` to
+the ordinary CLI. It
 replaces tqdm's progress bar with one that timestamps the top of each step, so
 the loop being measured is careless' own `train_model`, unmodified, driven by the
 real `--jit-compile-mode` flag.
