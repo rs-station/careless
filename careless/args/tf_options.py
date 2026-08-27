@@ -1,3 +1,16 @@
+#: torch.compile modes accepted by --jit-compile-mode, fastest-first ordering is
+#: not implied -- see doc/performance/README.md for the measured ranking.
+JIT_COMPILE_MODES = (
+    "default",
+    "reduce-overhead",
+    "max-autotune",
+    "max-autotune-no-cudagraphs",
+)
+
+#: Modes that hand the compiled graph to CUDA graphs. Combining any of these with
+#: dynamic shapes (--reduce-retracing) segfaults on torch 2.13 / triton 3.7.
+CUDA_GRAPH_MODES = frozenset({"reduce-overhead", "max-autotune"})
+
 name = "TensorFlow"
 description = None
 
@@ -9,13 +22,31 @@ args_and_kwargs = (
     }),
 
     (("--jit-compile",), {
-        "help":"Use jit compilation. By default defer to TF to decide. Enabling this option may decrease memory requirements for some models at the expense of increasing startup time.", 
+        "help":"Compile the training step with torch.compile. This is a large speedup -- "
+               "roughly 2.9x wall clock and 2.5x less peak memory on an RTX A6000 -- at "
+               "the cost of a one-time compilation of up to a minute at startup. "
+               "See --jit-compile-mode to choose the compiler mode.",
         "action":'store_true', 
         "default":None,
     }),
 
+    (("--jit-compile-mode",), {
+        "help":"torch.compile mode used when --jit-compile is given. 'default' compiles "
+               "quickly; the max-autotune modes benchmark several kernels per operation "
+               "and are much faster to run but slower to compile. The default, "
+               "'max-autotune-no-cudagraphs', was the fastest and the least memory hungry "
+               "of the four in a production-parameter benchmark; see doc/performance/. "
+               "CUDA graphs (used by 'reduce-overhead' and 'max-autotune') buy nothing "
+               "here because the sampler's accept-reject loop breaks the graph.",
+        "choices":JIT_COMPILE_MODES,
+        "default":"max-autotune-no-cudagraphs",
+    }),
+
     (("--reduce-retracing",), {
-        "help":"Use the reduce retracing option during compilation. This is disabled by default.", 
+        "help":"Allow dynamic shapes during compilation, so that a change in the number "
+               "of reflections does not force a recompile. Disabled by default. It makes "
+               "no measurable difference to careless, whose shapes are fixed for the whole "
+               "run, and it cannot be combined with a CUDA-graphs --jit-compile-mode.",
         "action":'store_true', 
         "default": False,
     }),

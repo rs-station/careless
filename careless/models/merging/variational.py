@@ -239,6 +239,38 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
     # Custom training loop (mirrors original train_model API)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _compile_kwargs(jit_compile_mode, reduce_retracing):
+        """
+        Build the torch.compile keyword arguments for a given mode.
+
+        Raises on the one combination that is known to be broken: handing a
+        dynamic-shape graph to CUDA graphs segfaults the process (SIGSEGV
+        immediately after compilation, torch 2.13 / triton 3.7, reproduced on
+        both CUDA-graphs modes). Failing loudly here beats a bare crash with no
+        traceback partway into a merge.
+        """
+        from careless.args.tf_options import CUDA_GRAPH_MODES, JIT_COMPILE_MODES
+
+        if jit_compile_mode not in JIT_COMPILE_MODES:
+            raise ValueError(
+                f"Unknown jit_compile_mode {jit_compile_mode!r}; "
+                f"expected one of {list(JIT_COMPILE_MODES)}"
+            )
+        if reduce_retracing and jit_compile_mode in CUDA_GRAPH_MODES:
+            raise ValueError(
+                f"--reduce-retracing cannot be combined with "
+                f"--jit-compile-mode={jit_compile_mode}, which uses CUDA graphs: the "
+                f"combination segfaults. Use --jit-compile-mode=max-autotune-no-cudagraphs "
+                f"(the default, and the faster mode anyway) or drop --reduce-retracing."
+            )
+
+        kwargs = {"dynamic": reduce_retracing}
+        if jit_compile_mode != "default":
+            kwargs["mode"] = jit_compile_mode
+        return kwargs
+
+
     def train_model(
         self,
         data,
@@ -249,6 +281,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         validation_frequency=10,
         progress=True,
         jit_compile=None,
+        jit_compile_mode="max-autotune-no-cudagraphs",
         reduce_retracing=False,
     ):
         """
@@ -273,8 +306,14 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             Whether to display a tqdm progress bar.
         jit_compile : bool, optional
             If truthy, wrap the forward pass with torch.compile.
+        jit_compile_mode : str
+            The torch.compile mode to use when jit_compile is truthy. One of
+            careless.args.tf_options.JIT_COMPILE_MODES. The default,
+            "max-autotune-no-cudagraphs", was the fastest and least memory hungry
+            of the four on the window-merge benchmark; see doc/performance/.
         reduce_retracing : bool
             If True, allow dynamic shapes in torch.compile to avoid recompilation.
+            Cannot be combined with a CUDA-graphs jit_compile_mode.
         """
         from tqdm import trange
 
@@ -284,7 +323,11 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         optimizer = self.configure_optimizers()
         history = {}
 
-        forward_fn = torch.compile(self, dynamic=reduce_retracing) if jit_compile else self
+        forward_fn = self
+        if jit_compile:
+            forward_fn = torch.compile(
+                self, **self._compile_kwargs(jit_compile_mode, reduce_retracing)
+            )
 
         # Move data to model's device
         device = next(self.parameters()).device

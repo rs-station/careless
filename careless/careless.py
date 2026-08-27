@@ -98,6 +98,7 @@ def run_careless(parser):
         validation_frequency=validation_frequency,
         progress=progress,
         jit_compile=parser.jit_compile,
+        jit_compile_mode=parser.jit_compile_mode,
         reduce_retracing=parser.reduce_retracing,
     )
 
@@ -155,6 +156,7 @@ def run_careless(parser):
                     message=f"Merging repeat {repeat + 1} half {half_id + 1}",
                     progress=progress,
                     jit_compile=parser.jit_compile,
+                    jit_compile_mode=parser.jit_compile_mode,
                     reduce_retracing=parser.reduce_retracing,
                 )
 
