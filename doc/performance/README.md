@@ -147,6 +147,73 @@ torch.distributions.Distribution.set_default_validate_args(False)
 
 It is not wired to a flag; `BENCH_NOVALIDATE=1` turns it on in the harness below.
 
+## Gradient accumulation under compilation
+
+`--num-batches=N` splits the reflections into N contiguous mini-batches and
+accumulates their gradients before one optimizer step, trading time for peak
+memory. Compilation changes that trade a lot, because most of what accumulation
+costs is per-batch overhead rather than arithmetic.
+
+Same dataset and parameters as above, 40 steps, median of steps 13-40:
+
+| `--num-batches` | eager ms | eager MiB | compiled ms | compiled MiB | compiled speedup |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 120.5 | 6374 | 45.1 | 2507 | 2.67x |
+| 2 | 124.4 | 3361 | 45.6 | 1426 | 2.73x |
+| 4 | 132.2 | 1863 | 44.3 | 905 | 2.99x |
+| 8 | 149.8 | 1102 | 46.3 | 626 | 3.24x |
+| 16 | 181.9 | 718 | 48.8 | 486 | 3.73x |
+| 32 | 238.3 | 532 | 57.0 | 417 | 4.18x |
+
+Cost of accumulation *within* each backend, relative to `--num-batches=1`:
+
+| `--num-batches` | 2 | 4 | 8 | 16 | 32 |
+|---|---:|---:|---:|---:|---:|
+| eager, time | 1.03x | 1.10x | 1.24x | 1.51x | 1.98x |
+| **compiled, time** | **1.01x** | **0.98x** | **1.03x** | **1.08x** | **1.26x** |
+| compiled, memory saved | 1.76x | 2.77x | 4.00x | 5.16x | 6.02x |
+
+**Accumulation is close to free once the step is compiled.** Eager pays 24% at
+`--num-batches=8` and doubles by 32; compiled pays 3% and 26%. The compiler's own
+speedup *grows* with the batch count -- 2.67x at 1, 4.18x at 32 -- because what
+accumulation adds is per-batch fixed cost, and that is what compilation removes.
+
+The practical consequence is that the two knobs no longer trade against each
+other. Against the eager whole-dataset step this branch started from,
+`--jit-compile --num-batches=16` is **2.5x faster and uses 13.1x less memory**
+(48.8 ms / 486 MiB against 120.5 ms / 6374 MiB) -- 48 GB of headroom turned into
+about 500 MB, with time to spare.
+
+### Compilation count does not grow with `--num-batches`
+
+The worry is that each batch is a separate shape and a separate `batch_weight`
+float, so dynamo would specialize per batch and either recompile N times or blow
+`cache_size_limit` and fall back to eager. It does not. Measured with a cold
+`TORCHINDUCTOR_CACHE_DIR` and `torch._dynamo.utils.counters`:
+
+| `--num-batches` | graphs, static | cold compile | graphs, `--reduce-retracing` | cold compile |
+|---:|---:|---:|---:|---:|
+| 1 | 1 | 32 s | 1 | 52 s |
+| 4 | 2 | 66 s | 1 | 36 s |
+| 16 | 2 | 48 s | 1 | 31 s |
+
+Two graphs, not N: dynamo's automatic-dynamic promotion kicks in on the second
+distinct shape and the result covers every later batch. No `cache_size_limit`
+warning appears at any batch count, so nothing silently falls back to eager.
+
+**`--reduce-retracing` is still not worth it.** It compiles one graph instead of
+two and saves 20-30 s of one-time compilation, but costs 11% at
+`--num-batches=8` (51.4 vs 46.3 ms) and 26% at 32 (71.7 vs 57.0 ms) for the whole
+run. Pay the extra compile.
+
+### Equivalence under accumulation
+
+Every cell of the grid -- six batch counts, eager and compiled, with and without
+`--reduce-retracing` -- tracks the eager `--num-batches=1` trajectory to
+**4.3e-7 or better** on Loss, NLL, F KLDiv and Grad Norm over 40 steps. The two
+knobs compose without drift. This is the same float32 reassociation floor as
+[Equivalence](#equivalence) above, and again it is 40 steps, not 10,000.
+
 ## Reproducing
 
 `sync_ablation.py` reproduces the sync table above; `ABLATE=loop,sampler` selects
@@ -180,6 +247,12 @@ done
 
 python ../doc/performance/summarize.py *.json
 ```
+
+For the gradient-accumulation grid, add `--num-batches=$nb` to `$COMMON` and loop
+`nb` over 1 2 4 8 16 32 with and without `--jit-compile`. To count dynamo
+compilations rather than time them, read
+`torch._dynamo.utils.counters["stats"]["unique_graphs"]` after the run and set
+`TORCH_LOGS=recompiles`.
 
 30 steps is enough: the step time is flat after warm-up and the whole sweep takes
 about ten minutes. Run each mode twice if you want an error bar -- `summarize.py`
