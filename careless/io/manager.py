@@ -391,6 +391,7 @@ class DataManager:
                     epsilon=parser.epsilon,
                     scale_bijector=scale_bijector,
                     scale_multiplier=istd,
+                    image_major=getattr(parser, 'image_major_scaling', True),
                 )
             else:
                 mlp_scaler = MLPScaler(

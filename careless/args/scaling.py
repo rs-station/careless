@@ -30,6 +30,18 @@ args_and_kwargs = (
         "default": 10,
     }),
 
+    (("--row-major-image-layers",), {
+        "help": "Run the per-image scale layers in reflection order, gathering one "
+                "weight matrix per reflection. This is the original behaviour; it uses "
+                "memory quadratic in --mlp-width and fails outright once "
+                "n_reflections * mlp_width**2 exceeds 2**31. The default packs "
+                "reflections into a padded image-major layout instead, which is "
+                "numerically identical but needs no per-reflection gather.",
+        "action": "store_false",
+        "dest": "image_major_scaling",
+        "default": True,
+    }),
+
     (("--image-layers",), {
         "help": "Add additional layers with local image-specific parameters.",
         "type":int,
