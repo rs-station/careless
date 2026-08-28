@@ -569,10 +569,38 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             Cannot be combined with a CUDA-graphs jit_compile_mode.
         """
         from tqdm import trange
+        from contextlib import ExitStack
 
-        # Allow TF32 on Ampere+ GPUs for faster matmuls in the scaling MLP
-        torch.set_float32_matmul_precision('high')
+        stack = ExitStack()
+        with stack:
+            # Allow TF32 on Ampere+ GPUs for faster matmuls in the scaling MLP, and
+            # put it back on the way out.
+            #
+            # float32_matmul_precision is process-global. Setting it and walking away
+            # changes the numerics of every later float32 matmul in the process, which
+            # is a surprising thing for a training call to do to its caller -- and the
+            # effect is not small. Two scaling-layer implementations that agree to
+            # 2.3e-7 under true fp32 were measured 1.6e-4 apart with TF32 enabled,
+            # because only one of them routed through a GEMM. It also made a test pass
+            # in isolation and fail in the suite, which is how it was found.
+            #
+            # Note this now leaves the prediction pass that follows training running at
+            # the caller's precision rather than inheriting 'high'.
+            _prev_precision = torch.get_float32_matmul_precision()
+            stack.callback(torch.set_float32_matmul_precision, _prev_precision)
+            torch.set_float32_matmul_precision('high')
+            return self._train_model_impl(
+                data, steps, message, format_string, validation_data,
+                validation_frequency, progress, num_batches,
+                deterministic_scale_noise, jit_compile, jit_compile_mode,
+                reduce_retracing, trange,
+            )
 
+    def _train_model_impl(
+        self, data, steps, message, format_string, validation_data,
+        validation_frequency, progress, num_batches, deterministic_scale_noise,
+        jit_compile, jit_compile_mode, reduce_retracing, trange,
+    ):
         optimizer = self.configure_optimizers()
         history = {}
 
