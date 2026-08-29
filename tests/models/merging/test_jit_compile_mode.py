@@ -1,9 +1,9 @@
 """
 Tests for --jit-compile-mode plumbing.
 
-These cover the argument handling only; the compiled numerics are covered by the
-end-to-end equivalence measurements recorded in doc/performance/README.md, which
-need a GPU and several minutes of compilation.
+These cover the argument handling only; the compiled numerics are covered by
+separate end-to-end equivalence measurements, which need a GPU and several
+minutes of compilation and so are not part of this suite.
 """
 import pytest
 

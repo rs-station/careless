@@ -1,5 +1,5 @@
 #: torch.compile modes accepted by --jit-compile-mode, fastest-first ordering is
-#: not implied -- see doc/performance/README.md for the measured ranking.
+#: not implied; the default below was the measured winner.
 JIT_COMPILE_MODES = (
     "default",
     "reduce-overhead",
@@ -35,7 +35,7 @@ args_and_kwargs = (
                "quickly; the max-autotune modes benchmark several kernels per operation "
                "and are much faster to run but slower to compile. The default, "
                "'max-autotune-no-cudagraphs', was the fastest and the least memory hungry "
-               "of the four in a production-parameter benchmark; see doc/performance/. "
+               "of the four in a production-parameter benchmark. "
                "CUDA graphs (used by 'reduce-overhead' and 'max-autotune') buy nothing "
                "here because the sampler's accept-reject loop breaks the graph.",
         "choices":JIT_COMPILE_MODES,

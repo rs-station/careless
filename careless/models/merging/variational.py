@@ -566,7 +566,7 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
             The torch.compile mode to use when jit_compile is truthy. One of
             careless.args.tf_options.JIT_COMPILE_MODES. The default,
             "max-autotune-no-cudagraphs", was the fastest and least memory hungry
-            of the four on the window-merge benchmark; see doc/performance/.
+            of the four on the window-merge benchmark.
         reduce_retracing : bool
             If True, allow dynamic shapes in torch.compile to avoid recompilation.
             Cannot be combined with a CUDA-graphs jit_compile_mode.
