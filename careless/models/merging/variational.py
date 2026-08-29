@@ -9,7 +9,6 @@ from careless.models.base import (
     get_accumulated_metrics,
 )
 from careless.distributions import TruncatedNormal
-from careless.optim import AdamEpsInsideSqrt
 
 
 class VariationalMergingModel(L.LightningModule, BaseModel):
@@ -313,7 +312,11 @@ class VariationalMergingModel(L.LightningModule, BaseModel):
         return loss
 
     def configure_optimizers(self):
-        opt = AdamEpsInsideSqrt(
+        # Plain torch.optim.Adam: theta -= alpha * m_hat / (sqrt(v_hat) + eps),
+        # i.e. Kingma & Ba Algorithm 1, identical to tf_keras.optimizers.Adam
+        # (which TF careless uses). _adam_epsilon defaults to 1e-7, the tf_keras
+        # default -- not torch's 1e-8.
+        opt = torch.optim.Adam(
             self.parameters(),
             lr=self._learning_rate,
             betas=(self._beta_1, self._beta_2),

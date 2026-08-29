@@ -67,6 +67,53 @@ def test_truncated_normal_irg_gradients_finite():
             f"Non-finite IRG gradient: {p.grad}"
 
 
+@pytest.mark.parametrize("loc0,scale0", [
+    (0.9, 0.5),   # ~2 sigma from the bound: truncation active
+    (0.3, 0.5),   # mass piled against the bound
+    (0.05, 0.5),  # loc essentially at the bound
+    (1.2, 0.3),   # truncation inactive (sanity)
+    (0.6, 0.7),
+])
+def test_truncated_normal_irg_gradient_matches_finite_difference(loc0, scale0):
+    """
+    The reparameterization gradient from _TruncNormIRG.backward must match the
+    pathwise gradient of E[g(z)] w.r.t. loc/scale, checked against a finite
+    difference of the exact truncated-normal moments. A previous version dropped
+    the moving-lower-bound terms and was wrong (sign flip on d/dscale) whenever
+    the truncation was active -- the regime a structure-factor posterior lives in.
+    """
+    from scipy.stats import truncnorm
+
+    torch.manual_seed(0)
+    n_samples = 4_000_000
+    low, high = 0.0, 1e10
+
+    q = TruncatedNormal(loc=torch.tensor([loc0]), scale=torch.tensor([scale0]),
+                        low=low, high=high)
+    z = q.rsample((n_samples,))
+    # non-trivial test function so both moments contribute
+    (z ** 2 + z).mean().backward()
+
+    # chain the raw-parameter grads through the exp / exp+shift bijectors
+    d_loc = q._loc._value.grad.item() / loc0
+    d_scale = q._scale._value.grad.item() / (scale0 - 1e-7)
+
+    def expected(mu, sig):
+        a, b = (low - mu) / sig, (high - mu) / sig
+        m1 = truncnorm.moment(1, a, b, loc=mu, scale=sig)
+        m2 = truncnorm.moment(2, a, b, loc=mu, scale=sig)
+        return m1 + m2
+
+    h = 1e-4
+    fd_loc = (expected(loc0 + h, scale0) - expected(loc0 - h, scale0)) / (2 * h)
+    fd_scale = (expected(loc0, scale0 + h) - expected(loc0, scale0 - h)) / (2 * h)
+
+    assert d_loc == pytest.approx(fd_loc, abs=5e-3), \
+        f"d/dloc: IRG {d_loc:.4f} vs finite-diff {fd_loc:.4f}"
+    assert d_scale == pytest.approx(fd_scale, abs=5e-3), \
+        f"d/dscale: IRG {d_scale:.4f} vs finite-diff {fd_scale:.4f}"
+
+
 def test_stable_studentt_log_prob_matches_standard():
     """log_prob should agree with torch.distributions.StudentT for small residuals."""
     from torch.distributions import StudentT as TorchStudentT
