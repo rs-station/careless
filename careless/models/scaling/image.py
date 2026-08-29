@@ -1,4 +1,5 @@
 import math
+import os
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
@@ -64,6 +65,17 @@ class ImageLayer(LazyModuleMixin, nn.Module):
     w: UninitializedParameter
     b: UninitializedParameter
 
+    #: OPT-IN, and off by default on purpose. The fused Triton path in
+    #: image_kernels is 8.7x faster on this layer at width 32, but end to end it
+    #: is a 48 % *slowdown* at the production configuration (width 8,
+    #: --num-batches=8) because it costs inductor a fusion it was making for
+    #: free. See doc/performance/fused_image_layer.md for the full measurements
+    #: and for what would have to change before this is worth enabling.
+    #:
+    #: Enable with CARELESS_FUSED_IMAGE_LAYER=1, or by setting this attribute.
+    #: Tests set it directly to compare the two implementations.
+    use_fused_kernel = os.environ.get("CARELESS_FUSED_IMAGE_LAYER", "0") == "1"
+
     def __init__(self, units, max_images, activation=None):
         super().__init__()
         self.units = units
@@ -87,6 +99,21 @@ class ImageLayer(LazyModuleMixin, nn.Module):
     def forward(self, inputs):
         data, image_id = inputs
         image_id = image_id.squeeze(-1).long()
+
+        # The Triton path computes the same affine map, but its backward is a
+        # segmented reduction rather than a per-observation scatter-add. That is
+        # worth ~8.7x on this layer at width 32; see image_kernels for why, and
+        # for the profile that motivated it. Everything else -- CPU, non-float32,
+        # uninitialized lazy parameters, no triton -- takes the reference path.
+        if self.use_fused_kernel and not self.has_uninitialized_params():
+            from careless.models.scaling import image_kernels
+
+            if image_kernels.fast_path_available(data, self.w, self.b, image_id):
+                result = torch.ops.careless.image_linear(data, self.w, self.b, image_id)
+                if self.activation is not None:
+                    result = self.activation(result)
+                return result
+
         w = self.w[image_id]   # (batch, units, in_features)
         b = self.b[image_id]   # (batch, units)
         result = torch.bmm(w, data.unsqueeze(-1)).squeeze(-1) + b
