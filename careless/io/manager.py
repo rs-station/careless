@@ -77,11 +77,21 @@ class DataManager:
             inputs = self.inputs
         return tuple(torch.as_tensor(i) for i in inputs)
 
-    def get_predictions(self, model, inputs=None, test_value=0):
+    def get_predictions(self, model, inputs=None, test_value=0, num_batches=1):
         """
         Extract per-reflection predictions from the model.
 
         Yields rs.DataSet objects (one per ReciprocalASU).
+
+        Parameters
+        ----------
+        num_batches : int
+            Evaluate the scaling model in this many contiguous chunks rather than
+            over the whole dataset at once. This is the inference counterpart of
+            train_model's gradient accumulation, and it matters for the same
+            reason: ImageLayer's weight gather is O(n_obs * width**2), so the
+            prediction pass -- not training -- is what sets the width ceiling once
+            accumulation is in use.
         """
         if inputs is None:
             inputs = self.inputs
@@ -122,8 +132,8 @@ class DataManager:
         torch_inputs = tuple(t.to(device) for t in torch_inputs)
         model.eval()
         with torch.no_grad():
-            ipred, sigipred = model.prediction_mean_stddev(torch_inputs)
-            scale, sigscale = model.scale_mean_stddev(torch_inputs)
+            ipred, sigipred = model.prediction_mean_stddev(torch_inputs, num_batches)
+            scale, sigscale = model.scale_mean_stddev(torch_inputs, num_batches)
 
         num_refls = len(output)
         data_cols = {

@@ -1,4 +1,3 @@
-import math
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
@@ -79,10 +78,19 @@ class ImageLayer(LazyModuleMixin, nn.Module):
             with torch.no_grad():
                 self.w.materialize((self.max_images, self.units, in_features))
                 self.b.materialize((self.max_images, self.units))
-                nn.init.kaiming_uniform_(self.w, a=math.sqrt(5))
-                fan_in = in_features
-                bound = 1.0 / math.sqrt(fan_in) if fan_in > 0 else 0.0
-                nn.init.uniform_(self.b, -bound, bound)
+                # Per-image identity initialization, matching TF careless v0.5.4
+                # (ImageLayer.build: initializer = tf.eye(units, in_features,
+                # batch_shape=(max_images,)); bias_initializer = 'zeros'). Each
+                # image starts as a pass-through map so the metadata MLP signal
+                # reaches the output head unscrambled and the layers learn small
+                # per-image corrections. A random init here (e.g. kaiming_uniform_)
+                # near-annihilates the upstream signal and drives structure-factor
+                # posterior collapse.
+                self.w.zero_()
+                k = min(self.units, in_features)
+                eye = torch.eye(k, device=self.w.device, dtype=self.w.dtype)
+                self.w[:, :k, :k] = eye
+                self.b.zero_()
 
     def forward(self, inputs):
         data, image_id = inputs

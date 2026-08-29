@@ -49,15 +49,20 @@ def run_careless(parser):
         device = torch.device('cpu')
     model.to(device)
 
-    # Initialize any LazyLinear layers before loading weights or freezing parameters
+    # Initialize any LazyLinear layers before loading weights or freezing parameters.
+    # Only a small prefix of the data is needed to fix the feature dimensions, and
+    # using the whole dataset here would allocate a full-size activation footprint
+    # before training even starts.
     with torch.no_grad():
         from careless.models.base import reset_losses_and_metrics
         reset_losses_and_metrics()
+        _n_init = min(len(train[0]), 1 << 16)
         _init_inputs = tuple(
-            torch.as_tensor(d, dtype=torch.float32).to(device) if d.dtype in (np.float64,) else torch.as_tensor(d).to(device)
+            torch.as_tensor(d[:_n_init], dtype=torch.float32).to(device) if d.dtype in (np.float64,) else torch.as_tensor(d[:_n_init]).to(device)
             for d in train
         )
         model(_init_inputs)
+        del _init_inputs
 
         # Apply TF v0.5.4-style identity initialization to the scaling model.
         # All nn.LazyLinear layers are now materialized after the forward pass above.
@@ -97,6 +102,10 @@ def run_careless(parser):
         validation_data=test,
         validation_frequency=validation_frequency,
         progress=progress,
+        num_batches=parser.num_batches,
+        jit_compile=parser.jit_compile,
+        jit_compile_mode=parser.jit_compile_mode,
+        reduce_retracing=parser.reduce_retracing,
     )
 
     import os
@@ -127,13 +136,13 @@ def run_careless(parser):
 
     if test is not None:
         for file_id, (ds_train, ds_test) in enumerate(zip(
-            dm.get_predictions(model, train, test_value=0),
-            dm.get_predictions(model, test, test_value=1),
+            dm.get_predictions(model, train, test_value=0, num_batches=parser.num_batches),
+            dm.get_predictions(model, test, test_value=1, num_batches=parser.num_batches),
         )):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             rs.concat((ds_train, ds_test)).write_mtz(filename)
     else:
-        for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0)):
+        for file_id, ds_train in enumerate(dm.get_predictions(model, train, test_value=0, num_batches=parser.num_batches)):
             filename = parser.output_base + f'_predictions_{file_id}.mtz'
             ds_train.write_mtz(filename)
 
@@ -152,6 +161,10 @@ def run_careless(parser):
                     parser.iterations,
                     message=f"Merging repeat {repeat + 1} half {half_id + 1}",
                     progress=progress,
+                    num_batches=parser.num_batches,
+                    jit_compile=parser.jit_compile,
+                    jit_compile_mode=parser.jit_compile_mode,
+                    reduce_retracing=parser.reduce_retracing,
                 )
 
                 for file_id, ds in enumerate(dm.get_results(model.surrogate_posterior, inputs=half)):

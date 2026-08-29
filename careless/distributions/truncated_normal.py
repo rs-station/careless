@@ -36,10 +36,19 @@ class _TruncNormIRG(torch.autograd.Function):
     Reparameterized sample via Implicit Reparameterization Gradient (Figurnov et al. 2018).
 
     Forward : accept-reject sampling — always in [low, high], no gradient tape.
-    Backward: IRG formula
-        dx/dmu  = 1 + [Phi(t)-Phi(a)] * [phi(a)-phi(b)]       / [Z * phi(t)]
-        dx/dsig = t + [Phi(t)-Phi(a)] * [a*phi(a) - b*phi(b)] / [Z * phi(t)]
-    where t=(x-mu)/sig, a=(low-mu)/sig, b=(high-mu)/sig, Z=Phi(b)-Phi(a).
+    Backward: IRG formula  dx/dtheta = -(dF/dtheta) / p(x), which for the
+    truncated normal works out to
+        dx/dmu  = 1     - phi(a)/phi(t)     + c * [phi(a)   - phi(b)]
+        dx/dsig = t     - a*phi(a)/phi(t)   + c * [a*phi(a) - b*phi(b)]
+    with c = [Phi(t)-Phi(a)] / [Z * phi(t)], t=(x-mu)/sig, a=(low-mu)/sig,
+    b=(high-mu)/sig, Z=Phi(b)-Phi(a).
+
+    The -phi(a)/phi(t) and -a*phi(a)/phi(t) terms are the contribution of the
+    lower truncation limit moving with the parameters; dropping them (as an
+    earlier version did) leaves the gradient correct only when the truncation is
+    inactive (mu many sigma above `low`) and badly wrong — including a sign flip
+    on dx/dsig — once mass piles up against the bound, which is exactly the
+    regime a structure-factor posterior sits in.
     """
 
     @staticmethod
@@ -67,8 +76,8 @@ class _TruncNormIRG(torch.autograd.Function):
         phi_t  = phi_t.clamp(min=1e-38)
 
         c          = (Phi_t - Phi_a) / (Z * phi_t)    # broadcasts over sample dim
-        dx_dloc    = 1.0 + c * (phi_a - phi_b)
-        dx_dscale  = t   + c * (a * phi_a - b * phi_b)
+        dx_dloc    = 1.0 - phi_a / phi_t       + c * (phi_a - phi_b)
+        dx_dscale  = t   - a * phi_a / phi_t   + c * (a * phi_a - b * phi_b)
 
         # Sum over all sample dimensions (grad_x may be (n_samples, n_reflections))
         n_sample_dims = grad_x.ndim - loc.ndim
