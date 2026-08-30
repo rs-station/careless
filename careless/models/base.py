@@ -38,7 +38,7 @@ class BaseModel(nn.Module):
 
     Input tuple ordering:
         [refl_id, image_id, file_id, metadata, intensities, uncertainties]
-        [refl_id, image_id, file_id, metadata, intensities, uncertainties, wavelength, harmonic_id]  (Laue)
+        [refl_id, image_id, file_id, metadata, intensities, uncertainties, wavelength, harmonic_id, dHKL]  (Laue)
     """
     input_index = {
         'refl_id'       : 0,
@@ -49,6 +49,7 @@ class BaseModel(nn.Module):
         'uncertainties' : 5,
         'wavelength'    : 6,
         'harmonic_id'   : 7,
+        'dHKL'          : 8,
     }
 
     def add_loss(self, loss):
@@ -135,3 +136,8 @@ class BaseModel(nn.Module):
     @staticmethod
     def get_harmonic_id(inputs):
         return BaseModel.get_input_by_name(inputs, 'harmonic_id')
+
+    @staticmethod
+    def get_dHKL(inputs):
+        """ Given a collection of inputs extract just the inverse resolution squared (dHKL) in Angstroms^-2. """
+        return BaseModel.get_input_by_name(inputs, 'dHKL')

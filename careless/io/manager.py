@@ -301,6 +301,7 @@ class DataManager:
         from careless.models.merging.variational import VariationalMergingModel
         from careless.models.scaling.image import HybridImageScaler, ImageScaler, NeuralImageScaler
         from careless.models.scaling.nn import MLPScaler
+        from careless.models.scaling.spectral import TabulatedSpectralScaler
 
         if parser is None:
             parser = self.parser
@@ -391,7 +392,22 @@ class DataManager:
             if istd == 0.0:
                 istd = 1.0
 
-            if parser.image_layers > 0:
+            if parser.spectral_file is not None:
+                # Load the 2-column text file
+                data = np.loadtxt(parser.spectral_file)
+
+                # Assuming Col 0 = Wavelength, Col 1 = Scale
+                x_grid = data[:, 0]
+                y_grid = data[:, 1]
+
+                scaling_model = TabulatedSpectralScaler(
+                    x_grid=x_grid,
+                    y_grid=y_grid,
+                    trainable_scale=parser.trainable_spectral_scale,
+                    num_grid_points=parser.spectral_grid_points,
+                    lorentz_correction=parser.lorentz_correction,
+                )
+            elif parser.image_layers > 0:
                 n_images = int(np.max(BaseModel.get_image_id(self.inputs))) + 1
                 scaling_model = NeuralImageScaler(
                     parser.image_layers,

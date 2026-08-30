@@ -50,4 +50,30 @@ args_and_kwargs = (
         "default": "exp",
         "choices" : ["exp", "softplus"],
     }),
+    (("--spectral-file",), {
+        "help": "Path to a two-column whitespace-delimited text file ('wavelength scale') representing the incident flux spectrum."
+                "Disables neural network scaling. Used for harmonic deconvolution with a known spectrum."
+                "See docs/spectral_scaling.md",
+        "type": str,
+        "default": None,
+    }),
+    (("--trainable-spectral-scale",), {
+        "help": "If set, multiplies the tabulated spectrum by a single learnable global scalar. "
+                "Allows the overall magnitude to float while keeping the spectral shape fixed.",
+        "action": "store_true",
+        "default": False,
+    }),
+    (("--spectral-grid-points",), {
+        "help": "Number of points to use for the interpolated spectral lookup table. "
+                "Higher values provide more accuracy but consume more memory. "
+                "Default is 10,000.",
+        "type": int,
+        "default": 10000,
+    }),
+    (("--lorentz-correction",), {
+        "help": "Apply the Laue Lorentz correction factor (L ~ lambda^4 / sin^2(theta)) to the scales. "
+                "Requires using the tabulated spectral scaler.",
+        "action": "store_true",
+        "default": False,
+    }),
 )

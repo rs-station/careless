@@ -158,6 +158,7 @@ def test_build_model_passes_istd_as_scale_multiplier(
         mlp_width=None,
         scale_bijector='exp',
         image_layers=0,
+        spectral_file=None,
         use_image_scales=False,
         mc_samples=1,
         kl_weight=None,
