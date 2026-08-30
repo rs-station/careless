@@ -232,3 +232,86 @@ def test_scale_bijector(off_file, scale_bijector, image_layers):
         assert exists(out_file)
 
 
+
+@pytest.mark.parametrize("trainable", [True, False])
+@pytest.mark.parametrize("lorentz", [True, False])
+@pytest.mark.parametrize("grid_points", [None, 500])
+def test_spectral_poly(off_file, trainable, lorentz, grid_points):
+    """
+    Smoke test for TabulatedSpectralScaler features in poly mode.
+    """
+    with TemporaryDirectory() as td:
+        # 1. Create a dummy spectrum file (Wavelength, Scale)
+        # Covering a broad range to ensure test data wavelengths fall inside
+        spec_path = td + "/spectrum.txt"
+        with open(spec_path, "w") as f:
+            f.write("0.0 1.0\n")
+            f.write("100.0 1.0\n")
+
+        # 2. Base flags for Laue mode
+        # We include 'dHKL' in metadata args as is standard for CLI tests,
+        # though the scaler pulls dHKL from the distinct input slot.
+        flags = f"poly --disable-gpu --iterations={niter} dHKL,image_id"
+
+        # 3. Add Spectral flags
+        flags += f" --spectral-file={spec_path}"
+
+        if trainable:
+            flags += " --trainable-spectral-scale"
+
+        if lorentz:
+            flags += " --lorentz-correction"
+
+        if grid_points is not None:
+            flags += f" --spectral-grid-points={grid_points}"
+
+        # 4. Run test
+        # off_file is a standard fixture in test_cli.py providing an MTZ path
+        base_test_together(flags, [off_file])
+
+def test_spectral_scale_weight_save_and_load(off_file):
+    """
+    Test saving and loading weights for the trainable spectral scaler.
+    """
+    with TemporaryDirectory() as td:
+        # 1. Create a dummy spectrum file
+        spec_path = td + "/spectrum.txt"
+        with open(spec_path, "w") as f:
+            f.write("0.0 1.0\n")
+            f.write("100.0 1.0\n")
+
+        out = td + '/out'
+
+        # 2. Configure flags for the first run
+        # Must use 'poly' mode for spectral scaler features
+        # Enable trainable scale so there are variable weights to save
+        flags = f"poly --disable-gpu --iterations={niter} dHKL,image_id"
+        flags += f" --spectral-file={spec_path} --trainable-spectral-scale"
+
+        command = flags +  f" {off_file} {out}"
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+
+        # Run 1: Training from scratch
+        run_careless(parser)
+
+        # Verify output exists
+        out_file = out + f"_0.mtz"
+        assert exists(out_file)
+
+        # 3. Configure flags for the second run (Loading Weights)
+        # Point --scale-file to the weights saved in the previous run
+        flags_load = flags + f" --scale-file={out}_scale"
+
+        out_reloaded = td + '/out_reloaded'
+        command = flags_load +  f" {off_file} {out_reloaded}"
+
+        from careless.parser import parser
+        parser = parser.parse_args(command.split())
+
+        # Run 2: Training initialized with saved weights
+        run_careless(parser)
+
+        # Verify output exists
+        out_file_reloaded = out_reloaded + f"_0.mtz"
+        assert exists(out_file_reloaded)

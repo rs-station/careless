@@ -113,6 +113,7 @@ def test_build_model_uses_asymmetric_posterior_bounds(
         studentt_likelihood_dof=None, refine_uncertainties=False,
         mlp_layers=2, mlp_width=None, scale_bijector='exp',
         image_layers=0, use_image_scales=False, mc_samples=1,
+        spectral_file=None,
         kl_weight=None, learning_rate=1e-3, beta_1=0.9, beta_2=0.99,
         clipnorm=None, clipvalue=None, global_clipnorm=None,
         adam_epsilon=1e-7, filter_nan_gradients=True,
